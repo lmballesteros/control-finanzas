@@ -1,0 +1,3228 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Control financiero</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='36' fill='%230C121B'/%3E%3Ctext x='90' y='115' font-size='90' text-anchor='middle' fill='%232DD4BF' font-family='sans-serif'%3E$%3C/text%3E%3C/svg%3E" />
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='36' fill='%230F1720'/%3E%3Ctext x='90' y='115' font-size='90' text-anchor='middle' fill='%235EEAD4' font-family='sans-serif'%3E$%3C/text%3E%3C/svg%3E" />
+<meta name="theme-color" content="#0C121B" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Control" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+  :root{
+    --bg:#0C121B; --surface:#171F2A; --surface2:#232F3D; --surface3:#0C121B;
+    --text:#F1F5F4; --muted:#8B98A5; --mint:#2DD4BF; --coral:#F1667A; --amber:#F2B03D;
+    --disp:'Space Grotesk',sans-serif; --body:'Inter',sans-serif; --mono:'IBM Plex Mono',monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--body);-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased;}
+  ::-webkit-scrollbar{width:6px;height:6px;}
+  ::-webkit-scrollbar-thumb{background:var(--surface2);border-radius:3px;}
+  h1,h2{letter-spacing:-0.01em;}
+  .wrap{max-width:480px;margin:0 auto;padding:32px 16px 80px;}
+  .eyebrow{color:var(--mint);font-size:11px;text-transform:uppercase;letter-spacing:.2em;margin-bottom:4px;}
+  h1{font-family:var(--disp);font-size:24px;font-weight:600;margin:0 0 24px;}
+  .stats{display:flex;gap:8px;margin-bottom:32px;overflow-x:auto;}
+  .stat{flex:1;min-width:110px;background:var(--surface);border-radius:14px;padding:16px;box-shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 3px 10px rgba(0,0,0,.22);}
+  .stat .lbl{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.15em;margin-bottom:4px;}
+  .stat .val{font-family:var(--mono);font-size:22px;font-weight:600;}
+  .alerts{background:#241A1D;border-left:3px solid var(--coral);border-radius:12px;padding:12px 16px;margin-bottom:24px;}
+  .alerts .title{color:var(--coral);font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:500;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+  .alerts .row{display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:14px;}
+  .alerts .row .amt{font-family:var(--mono);font-size:12px;white-space:nowrap;}
+  section{margin-bottom:32px;}
+  .sec-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  .sec-title{display:flex;align-items:center;gap:8px;font-family:var(--disp);font-size:14px;font-weight:500;}
+  .add-btn{color:var(--mint);font-size:12px;font-weight:500;background:none;border:none;display:flex;align-items:center;gap:4px;padding:4px;font-family:var(--body);}
+  .empty{color:var(--muted);font-size:12px;padding:2px 4px;}
+  .card{background:var(--surface);border-radius:16px;padding:16px;margin-bottom:10px;box-shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 3px 10px rgba(0,0,0,.22);}
+  button{transition:opacity .15s ease, background-color .15s ease, transform .1s ease;}
+  button:active{transform:scale(.98);}
+  .card-top{display:flex;justify-content:space-between;gap:10px;}
+  .card-main{flex:1;text-align:left;background:none;border:none;color:inherit;padding:0;font-family:inherit;cursor:pointer;}
+  .name{font-family:var(--disp);font-weight:500;font-size:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .tag{background:var(--surface3);color:var(--muted);font-size:10px;padding:2px 6px;border-radius:20px;}
+  .amount-line{display:flex;align-items:baseline;gap:8px;margin-top:4px;flex-wrap:wrap;}
+  .amount-main{font-family:var(--mono);font-size:18px;}
+  .amount-sub{font-family:var(--mono);font-size:12px;color:var(--muted);}
+  .amount-msi{font-family:var(--mono);font-size:12px;color:var(--amber);}
+  .badges{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;}
+  .badge{font-size:11px;padding:2px 6px;border-radius:20px;border:1px solid;display:flex;align-items:center;gap:4px;}
+  .badge-muted{color:var(--muted);font-size:11px;}
+  .icon-btn{background:none;border:none;color:var(--muted);padding:6px;cursor:pointer;}
+  .bar{background:var(--surface3);height:6px;border-radius:6px;margin-top:12px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:6px;transition:width .2s;}
+  .chips{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding-top:12px;}
+  .chip{background:var(--surface2);border:none;font-family:var(--mono);font-size:12px;padding:6px 10px;border-radius:20px;cursor:pointer;}
+  .chip.neg{color:var(--coral);}
+  .chip.pos{color:var(--mint);}
+  .chip-custom{display:flex;align-items:center;gap:4px;margin-left:auto;}
+  .chip-custom input{width:64px;background:var(--surface3);color:var(--text);font-family:var(--mono);font-size:12px;padding:6px 8px;border-radius:8px;border:1px solid transparent;outline:none;}
+  .subsection{margin-top:12px;padding-top:12px;border-top:1px solid var(--surface2);}
+  .subsection-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .subsection-label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;}
+  .mini-add{color:var(--mint);font-size:11px;background:none;border:none;display:flex;align-items:center;gap:4px;}
+  .mini-card{background:var(--surface3);border-radius:10px;padding:10px;margin-bottom:8px;}
+  .mini-row{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .swipe-row{position:relative;overflow:hidden;border-radius:8px;margin-bottom:6px;touch-action:pan-y;}
+  .swipe-actions{position:absolute;top:0;right:0;bottom:0;display:flex;}
+  .swipe-actions button{width:52px;border:none;color:var(--bg);font-size:15px;display:flex;align-items:center;justify-content:center;}
+  .swipe-content{position:relative;background:var(--surface);will-change:transform;}
+  .mini-desc{font-size:12px;}
+  .mini-sub{color:var(--muted);font-family:var(--mono);font-size:11px;margin-top:2px;}
+  .mini-actions{display:flex;align-items:center;gap:6px;}
+  .mark-btn{background:var(--surface2);color:var(--mint);font-size:10px;padding:4px 8px;border-radius:20px;border:none;white-space:nowrap;}
+  .pay-date{color:var(--muted);font-size:11px;}
+  .pay-amt{color:var(--mint);font-family:var(--mono);font-size:12px;}
+  .form-box{background:var(--surface3);border-radius:10px;padding:10px;margin-top:8px;}
+  .form-row{display:flex;gap:8px;margin-bottom:8px;}
+  .form-box input{width:100%;background:var(--surface2);color:var(--text);font-size:12px;padding:8px 10px;border-radius:8px;border:1px solid transparent;outline:none;font-family:inherit;}
+  .form-box input:focus{border-color:var(--mint);}
+  .form-actions{display:flex;gap:8px;}
+  .btn-cancel{flex:1;background:none;border:none;color:var(--muted);font-size:12px;padding:6px;}
+  .btn-save{flex:1;background:var(--mint);color:var(--bg);border:none;border-radius:8px;font-size:12px;padding:8px;font-weight:600;}
+  .btn-save:disabled{background:var(--surface2);color:var(--muted);}
+  .bank-box{background:var(--surface);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 3px 10px rgba(0,0,0,.22);}
+  .bank-title{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;}
+  .bank-row{margin-bottom:10px;}
+  .bank-row-top{display:flex;justify-content:space-between;margin-bottom:4px;font-size:14px;}
+  .bank-row-amt{font-family:var(--mono);color:var(--mint);}
+  .chart-box{background:var(--surface);border-radius:16px;padding:16px;box-shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 3px 10px rgba(0,0,0,.22);}
+  .chart-empty{color:var(--muted);font-size:12px;}
+  .legend{display:flex;gap:16px;margin-bottom:8px;font-size:11px;}
+  .legend span{display:flex;align-items:center;gap:5px;}
+  .dot{width:8px;height:8px;border-radius:50%;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(15,23,32,.72);z-index:50;display:flex;align-items:flex-end;justify-content:center;padding:16px;}
+  .modal{background:var(--surface);border-radius:20px;padding:20px;width:100%;max-width:380px;}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+  .modal-head h3{font-family:var(--disp);font-size:16px;font-weight:500;margin:0;}
+  .modal-head button{background:none;border:none;color:var(--muted);}
+  .modal input{width:100%;background:var(--surface3);color:var(--text);font-size:14px;padding:10px 12px;border-radius:10px;border:1px solid transparent;outline:none;margin-bottom:10px;font-family:inherit;}
+  .modal input:focus{border-color:var(--mint);}
+  .modal-2col{display:flex;gap:10px;}
+  .modal-2col > div{flex:1;}
+  .field-label{color:var(--muted);font-size:11px;display:block;margin-bottom:4px;}
+  .modal-save{width:100%;background:var(--mint);color:var(--bg);border:none;border-radius:10px;padding:10px;font-size:14px;font-weight:600;margin-top:6px;}
+  .modal-save:disabled{background:var(--surface2);color:var(--muted);}
+  .loading{display:flex;align-items:center;justify-content:center;min-height:100vh;color:var(--muted);font-family:var(--mono);font-size:13px;}
+  svg text{font-family:var(--mono);}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading">cargando…</div></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- data + storage ---------- */
+  var STORAGE_KEY = "finance-data-standalone";
+  var CHIPS = [20, 50, 100, 500];
+  var DATA_VERSION = 2;
+
+  var DEFAULT_BUDGET = { salary: 6800, pctGastos: 50, pctDiversion: 30, pctAhorro: 20, configured: false };
+
+  var DEFAULT_CATEGORIES = ["Casa","Comida","Transporte","Entretenimiento","Compras","Salud","Servicios","Educación","Suscripciones","Otros"];
+
+  var DEFAULT_SETTINGS = {
+    fontSize: "normal", notificationsEnabled: false,
+    alertPayments: true, alertCutoffs: true, alertBudget: true, alertGoals: true,
+    alertUtilization: true, alertDebtGrowth: true,
+    monthlyBudgetLimit: 0
+  };
+  var FONT_SCALE = { small: "0.9", normal: "1", large: "1.15", xlarge: "1.3" };
+
+  /* migración progresiva de datos — nunca elimina información existente */
+  function migrateData(parsed){
+    var v = parsed.__v || 1;
+    if(v < 2){
+      /* v1 -> v2: cada gasto obtiene una categoría por defecto ("Otros") si no la tenía */
+      (parsed.cards||[]).forEach(function(c){
+        (c.expenses||[]).forEach(function(e){ if(!e.category) e.category = "Otros"; });
+      });
+      if(!parsed.categories) parsed.categories = DEFAULT_CATEGORIES.slice();
+      v = 2;
+    }
+    parsed.__v = DATA_VERSION;
+    return parsed;
+  }
+
+  /* normaliza cualquier objeto de datos (recién cargado o importado de un respaldo)
+     asegurando que existan todos los campos esperados y aplicando migraciones. */
+  function normalizeData(parsed){
+    if(!parsed || typeof parsed !== "object") return null;
+    if(!Array.isArray(parsed.cards) || !Array.isArray(parsed.savings)) return null;
+    if(!parsed.history) parsed.history = [];
+    if(!parsed.personalCredits) parsed.personalCredits = [];
+    if(!parsed.categories) parsed.categories = DEFAULT_CATEGORIES.slice();
+    if(!parsed.dismissedSubscriptions) parsed.dismissedSubscriptions = [];
+    if(!parsed.confirmedSubscriptions) parsed.confirmedSubscriptions = [];
+    parsed.budget = Object.assign({}, DEFAULT_BUDGET, parsed.budget||{});
+    parsed.settings = Object.assign({}, DEFAULT_SETTINGS, parsed.settings||{});
+    parsed.cards.forEach(function(c){
+      if(!c.expenses) c.expenses = [];
+      if(!c.payments) c.payments = [];
+      if(!c.msi) c.msi = [];
+      if(!c.diferidos) c.diferidos = [];
+    });
+    return migrateData(parsed);
+  }
+
+  function loadData(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        var parsed = normalizeData(JSON.parse(raw));
+        if(parsed) return parsed;
+      }
+    }catch(e){}
+    return { __v:DATA_VERSION, cards: [], savings: [], history: [], personalCredits: [], categories: DEFAULT_CATEGORIES.slice(), budget: Object.assign({}, DEFAULT_BUDGET), settings: Object.assign({}, DEFAULT_SETTINGS) };
+  }
+  function saveData(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }catch(e){}
+  }
+
+  var data = loadData();
+  saveData(); /* persiste inmediatamente cualquier migración de datos antiguos */
+  var ui = { openCard:null, openSaving:null, msiForm:null, msiEditId:null, paymentForm:null, paymentEditId:null,
+             expenseForm:null, expenseEditId:null, deferredForm:null, deferredEditId:null, modal:null,
+             apiKeyModal:false, backupModal:false, backupMessage:"", scanningCard:null, scanError:"", expenseDraft:null,
+             personalCreditForm:null, tab:"resumen", analysisQuery:"", donutSelected:null, toast:null,
+             movQuery:"", movCategory:"", movCard:"", extraPayment:0, movCardPicker:false, deferredInstallPrompt:null, reassignCategory:null, updateAvailable:false, devModeModal:false };
+  var API_KEY_STORAGE = "anthropic-api-key";
+  var LAST_BACKUP_KEY = "last-backup-date";
+  var DEV_MODE_STORAGE = "receipt-dev-mode-enabled";
+
+  /* ====================================================================
+     ARQUITECTURA DE IA PARA RECIBOS — LEE ESTO ANTES DE VENDER LA APP
+     ====================================================================
+     Para una versión comercial, define aquí la URL de TU backend propio
+     (un servidor pequeño que reciba la imagen, llame a la API de Anthropic
+     con tu clave del lado del servidor, y regrese el JSON extraído).
+     Mientras AI_BACKEND_URL esté vacío, la app NUNCA llama a un backend
+     propio — solo permite, de forma opcional y apagada por defecto, un
+     "modo desarrollador" donde la propia persona usuaria pega su clave
+     personal de Anthropic y el navegador llama a la API directo. Ese modo
+     está pensado para pruebas locales, no para distribuir a clientes.
+
+     Frontend → (si hay AI_BACKEND_URL) → Backend seguro → API de IA
+     Frontend → (si no hay AI_BACKEND_URL, y modo desarrollador activo) → API de IA directo
+
+     Formato esperado de la respuesta del backend (mismo formato en ambos casos):
+     { "description": "texto o null", "amount": numero o null, "date": "YYYY-MM-DD" o null }
+     ==================================================================== */
+  var AI_BACKEND_URL = ""; // ej. "https://tu-backend.com/api/scan-receipt" — vacío = sin backend todavía
+
+  function getApiKey(){ try{ return localStorage.getItem(API_KEY_STORAGE) || ""; }catch(e){ return ""; } }
+  function setApiKey(k){ try{ localStorage.setItem(API_KEY_STORAGE, k); }catch(e){} }
+  function isDevModeEnabled(){ try{ return localStorage.getItem(DEV_MODE_STORAGE) === "1"; }catch(e){ return false; } }
+  function setDevModeEnabled(on){ try{ localStorage.setItem(DEV_MODE_STORAGE, on ? "1" : "0"); }catch(e){} }
+  function getLastBackupDate(){ try{ return localStorage.getItem(LAST_BACKUP_KEY); }catch(e){ return null; } }
+
+  /* ---------- helpers ---------- */
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+  function fmt(n){
+    n = Math.round((n||0)*100)/100;
+    return "$" + n.toLocaleString("es-MX",{minimumFractionDigits:0});
+  }
+  function esc(s){
+    return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function nextDueDate(day){
+    if(!day) return null;
+    var now = new Date();
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var cand = new Date(now.getFullYear(), now.getMonth(), day);
+    if(cand < today) cand = new Date(now.getFullYear(), now.getMonth()+1, day);
+    return cand;
+  }
+  function daysUntil(date){
+    var today = new Date(); today.setHours(0,0,0,0);
+    var d = new Date(date); d.setHours(0,0,0,0);
+    return Math.round((d-today)/86400000);
+  }
+  function nextCutoffDate(day){
+    if(!day) return null;
+    var now = new Date();
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var cand = new Date(now.getFullYear(), now.getMonth(), day);
+    if(cand < today) cand = new Date(now.getFullYear(), now.getMonth()+1, day);
+    return cand;
+  }
+  function msiMonthly(p){ return p.months>0 ? p.total/p.months : 0; }
+  function msiElapsed(plan, cutoffDay, dueDay){
+    if(!cutoffDay || !dueDay || !plan.date) return plan.monthsPaid || 0;
+    var cycle0 = billingCycle(plan.date, cutoffDay, dueDay);
+    if(!cycle0) return plan.monthsPaid || 0;
+    var today = new Date(); today.setHours(0,0,0,0);
+    var count = 0;
+    var pago = cycle0.pago;
+    while(count < plan.months && pago < today){
+      count++;
+      pago = new Date(pago.getFullYear(), pago.getMonth()+1, pago.getDate());
+    }
+    return count;
+  }
+  function msiNextPago(plan, cutoffDay, dueDay){
+    if(!cutoffDay || !dueDay || !plan.date) return null;
+    var cycle0 = billingCycle(plan.date, cutoffDay, dueDay);
+    if(!cycle0) return null;
+    var paid = msiEffectivePaid(plan, cutoffDay, dueDay);
+    if(paid >= plan.months) return null;
+    var pago = cycle0.pago;
+    for(var i=0;i<paid;i++) pago = new Date(pago.getFullYear(), pago.getMonth()+1, pago.getDate());
+    return pago;
+  }
+  function msiEffectivePaid(plan, cutoffDay, dueDay){
+    if(plan.paidMonths != null) return Math.min(plan.months, plan.paidMonths);
+    return msiElapsed(plan, cutoffDay, dueDay);
+  }
+  function msiRemaining(plan, cutoffDay, dueDay){ return Math.max(0, plan.total - msiEffectivePaid(plan,cutoffDay,dueDay)*msiMonthly(plan)); }
+  function cardMsiTotal(c){ return (c.msi||[]).reduce(function(s,p){return s+msiRemaining(p,c.cutoffDay,c.dueDay);},0); }
+  function msiDueThisPeriod(card, due){
+    if(!due) return 0;
+    return (card.msi||[]).reduce(function(s,p){
+      var next = msiNextPago(p, card.cutoffDay, card.dueDay);
+      return (next && next.getTime()===due.getTime()) ? s+msiMonthly(p) : s;
+    },0);
+  }
+  function dateLabel(d){ return new Date(d).toLocaleDateString("es-MX",{day:"numeric",month:"short"}); }
+  function dateLabelFull(d){ return new Date(d).toLocaleDateString("es-MX",{day:"numeric",month:"short",year:"numeric"}); }
+
+  function billingCycle(dateISO, cutoffDay, dueDay){
+    if(!cutoffDay || !dueDay) return null;
+    var raw = new Date(dateISO);
+    var d = new Date(raw.getFullYear(), raw.getMonth(), raw.getDate());
+    var y = d.getFullYear(), m = d.getMonth();
+    var cutThis = new Date(y, m, cutoffDay);
+    var corte = d <= cutThis ? cutThis : new Date(y, m+1, cutoffDay);
+    var cy = corte.getFullYear(), cm = corte.getMonth();
+    var pagoSame = new Date(cy, cm, dueDay);
+    var pago = pagoSame > corte ? pagoSame : new Date(cy, cm+1, dueDay);
+    return {corte:corte, pago:pago};
+  }
+  function paymentSchedule(card){
+    var groups = {};
+    var unassigned = {total:0, count:0};
+    (card.expenses||[]).forEach(function(e){
+      var cycle = billingCycle(e.date, card.cutoffDay, card.dueDay);
+      if(!cycle){ unassigned.total += e.amount; unassigned.count += 1; return; }
+      var key = cycle.corte.toISOString().slice(0,10);
+      if(!groups[key]) groups[key] = {corte:cycle.corte, pago:cycle.pago, total:0, count:0};
+      groups[key].total += e.amount;
+      groups[key].count += 1;
+    });
+    var cycles = Object.keys(groups).map(function(k){return groups[k];}).sort(function(a,b){return a.corte-b.corte;});
+    return {cycles:cycles, unassigned:unassigned};
+  }
+
+  function withHistory(next){
+    var totalDebt = next.cards.reduce(function(s,c){ return s + Math.max(0, (c.balance||0) + cardMsiTotal(c) + cardDeferredTotal(c) - (c.extraCredit||0)); },0) + totalPersonalCreditsDebt(next.personalCredits||[]);
+    var totalSavings = next.savings.reduce(function(s,sv){ return s + (sv.current||0); },0);
+    var history = (next.history||[]).concat([{date:new Date().toISOString(), totalDebt:totalDebt, totalSavings:totalSavings}]).slice(-500);
+    next.history = history;
+    return next;
+  }
+  function persist(next){ data = next; saveData(); render(); }
+
+  function monthlyAggregate(history){
+    if(!history || !history.length) return [];
+    var byMonth = {};
+    history.forEach(function(h){
+      var d = new Date(h.date);
+      var key = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+      byMonth[key] = {date:d, totalDebt:h.totalDebt, totalSavings:h.totalSavings};
+    });
+    return Object.keys(byMonth).map(function(k){return byMonth[k];})
+      .sort(function(a,b){return a.date-b.date;})
+      .map(function(m){
+        return {
+          label: m.date.toLocaleDateString("es-MX",{month:"short",year:"2-digit"}),
+          Deuda: Math.round(m.totalDebt),
+          Ahorro: Math.round(m.totalSavings)
+        };
+      });
+  }
+  function cardAmountDueNow(card){
+    var due = nextDueDate(card.dueDay);
+    if(!due) return {due:null, amount:0, futureCycleTotal:0, amountDueNow:0};
+    var schedule = paymentSchedule(card);
+    var futureCycleTotal = schedule.cycles.filter(function(g){ return g.pago.getTime() > due.getTime(); }).reduce(function(s,g){ return s+g.total; },0);
+    var amountDueNow = Math.max(0, card.balance - futureCycleTotal);
+    var msiDue = msiDueThisPeriod(card, due);
+    var defDue = deferredDueThisPeriod(card, due);
+    var rawTotal = amountDueNow+msiDue+defDue;
+    var credit = card.extraCredit || 0;
+    return {due:due, amount: Math.max(0, rawTotal-credit), futureCycleTotal:futureCycleTotal, amountDueNow:amountDueNow, rawTotal:rawTotal, credit:credit};
+  }
+
+  function sortCardsByDue(cards){
+    return cards.slice().sort(function(a,b){
+      var da = cardAmountDueNow(a);
+      var db = cardAmountDueNow(b);
+      var aPending = da.due && da.amount > 0;
+      var bPending = db.due && db.amount > 0;
+      if(aPending && !bPending) return -1;
+      if(!aPending && bPending) return 1;
+      if(!aPending && !bPending) return 0;
+      return da.due - db.due;
+    });
+  }
+
+  function upcomingDuePayments(cards){
+    return cards.map(function(c){
+      var r = cardAmountDueNow(c);
+      if(!r.due || r.amount<=0) return null;
+      return {card:c, due:r.due, dLeft:daysUntil(r.due)};
+    }).filter(function(a){ return a && a.dLeft<=7; })
+      .sort(function(a,b){ return a.dLeft-b.dLeft; });
+  }
+  function upcomingPersonalCreditPayments(credits){
+    return (credits||[]).map(function(c){
+      var date = personalNextPaymentDate(c);
+      if(!date) return null;
+      return {credit:c, date:date, dLeft:daysUntil(date)};
+    }).filter(function(a){ return a && a.dLeft<=7; })
+      .sort(function(a,b){ return a.dLeft-b.dLeft; });
+  }
+  function sortPersonalCreditsByDue(credits){
+    return credits.slice().sort(function(a,b){
+      var da = personalNextPaymentDate(a);
+      var db = personalNextPaymentDate(b);
+      if(da && !db) return -1;
+      if(!da && db) return 1;
+      if(!da && !db) return 0;
+      return da - db;
+    });
+  }
+  function upcomingCutoffs(cards){
+    return cards.map(function(c){
+      var cutoff = nextCutoffDate(c.cutoffDay);
+      if(!cutoff) return null;
+      return {card:c, cutoff:cutoff, dLeft:daysUntil(cutoff)};
+    }).filter(function(a){ return a && a.dLeft<=5; })
+      .sort(function(a,b){ return a.dLeft-b.dLeft; });
+  }
+  function monthTotal(expenses, year, month){
+    return (expenses||[]).reduce(function(s,e){
+      var d = new Date(e.date);
+      return (d.getFullYear()===year && d.getMonth()===month) ? s+e.amount : s;
+    },0);
+  }
+
+  var IVA_RATE = 0.16;
+  function buildAmortization(principal, months, annualRatePct){
+    var i = annualRatePct/100/12;
+    var payment = i===0 ? principal/months : (principal*i)/(1-Math.pow(1+i,-months));
+    var balance = principal;
+    var rows = [];
+    for(var m=1; m<=months; m++){
+      var interest = balance*i;
+      var capital = payment-interest;
+      if(m===months || capital>balance) capital = balance;
+      var iva = interest*IVA_RATE;
+      var total = capital+interest+iva;
+      balance = Math.max(0, balance-capital);
+      rows.push({month:m, interest:interest, capital:capital, iva:iva, total:total, balanceAfter:balance});
+    }
+    return rows;
+  }
+  function deferredRemaining(plan, cutoffDay, dueDay){
+    var paid = msiEffectivePaid(plan, cutoffDay, dueDay);
+    var rows = buildAmortization(plan.principal, plan.months, plan.annualRate);
+    return paid<=0 ? plan.principal : rows[Math.min(paid,plan.months)-1].balanceAfter;
+  }
+  function deferredNextPayment(plan, cutoffDay, dueDay){
+    var paid = msiEffectivePaid(plan, cutoffDay, dueDay);
+    if(paid >= plan.months) return null;
+    var rows = buildAmortization(plan.principal, plan.months, plan.annualRate);
+    return rows[paid];
+  }
+  function cardDeferredTotal(card){
+    return (card.diferidos||[]).reduce(function(s,p){return s+deferredRemaining(p,card.cutoffDay,card.dueDay);},0);
+  }
+  function deferredDueThisPeriod(card, due){
+    if(!due) return 0;
+    return (card.diferidos||[]).reduce(function(s,p){
+      var next = msiNextPago(p, card.cutoffDay, card.dueDay);
+      if(!next || next.getTime()!==due.getTime()) return s;
+      var row = deferredNextPayment(p, card.cutoffDay, card.dueDay);
+      return row ? s+row.total : s;
+    },0);
+  }
+
+  function personalInstallmentDate(credit, k){
+    var start = new Date(credit.startDate);
+    return new Date(start.getFullYear(), start.getMonth()+k, credit.paymentDay);
+  }
+  function personalElapsed(credit){
+    if(credit.paidMonths != null) return Math.min(credit.months, credit.paidMonths);
+    var today = new Date(); today.setHours(0,0,0,0);
+    var count = 0;
+    for(var k=1; k<=credit.months; k++){
+      if(personalInstallmentDate(credit,k) < today) count++;
+      else break;
+    }
+    return count;
+  }
+  function personalNextPaymentDate(credit){
+    var paid = personalElapsed(credit);
+    if(paid >= credit.months) return null;
+    return personalInstallmentDate(credit, paid+1);
+  }
+  function personalRemaining(credit){
+    var paid = personalElapsed(credit);
+    var rows = buildAmortization(credit.principal, credit.months, credit.annualRate);
+    return paid<=0 ? credit.principal : rows[Math.min(paid,credit.months)-1].balanceAfter;
+  }
+  function personalNextPaymentRow(credit){
+    var paid = personalElapsed(credit);
+    if(paid >= credit.months) return null;
+    var rows = buildAmortization(credit.principal, credit.months, credit.annualRate);
+    return rows[paid];
+  }
+  function totalPersonalCreditsDebt(list){
+    return (list||[]).reduce(function(s,c){ return s+personalRemaining(c); },0);
+  }
+
+  var DONUT_COLORS = ["#2DD4BF","#F1667A","#F2B03D","#8B98A5","#60A5FA","#F472B6","#A78BFA"];
+
+  function utilizationLevel(pct){
+    if(pct>=70) return {label:"Alta", color:"var(--coral)"};
+    if(pct>=30) return {label:"Atención", color:"var(--amber)"};
+    return {label:"Ideal", color:"var(--mint)"};
+  }
+
+  function cardUsedTotal(card){
+    return Math.max(0, (card.balance||0) + cardMsiTotal(card) + cardDeferredTotal(card) - (card.extraCredit||0));
+  }
+  function cardUtilizationPct(card){
+    if(!card.limit) return 0;
+    return Math.min(100, (cardUsedTotal(card)/card.limit)*100);
+  }
+  function debtByCard(cards){
+    return cards.map(function(c,i){ return {label:c.name, value:cardUsedTotal(c), color:DONUT_COLORS[i%DONUT_COLORS.length]}; })
+      .filter(function(d){ return d.value>0.5; })
+      .sort(function(a,b){ return b.value-a.value; });
+  }
+  function paymentPriorityList(dataObj){
+    var items = [];
+    dataObj.cards.forEach(function(c){
+      if(c.revolvingRate && c.balance>0){
+        var hasRealMin = c.minPayment && c.minPayment>0;
+        var estMin = hasRealMin ? c.minPayment : Math.max(c.balance*0.05, 300);
+        items.push({label:c.name+" · saldo", type:"revolving", rate:c.revolvingRate, remaining:c.balance, monthlyPayment:estMin, amortPayment:estMin, isEstimated:!hasRealMin});
+      }
+      (c.diferidos||[]).forEach(function(p){
+        var rem = deferredRemaining(p, c.cutoffDay, c.dueDay);
+        if(rem>0.5){
+          var paidD = msiEffectivePaid(p, c.cutoffDay, c.dueDay);
+          var rowsD = buildAmortization(p.principal, p.months, p.annualRate);
+          var rowD = rowsD.length ? rowsD[Math.min(paidD, p.months-1)] : null;
+          items.push({label:c.name+" · "+p.description, type:"diferido", rate:p.annualRate, remaining:rem,
+            monthlyPayment: rowD ? rowD.total : 0, amortPayment: rowD ? (rowD.capital+rowD.interest) : 0, isEstimated:false});
+        }
+      });
+    });
+    (dataObj.personalCredits||[]).forEach(function(c){
+      var rem = personalRemaining(c);
+      if(rem>0.5){
+        var paidP = personalElapsed(c);
+        var rowsP = buildAmortization(c.principal, c.months, c.annualRate);
+        var rowP = rowsP.length ? rowsP[Math.min(paidP, c.months-1)] : null;
+        items.push({label:c.description, type:"personalCredit", rate:c.annualRate, remaining:rem,
+          monthlyPayment: rowP ? rowP.total : 0, amortPayment: rowP ? (rowP.capital+rowP.interest) : 0, isEstimated:false});
+      }
+    });
+    return items.sort(function(a,b){ return b.rate-a.rate; });
+  }
+  function detectSubscriptions(cards, dismissed){
+    dismissed = dismissed || [];
+    var all = [];
+    cards.forEach(function(c){ (c.expenses||[]).forEach(function(e){ all.push(Object.assign({}, e, {card:c.name})); }); });
+    var groups = {};
+    all.forEach(function(e){
+      var key = e.description.trim().toLowerCase();
+      if(!key) return;
+      if(!groups[key]) groups[key] = [];
+      groups[key].push(e);
+    });
+    var subs = [];
+    Object.keys(groups).forEach(function(key){
+      if(dismissed.indexOf(key)!==-1) return;
+      var list = groups[key];
+      if(list.length<2) return;
+      var months = {};
+      list.forEach(function(e){ var d=new Date(e.date); months[d.getFullYear()+"-"+d.getMonth()]=true; });
+      var distinctMonths = Object.keys(months).length;
+      if(distinctMonths<2) return;
+      var amounts = list.map(function(e){ return e.amount; });
+      var avg = amounts.reduce(function(s,a){return s+a;},0)/amounts.length;
+      var consistent = amounts.every(function(a){ return Math.abs(a-avg)/avg < 0.15; });
+      if(!consistent) return;
+      // frecuencia aproximada: promedio de días entre cargos consecutivos ordenados por fecha
+      var sortedDates = list.map(function(e){ return new Date(e.date).getTime(); }).sort(function(a,b){return a-b;});
+      var gaps = [];
+      for(var i=1;i<sortedDates.length;i++){ gaps.push((sortedDates[i]-sortedDates[i-1])/86400000); }
+      var avgGapDays = gaps.length ? gaps.reduce(function(s,g){return s+g;},0)/gaps.length : 30;
+      var freqLabel = avgGapDays<=10 ? "semanal" : avgGapDays<=45 ? "mensual" : avgGapDays<=100 ? "trimestral" : "anual";
+      var monthlyEquivalent = avgGapDays<=10 ? avg*4.33 : avgGapDays<=45 ? avg : avgGapDays<=100 ? avg/3 : avg/12;
+      subs.push({key:key, description:list[0].description, card:list[0].card, avgAmount:avg, count:list.length, freqLabel:freqLabel, monthlyEquivalent:monthlyEquivalent});
+    });
+    return subs.sort(function(a,b){ return b.monthlyEquivalent-a.monthlyEquivalent; });
+  }
+  function searchMovements(cards, query){
+    var q = query.trim().toLowerCase();
+    if(q.length<2) return [];
+    var results = [];
+    cards.forEach(function(c){
+      (c.expenses||[]).forEach(function(e){
+        if(e.description.toLowerCase().indexOf(q)!==-1){
+          results.push({id:e.id, description:e.description, amount:e.amount, date:e.date, card:c.name});
+        }
+      });
+    });
+    return results.sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
+  }
+
+  function filterMovements(cards, opts){
+    opts = opts || {};
+    var q = (opts.query||"").trim().toLowerCase();
+    var results = [];
+    cards.forEach(function(c){
+      if(opts.cardId && c.id!==opts.cardId) return;
+      (c.expenses||[]).forEach(function(e){
+        if(q && e.description.toLowerCase().indexOf(q)===-1) return;
+        if(opts.category && (e.category||"Otros")!==opts.category) return;
+        results.push({id:e.id, description:e.description, amount:e.amount, date:e.date, category:e.category||"Otros", cardId:c.id, cardName:c.name});
+      });
+    });
+    return results.sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
+  }
+
+  /* ---------- salud financiera ---------- */
+  function computeHealthScore(dataObj, totalDebt, totalSavings){
+    var reasons = [];
+    var score = 100;
+    var factorsEvaluated = 0;
+    var factorsSkipped = [];
+
+    // 1) Utilización promedio de tarjetas (peso alto)
+    var cardsWithLimit = dataObj.cards.filter(function(c){ return c.limit>0; });
+    var avgUtil = 0;
+    if(cardsWithLimit.length){
+      factorsEvaluated++;
+      avgUtil = cardsWithLimit.reduce(function(s,c){ return s+cardUtilizationPct(c); },0)/cardsWithLimit.length;
+      var utilPenalty = Math.round(Math.min(30, (avgUtil/100)*30));
+      score -= utilPenalty;
+      if(avgUtil>=70) reasons.push({text:"Tu utilización promedio de tarjetas es de "+Math.round(avgUtil)+"%. Bajarla de 70% suele ayudar según nuestros criterios internos (no es una regla bancaria universal).", weight:utilPenalty});
+    }
+
+    // 2) Capacidad de ahorro (ingresos vs gasto) — SOLO si el usuario configuró su sueldo real en Presupuesto.
+    // Nunca usamos el valor de referencia ($6,800) que trae la app por defecto: eso produciría un score falso.
+    if(dataObj.budget && dataObj.budget.configured && (dataObj.budget.salary||0)>0){
+      factorsEvaluated++;
+      var salaryMonthly = dataObj.budget.salary*4.33;
+      var now = new Date();
+      var gastoMes = dataObj.cards.reduce(function(s,c){ return s+monthTotal(c.expenses||[], now.getFullYear(), now.getMonth()); },0);
+      var capacidad = Math.max(-1, (salaryMonthly-gastoMes)/salaryMonthly);
+      var capPenalty = capacidad<0.1 ? Math.round(Math.min(20, (0.1-capacidad)*100)) : 0;
+      score -= capPenalty;
+      if(capPenalty>0) reasons.push({text:"Tu capacidad de ahorro este mes es baja frente al sueldo mensual que tú configuraste en Presupuesto ("+fmt(dataObj.budget.salary)+"/semana). Si ese número ya no es correcto, actualízalo.", weight:capPenalty});
+    }else{
+      factorsSkipped.push("capacidad de ahorro (no has configurado tu sueldo en Presupuesto)");
+    }
+
+    // 3) Relación deuda / ahorro
+    var debtSavingsPenalty = 0;
+    if(totalDebt>0){
+      factorsEvaluated++;
+      var ratio = totalSavings>0 ? totalDebt/totalSavings : (totalDebt>0?3:0);
+      debtSavingsPenalty = Math.round(Math.min(20, Math.max(0, (ratio-1)*8)));
+      score -= debtSavingsPenalty;
+      if(debtSavingsPenalty>0) reasons.push({text:"Tu deuda total es varias veces mayor que tu ahorro acumulado (criterio interno de esta app, no un estándar de la industria).", weight:debtSavingsPenalty});
+    }
+
+    // 4) Pagos próximos vencidos o urgentes
+    var urgentPayments = upcomingDuePayments(dataObj.cards).filter(function(a){ return a.dLeft<=3; }).length +
+      upcomingPersonalCreditPayments(dataObj.personalCredits).filter(function(a){ return a.dLeft<=3; }).length;
+    if(urgentPayments>0){
+      factorsEvaluated++;
+      var payPenalty = Math.min(15, urgentPayments*5);
+      score -= payPenalty;
+      reasons.push({text:"Tienes "+urgentPayments+" pago(s) venciendo en los próximos 3 días.", weight:payPenalty});
+    }
+
+    // 5) Progreso de reducción de deuda (usando historial)
+    var points = monthlyAggregate(dataObj.history);
+    if(points.length>=2){
+      factorsEvaluated++;
+      var prevDebt = points[points.length-2].Deuda;
+      var lastDebt = points[points.length-1].Deuda;
+      if(prevDebt>0 && lastDebt>prevDebt){
+        var growthPenalty = 10;
+        score -= growthPenalty;
+        reasons.push({text:"Tu deuda total creció respecto al mes anterior.", weight:growthPenalty});
+      }
+    }
+
+    score = Math.max(0, Math.min(100, Math.round(score)));
+    reasons.sort(function(a,b){ return b.weight-a.weight; });
+    var level = score>=70 ? {label:"Bien", color:"var(--mint)", icon:"🟢"} : score>=40 ? {label:"Atención", color:"var(--amber)", icon:"🟡"} : {label:"Crítico", color:"var(--coral)", icon:"🔴"};
+    return {
+      score:score, level:level,
+      mainReason: reasons.length ? reasons[0].text : "No detectamos focos rojos importantes con la información registrada.",
+      reasons:reasons, factorsEvaluated:factorsEvaluated, factorsSkipped:factorsSkipped
+    };
+  }
+
+  /* ---------- análisis por categoría ---------- */
+  function categoryBreakdown(cards, year, month){
+    var byCat = {};
+    var total = 0;
+    cards.forEach(function(c){
+      (c.expenses||[]).forEach(function(e){
+        var d = new Date(e.date);
+        if(d.getFullYear()!==year || d.getMonth()!==month) return;
+        var cat = e.category || "Otros";
+        byCat[cat] = (byCat[cat]||0)+e.amount;
+        total += e.amount;
+      });
+    });
+    return { total:total, byCat: Object.keys(byCat).map(function(k){ return {category:k, amount:byCat[k], pct: total>0?(byCat[k]/total)*100:0}; }).sort(function(a,b){ return b.amount-a.amount; }) };
+  }
+  function previousMonth(year, month){
+    return month===0 ? {year:year-1, month:11} : {year:year, month:month-1};
+  }
+
+  /* ---------- plan para salir de deudas ---------- */
+  function debtPayoffPlan(dataObj, extraMonthly){
+    extraMonthly = extraMonthly || 0;
+    var items = paymentPriorityList(dataObj); // ya viene ordenado de mayor a menor tasa (avalancha)
+    var totalDebt = items.reduce(function(s,i){ return s+i.remaining; },0);
+    if(!items.length) return null;
+    var hasEstimated = items.some(function(i){ return i.isEstimated; });
+    var totalMonthlyPayment = items.reduce(function(s,i){ return s+(i.monthlyPayment||0); },0);
+
+    function simulate(extra){
+      // Cada partida se amortiza con su propio pago real (diferidos/créditos personales usan su
+      // mensualidad ya calculada con interés + IVA) o, cuando no hay un pago registrado
+      // (saldo revolvente de tarjeta), con un pago mínimo estimado — señalado como tal en la UI.
+      // El método avalancha aplica el pago adicional íntegro a la deuda de mayor tasa vigente;
+      // al liquidarse, su mensualidad completa se libera y se suma al "pool" disponible para las demás.
+      //
+      // amortPayment (capital+interés, SIN IVA) es lo que reduce el saldo cada mes — el IVA no
+      // amortiza capital, es un impuesto adicional sobre el interés. Pero el costo total que
+      // reportamos al usuario ("intereses estimados") SÍ debe incluir el IVA cuando la deuda lo
+      // genera (diferidos y créditos personales), igual que se muestra en el detalle de cada
+      // tarjeta/crédito — de lo contrario el IVA "desaparecería" del estimado. Las tarjetas
+      // revolventes no manejan IVA en ningún otro cálculo de la app, así que no se le agrega aquí.
+      var balances = items.map(function(i){ return {type:i.type, rate:i.rate, remaining:i.remaining, amortPayment:i.amortPayment||i.monthlyPayment||0}; });
+      var months = 0, totalInterest = 0;
+      while(balances.some(function(b){ return b.remaining>0.5; }) && months<600){
+        months++;
+        var freedUp = 0; // mensualidades de deudas ya liquidadas, redirigidas a la de mayor tasa (bola de nieve del método avalancha)
+        for(var k=0;k<balances.length;k++){
+          var bk = balances[k];
+          if(bk.remaining<=0.5){
+            freedUp += bk.amortPayment; // esta deuda ya se liquidó: su pago mensual se redirige a las demás
+            continue;
+          }
+          var monthlyRate = (bk.rate/100)/12;
+          var interest = bk.remaining*monthlyRate;
+          var interestCost = (bk.type==="diferido" || bk.type==="personalCredit") ? interest*(1+IVA_RATE) : interest;
+          totalInterest += interestCost;
+          var pay = Math.min(bk.amortPayment+freedUp, bk.remaining+interest);
+          freedUp = Math.max(0, (bk.amortPayment+freedUp) - pay);
+          bk.remaining = Math.max(0, bk.remaining + interest - pay);
+        }
+        // pago extra: se aplica completo a la deuda de mayor tasa que siga pendiente (avalancha)
+        var availableExtra = extra;
+        for(var j=0;j<balances.length;j++){
+          if(availableExtra<=0) break;
+          var bj = balances[j];
+          if(bj.remaining<=0.5) continue;
+          var payExtra = Math.min(availableExtra, bj.remaining);
+          bj.remaining -= payExtra;
+          availableExtra -= payExtra;
+        }
+      }
+      return { months: months, totalInterest: totalInterest };
+    }
+
+    var base = simulate(0);
+    var withExtra = extraMonthly>0 ? simulate(extraMonthly) : base;
+    return {
+      items: items,
+      totalDebt: totalDebt,
+      hasEstimated: hasEstimated,
+      totalMonthlyPayment: totalMonthlyPayment,
+      currentMonths: base.months,
+      currentInterest: base.totalInterest,
+      extraMonths: withExtra.months,
+      extraInterest: withExtra.totalInterest,
+      monthsSaved: Math.max(0, base.months - withExtra.months),
+      interestSaved: Math.max(0, base.totalInterest - withExtra.totalInterest)
+    };
+  }
+
+  function categoryUsageCount(cards, cat){
+    var n = 0;
+    (cards||[]).forEach(function(c){ (c.expenses||[]).forEach(function(e){ if((e.category||"Otros")===cat) n++; }); });
+    return n;
+  }
+  function reassignCategory(fromCat, toCat){
+    var cards = data.cards.map(function(c){
+      var expenses = (c.expenses||[]).map(function(e){
+        return (e.category||"Otros")===fromCat ? Object.assign({}, e, {category:toCat}) : e;
+      });
+      return Object.assign({}, c, {expenses:expenses});
+    });
+    var categories = (data.categories||DEFAULT_CATEGORIES.slice()).filter(function(c){ return c!==fromCat; });
+    persist(Object.assign({}, data, {cards:cards, categories:categories}));
+  }
+
+  function fileToBase64(file){
+    return new Promise(function(resolve, reject){
+      var reader = new FileReader();
+      reader.onload = function(){ resolve(reader.result.split(",")[1]); };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function buildMovementsCSV(dataObj){
+    var body = [];
+    dataObj.cards.forEach(function(c){
+      (c.expenses||[]).forEach(function(e){ body.push([c.name, "Gasto", e.description, e.amount, e.date]); });
+      (c.payments||[]).forEach(function(p){ body.push([c.name, "Pago", "", p.amount, p.date]); });
+    });
+    body.sort(function(a,b){ return new Date(b[4]) - new Date(a[4]); });
+    var rows = [["Tarjeta","Tipo","Descripción","Monto","Fecha"]].concat(body.map(function(r){
+      return [r[0], r[1], r[2], r[3], new Date(r[4]).toLocaleDateString("es-MX")];
+    }));
+    return rows.map(function(r){
+      return r.map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(",");
+    }).join("\n");
+  }
+
+  function scanReceipt(cardId, file){
+    if(!AI_BACKEND_URL && !isDevModeEnabled()){
+      ui.devModeModal = true;
+      render();
+      return;
+    }
+    if(!AI_BACKEND_URL && !getApiKey()){
+      ui.apiKeyModal = true;
+      render();
+      return;
+    }
+    ui.scanningCard = cardId;
+    ui.scanError = "";
+    render();
+    fileToBase64(file).then(function(base64){
+      if(AI_BACKEND_URL){
+        // Arquitectura recomendada: la imagen va a TU backend, que guarda la clave del lado del servidor.
+        return fetch(AI_BACKEND_URL, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ image: base64, mediaType: file.type || "image/jpeg" })
+        }).then(function(res){ return res.json(); }).then(function(json){
+          return { fromBackend:true, data: json };
+        });
+      }
+      // Modo desarrollador (BYO key): llamada directa desde el navegador, solo para pruebas locales.
+      var apiKey = getApiKey();
+      return fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true"
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 500,
+          messages: [{
+            role: "user",
+            content: [
+              { type: "image", source: { type: "base64", media_type: file.type || "image/jpeg", data: base64 } },
+              { type: "text", text: 'Analiza esta foto de un recibo o comprobante de compra. Responde ÚNICAMENTE con un objeto JSON, sin texto adicional ni markdown, con este formato exacto: {"description": "nombre breve del comercio o compra (máx 40 caracteres)", "amount": monto_total_pagado_como_numero, "date": "YYYY-MM-DD si la fecha es visible, si no null"}. Si no puedes leer el recibo con claridad, responde {"description": null, "amount": null, "date": null}.' }
+            ]
+          }]
+        })
+      }).then(function(res){ return res.json(); }).then(function(resp){
+        return { fromBackend:false, data: resp };
+      });
+    }).then(function(wrapped){
+      var parsed;
+      if(wrapped.fromBackend){
+        if(wrapped.data && wrapped.data.error){ throw new Error(wrapped.data.error); }
+        parsed = wrapped.data || {};
+      }else{
+        var resp = wrapped.data;
+        if(resp && resp.error){ throw new Error(resp.error.message || "error de API"); }
+        var text = (resp.content||[]).filter(function(c){return c.type==="text";}).map(function(c){return c.text;}).join("");
+        var clean = text.replace(/```json|```/g,"").trim();
+        parsed = JSON.parse(clean);
+      }
+      var draft = { description:"", amount:"", date: new Date().toISOString().slice(0,10) };
+      if(parsed.description) draft.description = String(parsed.description).slice(0,60);
+      if(parsed.amount && !isNaN(parsed.amount)) draft.amount = String(parsed.amount);
+      if(parsed.date && /^\d{4}-\d{2}-\d{2}$/.test(parsed.date)) draft.date = parsed.date;
+      if(!parsed.description && !parsed.amount){
+        ui.scanError = "No pude leer el recibo con claridad. Revisa los datos o llénalos a mano.";
+      }
+      ui.expenseDraft = draft;
+      ui.expenseForm = cardId;
+      ui.scanningCard = null;
+      render();
+    }).catch(function(err){
+      ui.scanError = "No se pudo leer la foto (" + err.message + "). Intenta de nuevo o llena los datos a mano.";
+      ui.expenseForm = cardId;
+      ui.scanningCard = null;
+      render();
+    });
+  }
+
+  /* ---------- mutations ---------- */
+  function adjustCard(id, delta){
+    var cards = data.cards.map(function(c){
+      return c.id===id ? Object.assign({}, c, {balance: Math.max(0, +(c.balance+delta).toFixed(2))}) : c;
+    });
+    persist(withHistory(Object.assign({}, data, {cards:cards})));
+  }
+  function adjustSaving(id, delta){
+    var savings = data.savings.map(function(s){
+      return s.id===id ? Object.assign({}, s, {current: Math.max(0, +(s.current+delta).toFixed(2))}) : s;
+    });
+    persist(withHistory(Object.assign({}, data, {savings:savings})));
+  }
+  function deleteCard(id){
+    persist(withHistory(Object.assign({}, data, {cards: data.cards.filter(function(c){return c.id!==id;})})));
+  }
+  function deleteSaving(id){
+    persist(withHistory(Object.assign({}, data, {savings: data.savings.filter(function(s){return s.id!==id;})})));
+  }
+  function updateCardMsi(cardId, msi){
+    var cards = data.cards.map(function(c){ return c.id===cardId ? Object.assign({}, c, {msi:msi}) : c; });
+    persist(withHistory(Object.assign({}, data, {cards:cards})));
+  }
+  function updateCardDeferred(cardId, diferidos){
+    var cards = data.cards.map(function(c){ return c.id===cardId ? Object.assign({}, c, {diferidos:diferidos}) : c; });
+    persist(withHistory(Object.assign({}, data, {cards:cards})));
+  }
+  function savePersonalCredit(credit){
+    var exists = data.personalCredits.some(function(c){return c.id===credit.id;});
+    var personalCredits = exists ? data.personalCredits.map(function(c){return c.id===credit.id?credit:c;}) : data.personalCredits.concat([credit]);
+    persist(withHistory(Object.assign({}, data, {personalCredits:personalCredits})));
+  }
+  function deletePersonalCredit(id){
+    persist(withHistory(Object.assign({}, data, {personalCredits: data.personalCredits.filter(function(c){return c.id!==id;})})));
+  }
+  function markPersonalCredit(id){
+    var personalCredits = data.personalCredits.map(function(c){
+      if(c.id!==id) return c;
+      var paid = personalElapsed(c);
+      return Object.assign({}, c, {paidMonths: Math.min(c.months, paid+1)});
+    });
+    persist(withHistory(Object.assign({}, data, {personalCredits:personalCredits})));
+  }
+  function unmarkPersonalCredit(id){
+    var personalCredits = data.personalCredits.map(function(c){
+      if(c.id!==id) return c;
+      var paid = personalElapsed(c);
+      return Object.assign({}, c, {paidMonths: Math.max(0, paid-1)});
+    });
+    persist(withHistory(Object.assign({}, data, {personalCredits:personalCredits})));
+  }
+  function updateBudget(budget){
+    persist(Object.assign({}, data, {budget:budget}));
+  }
+  function updateSettings(settings){
+    persist(Object.assign({}, data, {settings:settings}));
+  }
+  function computePaymentEffect(card, amount, due, rawTotal){
+    var balanceApplied = Math.min(amount, card.balance);
+    var leftoverBanked = amount - balanceApplied;
+    var existingCredit = card.extraCredit || 0;
+    var coversEverything = due && rawTotal > 0 && (amount + existingCredit) >= rawTotal - 0.01;
+    var msi = card.msi || [];
+    var diferidos = card.diferidos || [];
+    var extraCredit = existingCredit + leftoverBanked;
+    if(coversEverything){
+      msi = msi.map(function(p){
+        var next = msiNextPago(p, card.cutoffDay, card.dueDay);
+        if(next && next.getTime()===due.getTime()){
+          var paid = msiEffectivePaid(p, card.cutoffDay, card.dueDay);
+          return Object.assign({}, p, {paidMonths: Math.min(p.months, paid+1)});
+        }
+        return p;
+      });
+      diferidos = diferidos.map(function(p){
+        var next = msiNextPago(p, card.cutoffDay, card.dueDay);
+        if(next && next.getTime()===due.getTime()){
+          var paid2 = msiEffectivePaid(p, card.cutoffDay, card.dueDay);
+          return Object.assign({}, p, {paidMonths: Math.min(p.months, paid2+1)});
+        }
+        return p;
+      });
+      var nonBalancePortion = Math.max(0, rawTotal - balanceApplied);
+      extraCredit = Math.max(0, extraCredit - nonBalancePortion);
+    }
+    return {
+      balanceApplied: balanceApplied,
+      creditAdded: leftoverBanked,
+      msi: msi,
+      diferidos: diferidos,
+      extraCredit: extraCredit,
+      newBalance: Math.max(0, +(card.balance-balanceApplied).toFixed(2))
+    };
+  }
+
+  function registerPayment(cardId, amount, dateStr){
+    if(!amount || isNaN(amount) || amount<=0) return;
+    var iso = dateStr ? new Date(dateStr+"T12:00:00").toISOString() : new Date().toISOString();
+    var cardBefore = data.cards.find(function(c){return c.id===cardId;});
+    if(!cardBefore) return;
+    var info = cardAmountDueNow(cardBefore);
+    var effect = computePaymentEffect(cardBefore, amount, info.due, info.rawTotal);
+    var cards = data.cards.map(function(c){
+      if(c.id!==cardId) return c;
+      var payments = (c.payments||[]).concat([{id:uid(), date:iso, amount:amount, balanceApplied:effect.balanceApplied, creditAdded:effect.creditAdded}])
+        .sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
+      return Object.assign({}, c, {balance: effect.newBalance, payments:payments, msi:effect.msi, diferidos:effect.diferidos, extraCredit:effect.extraCredit});
+    });
+    persist(withHistory(Object.assign({}, data, {cards:cards})));
+  }
+
+  function updatePayment(cardId, paymentId, amount, dateStr){
+    if(!amount || isNaN(amount) || amount<=0) return;
+    var iso = dateStr ? new Date(dateStr+"T12:00:00").toISOString() : new Date().toISOString();
+    var cardBefore = data.cards.find(function(c){return c.id===cardId;});
+    if(!cardBefore) return;
+    var oldPayment = (cardBefore.payments||[]).find(function(p){return p.id===paymentId;});
+    if(!oldPayment) return;
+    var oldBalanceApplied = oldPayment.balanceApplied != null ? oldPayment.balanceApplied : oldPayment.amount;
+    var oldCreditAdded = oldPayment.creditAdded || 0;
+    var reversedCard = Object.assign({}, cardBefore, {
+      balance: +(cardBefore.balance + oldBalanceApplied).toFixed(2),
+      extraCredit: Math.max(0, (cardBefore.extraCredit||0) - oldCreditAdded)
+    });
+    var info = cardAmountDueNow(reversedCard);
+    var effect = computePaymentEffect(reversedCard, amount, info.due, info.rawTotal);
+    var cards = data.cards.map(function(c){
+      if(c.id!==cardId) return c;
+      var payments = (c.payments||[]).map(function(p){
+        return p.id===paymentId ? Object.assign({},p,{amount:amount, date:iso, balanceApplied:effect.balanceApplied, creditAdded:effect.creditAdded}) : p;
+      }).sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
+      return Object.assign({}, c, {balance: effect.newBalance, payments:payments, msi:effect.msi, diferidos:effect.diferidos, extraCredit:effect.extraCredit});
+    });
+    persist(withHistory(Object.assign({}, data, {cards:cards})));
+  }
+
+  var swipeOpenId = null;
+  var toastTimer = null;
+  function showUndoToast(message, onUndo){
+    if(toastTimer) clearTimeout(toastTimer);
+    ui.toast = { message: message, onUndo: onUndo };
+    render();
+    toastTimer = setTimeout(function(){ ui.toast = null; render(); }, 5000);
+  }
+
+  function deletePayment(cardId, paymentId){
+    var cardBefore = data.cards.find(function(c){return c.id===cardId;});
+    var deletedPayment = cardBefore ? (cardBefore.payments||[]).find(function(p){return p.id===paymentId;}) : null;
+    var cards = data.cards.map(function(c){
+      if(c.id!==cardId) return c;
+      var p = (c.payments||[]).find(function(x){return x.id===paymentId;});
+      var payments = (c.payments||[]).filter(function(x){return x.id!==paymentId;});
+      if(!p) return Object.assign({}, c, {payments:payments});
+      var balanceApplied = p.balanceApplied != null ? p.balanceApplied : p.amount;
+      var creditAdded = p.creditAdded || 0;
+      return Object.assign({}, c, {
+        balance: +(c.balance + balanceApplied).toFixed(2),
+        extraCredit: Math.max(0, (c.extraCredit||0) - creditAdded),
+        payments: payments
+      });
+    });
+    persist(withHistory(Object.assign({}, data, {cards:cards})));
+    if(deletedPayment){
+      showUndoToast("Pago eliminado", function(){
+        restorePayment(cardId, deletedPayment);
+      });
+    }
+  }
+  /* Restaura EXACTAMENTE el objeto de pago original (mismo id y campos) tras "Deshacer". */
+  function restorePayment(cardId, paymentObj){
+    if(!paymentObj) return;
+    var balanceApplied = paymentObj.balanceApplied != null ? paymentObj.balanceApplied : paymentObj.amount;
+    var creditAdded = paymentObj.creditAdded || 0;
+    var cards = data.cards.map(function(c){
+      if(c.id!==cardId) return c;
+      if((c.payments||[]).some(function(p){ return p.id===paymentObj.id; })) return c; // ya existe, evita duplicados
+      var payments = (c.payments||[]).concat([paymentObj]);
+      return Object.assign({}, c, {
+        balance: Math.max(0, +(c.balance-balanceApplied).toFixed(2)),
+        extraCredit: (c.extraCredit||0) + creditAdded,
+        payments: payments
+      });
+    });
+    persist(withHistory(Object.assign({}, data, {cards:cards})));
+  }
+  function registerExpense(cardId, amount, description, dateStr, category){
+    if(!amount || isNaN(amount) || amount<=0) return;
+    var iso = dateStr ? new Date(dateStr+"T12:00:00").toISOString() : new Date().toISOString();
+    var cards = data.cards.map(function(c){
+      if(c.id!==cardId) return c;
+      var expenses = (c.expenses||[]).concat([{id:uid(), description:description||"Gasto", amount:amount, date:iso, category:category||"Otros"}]);
+      return Object.assign({}, c, {balance: +(c.balance+amount).toFixed(2), expenses:expenses});
+    });
+    persist(withHistory(Object.assign({}, data, {cards:cards})));
+  }
+  function updateExpense(cardId, expenseId, amount, description, dateStr, category){
+    if(!amount || isNaN(amount) || amount<=0) return;
+    var iso = dateStr ? new Date(dateStr+"T12:00:00").toISOString() : new Date().toISOString();
+    var cards = data.cards.map(function(c){
+      if(c.id!==cardId) return c;
+      var old = (c.expenses||[]).find(function(e){return e.id===expenseId;});
+      var diff = old ? amount-old.amount : 0;
+      var expenses = (c.expenses||[]).map(function(e){ return e.id===expenseId ? Object.assign({},e,{amount:amount, description:description||"Gasto", date:iso, category:category||e.category||"Otros"}) : e; });
+      return Object.assign({}, c, {balance: Math.max(0, +(c.balance+diff).toFixed(2)), expenses:expenses});
+    });
+    persist(withHistory(Object.assign({}, data, {cards:cards})));
+  }
+  function deleteExpense(cardId, expenseId){
+    var cardBefore = data.cards.find(function(c){return c.id===cardId;});
+    var deletedExpense = cardBefore ? (cardBefore.expenses||[]).find(function(e){return e.id===expenseId;}) : null;
+    var cards = data.cards.map(function(c){
+      if(c.id!==cardId) return c;
+      var exp = (c.expenses||[]).find(function(e){return e.id===expenseId;});
+      var expenses = (c.expenses||[]).filter(function(e){return e.id!==expenseId;});
+      var balance = exp ? Math.max(0, +(c.balance-exp.amount).toFixed(2)) : c.balance;
+      return Object.assign({}, c, {expenses:expenses, balance:balance});
+    });
+    persist(withHistory(Object.assign({}, data, {cards:cards})));
+    if(deletedExpense){
+      showUndoToast("Gasto eliminado", function(){
+        restoreExpense(cardId, deletedExpense);
+      });
+    }
+  }
+  /* Restaura EXACTAMENTE el objeto de gasto original (mismo id, fecha con hora exacta,
+     descripción, monto, categoría y cualquier otro campo) tras pulsar "Deshacer".
+     No pasa por registerExpense para no generar un id nuevo ni truncar la fecha. */
+  function restoreExpense(cardId, expenseObj){
+    if(!expenseObj) return;
+    var cards = data.cards.map(function(c){
+      if(c.id!==cardId) return c;
+      if((c.expenses||[]).some(function(e){ return e.id===expenseObj.id; })) return c; // ya existe, evita duplicados
+      var expenses = (c.expenses||[]).concat([expenseObj]);
+      return Object.assign({}, c, {balance: +(c.balance+expenseObj.amount).toFixed(2), expenses:expenses});
+    });
+    persist(withHistory(Object.assign({}, data, {cards:cards})));
+  }
+  function saveFromModal(item, kind){
+    if(kind==="card"){
+      var exists = data.cards.some(function(c){return c.id===item.id;});
+      var cards = exists ? data.cards.map(function(c){return c.id===item.id?item:c;}) : data.cards.concat([item]);
+      persist(withHistory(Object.assign({}, data, {cards:cards})));
+    }else{
+      var exists2 = data.savings.some(function(s){return s.id===item.id;});
+      var savings = exists2 ? data.savings.map(function(s){return s.id===item.id?item:s;}) : data.savings.concat([item]);
+      persist(withHistory(Object.assign({}, data, {savings:savings})));
+    }
+    ui.modal = null;
+    render();
+  }
+
+  /* ---------- render ---------- */
+  function render(){
+    var totalDebt = data.cards.reduce(function(s,c){ return s + Math.max(0, (c.balance||0) + cardMsiTotal(c) + cardDeferredTotal(c) - (c.extraCredit||0)); },0) + totalPersonalCreditsDebt(data.personalCredits);
+    var totalSavings = data.savings.reduce(function(s,sv){ return s + (sv.current||0); },0);
+    var net = totalSavings - totalDebt;
+
+    var tabTitles = { resumen:"Resumen", movimientos:"Movimientos", tarjetas:"Tarjetas de crédito", prestamos:"Créditos personales", ahorros:"Ahorros", analisis:"Análisis", config:"Ajustes" };
+
+    var html = "";
+    html += '<div class="wrap" style="zoom:'+(FONT_SCALE[data.settings.fontSize] || FONT_SCALE.normal)+';">';
+    html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">'+
+      '<div style="background:rgba(94,234,212,0.12);width:44px;height:44px;border-radius:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:19px;">💼</div>'+
+      '<div><div class="eyebrow" style="margin-bottom:2px;">Control financiero</div>'+
+      '<h1 style="margin:0;line-height:1.2;">'+tabTitles[ui.tab]+'</h1></div>'+
+      '</div>';
+    html += '<div style="border-top:1px dashed var(--surface2);margin-bottom:24px;"></div>';
+
+    if(ui.updateAvailable){
+      html += '<div style="background:var(--surface3);border:1px solid var(--mint);border-radius:12px;padding:12px 14px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:10px;">'+
+        '<span style="color:var(--text);font-size:12px;">✨ Hay una nueva versión de la app lista.</span>'+
+        '<button class="modal-save" style="width:auto;margin:0;padding:8px 14px;" data-act="reload-app">Actualizar</button>'+
+        '</div>';
+    }
+
+    if(ui.tab === "resumen"){
+      html += renderAlerts();
+      html += '<div class="stats">'+
+        stat("Deuda", totalDebt, "var(--coral)", "↓") +
+        stat("Ahorro", totalSavings, "var(--mint)", "↑") +
+        stat("Neto", net, net>=0?"var(--mint)":"var(--coral)", "⚖") +
+        '</div>';
+      html += renderHealthScore(totalDebt, totalSavings);
+      html += '<section style="margin-bottom:32px;">'+renderBudgetPanel(totalDebt)+'</section>';
+      html += renderChartSection();
+    }else if(ui.tab === "movimientos"){
+      html += renderMovimientosSection();
+    }else if(ui.tab === "tarjetas"){
+      html += renderCardsSection();
+    }else if(ui.tab === "prestamos"){
+      html += renderPersonalCreditsSection();
+    }else if(ui.tab === "ahorros"){
+      html += renderSavingsSection();
+    }else if(ui.tab === "analisis"){
+      html += renderAnalysisSection();
+    }else if(ui.tab === "config"){
+      html += renderConfigSection();
+    }
+
+    html += '</div>';
+    html += renderBottomNav();
+    if(ui.toast){
+      html += '<div style="position:fixed;left:0;right:0;bottom:78px;z-index:50;display:flex;justify-content:center;padding:0 16px;">'+
+        '<div style="background:var(--surface);border:1px solid var(--surface2);border-radius:12px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:480px;width:100%;box-shadow:0 4px 14px rgba(0,0,0,.3);">'+
+        '<span style="color:var(--text);font-size:14px;">'+esc(ui.toast.message)+'</span>'+
+        '<button data-act="undo-toast" style="background:none;border:none;color:var(--mint);font-size:14px;font-weight:500;flex-shrink:0;">Deshacer</button>'+
+        '</div></div>';
+    }
+    html += renderModal();
+    html += renderExpenseFormModal();
+    html += renderPaymentFormModal();
+    html += renderApiKeyModal();
+    html += renderDevModeModal();
+    html += renderBackupModal();
+    html += renderMovCardPicker();
+    html += renderReassignCategoryModal();
+
+    var appEl = document.getElementById("app");
+    appEl.innerHTML = html;
+    bindHandlers();
+  }
+
+  function renderBottomNav(){
+    var items = [
+      {id:"resumen", label:"Resumen", icon:"📊"},
+      {id:"movimientos", label:"Movim.", icon:"🧾"},
+      {id:"tarjetas", label:"Tarjetas", icon:"💳"},
+      {id:"prestamos", label:"Préstamos", icon:"🏦"},
+      {id:"ahorros", label:"Ahorros", icon:"🐷"},
+      {id:"analisis", label:"Análisis", icon:"🔍"},
+      {id:"config", label:"Ajustes", icon:"⚙"}
+    ];
+    var html = '<div style="position:fixed;bottom:0;left:0;right:0;background:#151F29;border-top:1px solid var(--surface2);display:flex;justify-content:space-around;padding:8px 2px;z-index:40;">';
+    items.forEach(function(it){
+      var active = ui.tab === it.id;
+      html += '<button data-act="set-tab" data-tab="'+it.id+'" style="background:'+(active?"rgba(94,234,212,0.12)":"transparent")+';border:none;border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 8px;">'+
+        '<span style="font-size:16px;filter:'+(active?"none":"grayscale(0.4) opacity(0.7)")+';">'+it.icon+'</span>'+
+        '<span style="font-size:10px;color:'+(active?"var(--mint)":"var(--muted)")+';font-weight:'+(active?"600":"400")+';">'+it.label+'</span>'+
+        '</button>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function renderCategoryBreakdown(){
+    var now = new Date();
+    var cur = categoryBreakdown(data.cards, now.getFullYear(), now.getMonth());
+    var prevM = previousMonth(now.getFullYear(), now.getMonth());
+    var prev = categoryBreakdown(data.cards, prevM.year, prevM.month);
+    if(!cur.byCat.length) return "";
+    var prevByCat = {};
+    prev.byCat.forEach(function(c){ prevByCat[c.category]=c.amount; });
+    var topGrowth = null;
+    cur.byCat.forEach(function(c){
+      var before = prevByCat[c.category]||0;
+      var growth = before>0 ? ((c.amount-before)/before)*100 : (c.amount>0?100:0);
+      c.growth = growth;
+      c.hasPrev = before>0;
+      if(growth>0 && (!topGrowth || growth>topGrowth.growth)) topGrowth = c;
+    });
+    var vsTotal = prev.total>0 ? ((cur.total-prev.total)/prev.total)*100 : null;
+
+    var html = '<section><div class="sec-title" style="margin-bottom:12px;">🔎 ¿En qué se me va el dinero?</div><div class="card">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">'+
+      '<span style="color:var(--muted);font-size:11px;">Gasto total este mes</span>'+
+      '<span style="color:var(--text);font-family:var(--mono);font-size:16px;">'+fmt(cur.total)+'</span></div>';
+    if(vsTotal!==null){
+      var vColor = vsTotal>0 ? "var(--coral)" : "var(--mint)";
+      html += '<div style="color:'+vColor+';font-size:11px;margin-bottom:12px;">'+(vsTotal>=0?"+":"")+Math.round(vsTotal)+'% vs. mes anterior</div>';
+    }
+    html += '<div style="display:flex;flex-direction:column;gap:10px;margin-top:4px;">';
+    cur.byCat.forEach(function(c, i){
+      var color = DONUT_COLORS[i%DONUT_COLORS.length];
+      html += '<div>'+
+        '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">'+
+        '<span style="color:var(--text);">'+esc(c.category)+'</span>'+
+        '<span style="color:var(--muted);font-family:var(--mono);">'+fmt(c.amount)+' · '+Math.round(c.pct)+'%'+
+        (c.hasPrev ? ' <span style="color:'+(c.growth>0?"var(--coral)":"var(--mint)")+';">('+(c.growth>=0?"+":"")+Math.round(c.growth)+'%)</span>' : '')+
+        '</span></div>'+
+        '<div class="bar"><div class="bar-fill" style="width:'+c.pct+'%;background:'+color+';"></div></div>'+
+        '</div>';
+    });
+    html += '</div>';
+    if(topGrowth){
+      html += '<div style="background:var(--surface3);border-left:3px solid var(--amber);border-radius:10px;padding:10px 12px;margin-top:14px;">'+
+        '<div style="color:var(--text);font-size:12px;">📈 <strong>'+esc(topGrowth.category)+'</strong> es tu categoría con mayor crecimiento: '+fmt(topGrowth.amount)+' (+'+Math.round(topGrowth.growth)+'% vs. mes anterior).</div></div>';
+    }
+    html += '</div></section>';
+    return html;
+  }
+
+  function renderDebtPayoffPlan(){
+    var plan = debtPayoffPlan(data, ui.extraPayment);
+    if(!plan) return "";
+    var html = '<section><div class="sec-title" style="margin-bottom:12px;">🎯 Plan para salir de deudas</div><div class="card">';
+
+    if(plan.hasEstimated){
+      html += '<div style="background:#241E15;border:1px solid var(--amber);border-radius:10px;padding:10px 12px;margin-bottom:12px;">'+
+        '<div style="color:var(--amber);font-size:12px;font-weight:600;margin-bottom:4px;">⚠ Este plan incluye al menos un pago estimado</div>'+
+        '<div style="color:var(--text);font-size:11px;line-height:1.5;">Para el saldo de tarjeta que no tiene un pago mínimo capturado, usamos una aproximación (5% del saldo o $300, lo que sea mayor) — no es el pago mínimo real de tu estado de cuenta. Edita esa tarjeta y captura "Pago mínimo real" para que el plan use tu dato exacto en vez de esta estimación.</div>'+
+        '</div>';
+    }
+
+    html += '<div style="display:flex;justify-content:space-between;margin-bottom:12px;">'+
+      '<div><div style="color:var(--muted);font-size:11px;">Deuda con interés</div><div style="color:var(--text);font-family:var(--mono);font-size:15px;">'+fmt(plan.totalDebt)+'</div></div>'+
+      '<div style="text-align:right;"><div style="color:var(--muted);font-size:11px;">Tiempo estimado'+(plan.hasEstimated?' *':'')+'</div><div style="color:var(--text);font-family:var(--mono);font-size:15px;">'+plan.currentMonths+' meses</div></div>'+
+      '</div>';
+    html += '<div style="display:flex;justify-content:space-between;margin-bottom:12px;padding-top:10px;border-top:1px solid var(--surface2);">'+
+      '<div><div style="color:var(--muted);font-size:11px;">Pago mensual'+(plan.hasEstimated?' *':'')+'</div><div style="color:var(--text);font-family:var(--mono);font-size:15px;">'+fmt(plan.totalMonthlyPayment)+'</div></div>'+
+      '<div style="text-align:right;"><div style="color:var(--muted);font-size:11px;">Interés estimado total</div><div style="color:var(--text);font-family:var(--mono);font-size:15px;">'+fmt(plan.currentInterest)+'</div></div>'+
+      '</div>';
+    html += '<div style="color:var(--muted);font-size:11px;margin-bottom:10px;">Estrategia: método avalancha — se paga primero la deuda con mayor tasa de interés; al liquidarse una deuda, su pago mensual se redirige a la siguiente. No incluye compras a MSI (no generan interés). El interés estimado incluye el IVA del interés en diferidos y créditos personales, igual que se muestra en el detalle de cada uno.'+
+      (plan.hasEstimated ? ' Los renglones marcados "⚠ estimado" abajo usan la aproximación descrita arriba; el resto usa mensualidades reales calculadas con tus tasas y plazos.' : ' Todas las mensualidades usadas aquí están calculadas con tus tasas y plazos reales.')+
+      '</div>';
+
+    html += '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">';
+    plan.items.forEach(function(it, i){
+      html += '<div style="display:flex;align-items:center;gap:10px;">'+
+        '<span style="background:'+(i===0?"var(--coral)":"var(--surface2)")+';color:'+(i===0?"var(--bg)":"var(--muted)")+';width:20px;height:20px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;">'+(i+1)+'</span>'+
+        '<div style="flex:1;min-width:0;">'+
+        '<div style="color:var(--text);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:6px;">'+esc(it.label)+
+        (it.isEstimated?'<span style="color:var(--amber);font-size:9px;font-weight:600;background:rgba(242,176,61,0.15);padding:1px 6px;border-radius:6px;flex-shrink:0;">⚠ ESTIMADO</span>':'<span style="color:var(--mint);font-size:9px;font-weight:600;background:rgba(45,212,191,0.12);padding:1px 6px;border-radius:6px;flex-shrink:0;">✓ REAL</span>')+
+        '</div>'+
+        '<div style="color:var(--muted);font-family:var(--mono);font-size:11px;">'+it.rate+'% anual · '+fmt(it.remaining)+' restante · '+fmt(it.monthlyPayment)+'/mes</div>'+
+        '</div></div>';
+    });
+    html += '</div>';
+
+    html += '<div style="border-top:1px solid var(--surface2);padding-top:12px;margin-top:4px;">';
+    html += '<span class="field-label">Pago adicional mensual</span>';
+    html += '<input type="text" inputmode="decimal" id="extra-payment-input" placeholder="ej. 1000" value="'+(ui.extraPayment||"")+'" />';
+    html += '</div>';
+
+    if(ui.extraPayment>0){
+      html += '<div style="background:var(--surface3);border-left:3px solid var(--mint);border-radius:10px;padding:12px;margin-top:10px;">';
+      if(plan.monthsSaved>0 || plan.interestSaved>1){
+        html += '<div style="color:var(--text);font-size:13px;line-height:1.5;">Podrías terminar <strong style="color:var(--mint);">'+plan.monthsSaved+' mes'+(plan.monthsSaved===1?"":"es")+' antes</strong> y ahorrar aproximadamente <strong style="color:var(--mint);">'+fmt(plan.interestSaved)+'</strong> en intereses.</div>';
+      }else{
+        html += '<div style="color:var(--muted);font-size:12px;">Con ese pago adicional el efecto es mínimo dado tu plazo y tasas actuales.</div>';
+      }
+      html += '<div style="display:flex;justify-content:space-between;margin-top:10px;font-size:11px;color:var(--muted);">'+
+        '<span>Actual: '+plan.currentMonths+' meses · '+fmt(plan.currentInterest)+' interés</span></div>'+
+        '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--mint);">'+
+        '<span>Con pago extra: '+plan.extraMonths+' meses · '+fmt(plan.extraInterest)+' interés</span></div>';
+      html += '<div style="color:var(--muted);font-size:10px;margin-top:8px;">Estimación basada en los datos registrados; no es una promesa ni un cálculo bancario oficial.</div>';
+      html += '</div>';
+    }
+    html += '</div></section>';
+    return html;
+  }
+
+  function renderAnalysisSection(){
+    var html = '<div style="display:flex;flex-direction:column;gap:24px;">';
+    var utilCards = data.cards.filter(function(c){ return c.limit>0; });
+    var highUtil = utilCards.filter(function(c){ return cardUtilizationPct(c)>=70; })
+      .sort(function(a,b){ return cardUtilizationPct(b)-cardUtilizationPct(a); });
+    var donut = debtByCard(data.cards);
+    var subs = detectSubscriptions(data.cards, data.dismissedSubscriptions||[]);
+    var subsTotal = subs.reduce(function(s,x){ return s+x.monthlyEquivalent; },0);
+
+    html += renderCategoryBreakdown();
+    html += renderDebtPayoffPlan();
+
+    if(highUtil.length){
+      html += '<section><div class="sec-title" style="margin-bottom:12px;">⚠ Utilización alta de crédito</div><div style="display:flex;flex-direction:column;gap:8px;">';
+      highUtil.forEach(function(c){
+        var pct = cardUtilizationPct(c);
+        var lvl = utilizationLevel(pct);
+        html += '<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:6px;">'+
+          '<span style="color:var(--text);font-size:14px;">'+esc(c.name)+'</span>'+
+          '<span style="color:'+lvl.color+';font-family:var(--mono);font-size:14px;">'+Math.round(pct)+'% · '+lvl.label+'</span></div>'+
+          '<div class="bar"><div class="bar-fill" style="width:'+pct+'%;background:'+lvl.color+';"></div></div>'+
+          '<div style="color:var(--muted);font-size:11px;margin-top:6px;">Referencia orientativa: menor a 30% se considera ideal, 30–69% pide atención, 70% o más se considera alta. No son reglas bancarias universales, solo una guía general.</div>'+
+          '</div>';
+      });
+      html += '</div></section>';
+    }
+
+    if(donut.length){
+      html += '<section><div class="sec-title" style="margin-bottom:12px;">Deuda por tarjeta</div><div class="card">'+buildDonutChart(donut)+'</div></section>';
+    }
+
+    html += '<section><div class="sec-title" style="margin-bottom:12px;">🔍 Detectamos posibles suscripciones</div><div class="card">';
+    if(!subs.length){
+      html += '<div style="color:var(--muted);font-size:12px;">Aún no detecto gastos que se repitan de forma consistente en al menos dos periodos distintos.</div>';
+    }else{
+      html += '<div style="color:var(--muted);font-size:11px;margin-bottom:12px;">No podemos confirmar con certeza que sea una suscripción — solo que el patrón se repite. Confírmala o descártala si no lo es.</div>';
+      subs.forEach(function(s){
+        var confirmed = (data.confirmedSubscriptions||[]).indexOf(s.key)!==-1;
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--surface2);">'+
+          '<div style="min-width:0;flex:1;"><div style="color:var(--text);font-size:12px;display:flex;align-items:center;gap:6px;">'+esc(s.description)+
+          (confirmed?'<span style="color:var(--mint);font-size:10px;">✓ confirmada</span>':'<span style="color:var(--amber);font-size:10px;">posible suscripción</span>')+'</div>'+
+          '<div style="color:var(--muted);font-size:11px;">'+esc(s.card)+' · '+s.freqLabel+' · '+s.count+' cargos</div>'+
+          '<div style="color:var(--mint);font-family:var(--mono);font-size:12px;margin-top:2px;">'+fmt(s.avgAmount)+' c/u · ≈'+fmt(s.monthlyEquivalent)+'/mes</div></div>'+
+          '<div style="display:flex;gap:6px;flex-shrink:0;">'+
+          (confirmed?'':'<button class="icon-btn" data-act="confirm-subscription" data-key="'+esc(s.key)+'" title="Confirmar">✓</button>')+
+          '<button class="icon-btn" data-act="discard-subscription" data-key="'+esc(s.key)+'" title="No es suscripción">✕</button>'+
+          '</div></div>';
+      });
+      html += '<div style="padding-top:2px;color:var(--muted);font-size:11px;">Total estimado: <span style="color:var(--text);">'+fmt(subsTotal)+'/mes</span> · <span style="color:var(--text);">'+fmt(subsTotal*12)+'/año</span></div>';
+    }
+    html += '</div></section>';
+
+    html += '<section><div class="sec-title" style="margin-bottom:12px;">Buscar movimientos</div>'+
+      '<div class="form-row">'+
+      '<input type="text" id="analysis-search" placeholder="Ej. Netflix, Carnicería..." value="'+esc(ui.analysisQuery||"")+'" />'+
+      '<button class="btn-save" data-act="run-search" style="max-width:90px;">Buscar</button>'+
+      '</div>';
+    var q = (ui.analysisQuery||"").trim();
+    if(q.length>=2){
+      var results = searchMovements(data.cards, q);
+      html += '<div class="card">';
+      if(!results.length){
+        html += '<div style="color:var(--muted);font-size:12px;">Sin resultados para "'+esc(q)+'".</div>';
+      }else{
+        results.forEach(function(r){
+          html += '<div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:8px;">'+
+            '<div style="min-width:0;"><div style="color:var(--text);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(r.description)+'</div>'+
+            '<div style="color:var(--muted);font-size:11px;">'+esc(r.card)+' · '+dateLabelFull(r.date)+'</div></div>'+
+            '<span style="color:var(--text);font-family:var(--mono);font-size:12px;flex-shrink:0;">'+fmt(r.amount)+'</span></div>';
+        });
+      }
+      html += '</div>';
+    }
+    html += '</section>';
+
+    html += '</div>';
+    return html;
+  }
+
+  function renderConfigSection(){
+    var f = data.settings.fontSize;
+    var sizes = [
+      {id:"small", label:"Pequeña", px:14},
+      {id:"normal", label:"Normal", px:16},
+      {id:"large", label:"Grande", px:19},
+      {id:"xlarge", label:"Muy grande", px:22}
+    ];
+    var html = '<div style="display:flex;flex-direction:column;gap:12px;">';
+
+    html += '<div class="bank-box" style="margin-bottom:0;">';
+    html += '<div class="bank-title">Tamaño de letra</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">';
+    sizes.forEach(function(s){
+      var active = f === s.id;
+      html += '<button data-act="set-font-size" data-size="'+s.id+'" style="background:'+(active?"var(--mint)":"var(--surface3)")+';color:'+(active?"var(--bg)":"var(--text)")+';border:none;border-radius:10px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;">'+
+        '<span style="font-family:var(--disp);font-weight:600;font-size:'+s.px+'px;">Aa</span>'+
+        '<span style="font-size:9px;color:'+(active?"var(--bg)":"var(--muted)")+';">'+s.label+'</span>'+
+        '</button>';
+    });
+    html += '</div></div>';
+
+    html += '<div class="bank-box" style="margin-bottom:0;">';
+    html += '<div class="bank-title">Centro de alertas</div>';
+    html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 10px;">Elige qué tipo de avisos quieres ver en Resumen.</p>';
+    var alertToggles = [
+      {key:"alertPayments", label:"Pagos y cuotas próximas"},
+      {key:"alertCutoffs", label:"Cortes próximos"},
+      {key:"alertBudget", label:"Presupuesto excedido"},
+      {key:"alertUtilization", label:"Utilización de crédito alta"},
+      {key:"alertDebtGrowth", label:"Deuda creciente"},
+      {key:"alertGoals", label:"Metas de ahorro retrasadas"}
+    ];
+    alertToggles.forEach(function(t){
+      var on = !!data.settings[t.key];
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid var(--surface2);">'+
+        '<span style="color:var(--text);font-size:13px;">'+t.label+'</span>'+
+        '<button data-act="toggle-alert-setting" data-key="'+t.key+'" style="background:'+(on?"var(--mint)":"var(--surface3)")+';border:none;width:38px;height:22px;border-radius:20px;position:relative;flex-shrink:0;">'+
+        '<span style="position:absolute;top:2px;left:'+(on?"18px":"2px")+';width:18px;height:18px;border-radius:50%;background:'+(on?"var(--bg)":"var(--muted)")+';transition:left .15s;"></span>'+
+        '</button></div>';
+    });
+    html += '</div>';
+
+    html += '<div class="bank-box" style="margin-bottom:0;">';
+    html += '<div class="bank-title">Categorías de gastos</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">';
+    (data.categories||DEFAULT_CATEGORIES).forEach(function(cat){
+      html += '<span class="tag" style="display:flex;align-items:center;gap:6px;padding:4px 8px;">'+esc(cat)+
+        '<button data-act="remove-category" data-cat="'+esc(cat)+'" style="background:none;border:none;color:var(--coral);font-size:11px;padding:0;">✕</button></span>';
+    });
+    html += '</div>';
+    html += '<div class="form-row" style="margin-bottom:0;">'+
+      '<input type="text" placeholder="Nueva categoría" id="new-category-input" />'+
+      '<button class="btn-save" style="max-width:90px;" data-act="add-category">Agregar</button>'+
+      '</div>';
+    html += '</div>';
+
+    var notifSupported = typeof Notification !== "undefined";
+    var notifPermission = notifSupported ? Notification.permission : "unsupported";
+    html += '<div class="bank-box" style="margin-bottom:0;">';
+    html += '<div class="bank-title">Notificaciones</div>';
+    if(!notifSupported){
+      html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0;">Tu navegador no soporta notificaciones.</p>';
+    }else if(notifPermission === "denied"){
+      html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0;">Bloqueaste las notificaciones para este sitio. Actívalas desde los ajustes de tu navegador si cambias de opinión.</p>';
+    }else{
+      html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px;">Te avisa cuando falten 3 días o menos para un pago — solo cuando abres la app (no son notificaciones en segundo plano).</p>';
+      if(notifPermission === "granted" && data.settings.notificationsEnabled){
+        html += '<button class="modal-save" style="background:var(--surface2);color:var(--text);" data-act="disable-notifications">🔕 Desactivar notificaciones</button>';
+      }else{
+        html += '<button class="modal-save" data-act="enable-notifications">🔔 Activar notificaciones</button>';
+      }
+    }
+    html += '</div>';
+
+    html += '<div class="bank-box" style="margin-bottom:0;">';
+    html += '<div class="bank-title">Respaldo de datos</div>';
+    html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px;">Tus datos se guardan en este navegador. Descarga un respaldo de vez en cuando, o restaura uno si lo necesitas.</p>';
+    html += '<button class="modal-save" data-act="open-backup-modal" style="margin-bottom:0;">⬇ Respaldo (descargar / restaurar)</button>';
+    html += '</div>';
+
+    var hasMovements = data.cards.some(function(c){ return (c.expenses||[]).length || (c.payments||[]).length; });
+    if(hasMovements){
+      html += '<div class="bank-box" style="margin-bottom:0;">';
+      html += '<div class="bank-title">Exportar movimientos</div>';
+      html += '<button class="modal-save" style="background:var(--surface2);color:var(--text);" data-act="export-csv">⬇ Descargar movimientos (.csv)</button>';
+      html += '</div>';
+    }
+
+    html += '<div class="bank-box" style="margin-bottom:0;">';
+    html += '<div class="bank-title">Clave de API (para escanear recibos)</div>';
+    html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px;">Necesaria para que la app lea fotos de recibos automáticamente.</p>';
+    html += '<button class="modal-save" style="background:var(--surface2);color:var(--text);" data-act="open-api-key-modal">⚙ Configurar clave API</button>';
+    html += '</div>';
+
+    if(ui.deferredInstallPrompt){
+      html += '<div class="bank-box" style="margin-bottom:0;">';
+      html += '<div class="bank-title">Instalar aplicación</div>';
+      html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px;">Instala Control financiero en tu pantalla de inicio para abrirla como una app, incluso sin conexión.</p>';
+      html += '<button class="modal-save" data-act="install-pwa">📲 Instalar app</button>';
+      html += '</div>';
+    }
+
+    html += '<div class="bank-box" style="margin-bottom:0;">';
+    html += '<div class="bank-title">Privacidad</div>';
+    html += '<p style="color:var(--muted);font-size:12px;line-height:1.6;margin:0 0 8px;">Los datos financieros se almacenan localmente en este dispositivo, salvo funciones que requieran servicios externos.</p>';
+    html += '<ul style="color:var(--muted);font-size:11px;line-height:1.7;margin:0;padding-left:16px;">'+
+      '<li>No usamos analíticas ni rastreo de comportamiento.</li>'+
+      '<li>No compartimos tu información con terceros.</li>'+
+      '<li>El escaneo de recibos con IA es la única función que envía datos fuera de tu dispositivo.</li>'+
+      '<li>Borrar el navegador o la app sin haber exportado un respaldo elimina tus datos de forma permanente.</li>'+
+      '</ul>';
+    html += '</div>';
+
+    html += '<div class="bank-box" style="margin-bottom:0;">';
+    html += '<div class="bank-title">Recibos con IA</div>';
+    if(AI_BACKEND_URL){
+      html += '<p style="color:var(--mint);font-size:11px;line-height:1.5;margin:0;">✓ Configurada con un backend propio. Tu foto se envía a ese servidor, que llama a la API de Anthropic — ninguna clave vive en este navegador.</p>';
+    }else{
+      var devOn = isDevModeEnabled();
+      html += '<p style="color:var(--muted);font-size:12px;line-height:1.6;margin:0 0 10px;">Todavía no hay un backend propio configurado para esta función. La arquitectura recomendada es <strong style="color:var(--text);">tu foto → tu backend → API de Anthropic</strong>, sin exponer ninguna clave en el navegador.</p>';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface3);border-radius:10px;padding:10px 12px;">';
+      html += '<div><div style="color:var(--text);font-size:12px;">Modo desarrollador</div><div style="color:var(--muted);font-size:10px;">'+(devOn?"Activo — tu clave vive en este navegador.":"Apagado (recomendado para producción)")+'</div></div>';
+      if(devOn){
+        html += '<button class="modal-save" style="width:auto;margin:0;padding:8px 14px;background:var(--surface2);color:var(--coral);" data-act="disable-dev-mode">Apagar</button>';
+      }else{
+        html += '<span style="color:var(--muted);font-size:10px;">Se activa desde el botón "escanear recibo"</span>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+
+    html += '<div class="bank-box" style="margin-bottom:0;">';
+    html += '<div class="bank-title">Acerca de</div>';
+    html += '<p style="color:var(--text);font-size:13px;font-weight:500;margin:0 0 2px;">Control financiero</p>';
+    html += '<p style="color:var(--muted);font-size:11px;margin:0 0 10px;">Versión 2.2</p>';
+    html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 10px;">Una herramienta sencilla para controlar tus gastos, tarjetas, deudas y ahorro en un solo lugar.</p>';
+    html += '<p style="color:var(--muted);font-size:11px;line-height:1.5;margin:0;">🔒 Tus datos se almacenan localmente en este dispositivo (no se sincronizan en la nube).</p>';
+    html += '</div>';
+
+    html += '</div>';
+    return html;
+  }
+
+
+  function renderBackupModal(){
+    if(!ui.backupModal) return "";
+    var count = data.cards.length + data.savings.length;
+    var lastBackup = getLastBackupDate();
+    var html = '<div class="modal-overlay" data-act="close-backup-modal-bg"><div class="modal" data-stop="1">';
+    html += '<div class="modal-head"><h3>Respaldo de datos</h3><button data-act="close-backup-modal">✕</button></div>';
+    html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 6px;">Tus '+count+' tarjeta(s)/ahorro(s) se guardan en este navegador. Descarga un respaldo de vez en cuando por si cambias de teléfono, borras el navegador, o algo sale mal.</p>';
+    html += '<p style="color:'+(lastBackup?"var(--mint)":"var(--amber)")+';font-size:11px;margin:0 0 14px;">'+
+      (lastBackup ? "Último respaldo: "+dateLabelFull(lastBackup) : "Todavía no has descargado ningún respaldo.")+'</p>';
+    html += '<button class="modal-save" data-act="export-backup" style="margin-bottom:10px;">⬇ Descargar respaldo (.json)</button>';
+    html += '<div style="border-top:1px solid var(--surface2);margin:14px 0;"></div>';
+    html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 8px;">¿Restaurando un respaldo? Esto <strong style="color:var(--coral);">reemplaza</strong> todo lo que tengas guardado ahora mismo. Te pediremos confirmación antes de aplicarlo.</p>';
+    html += '<input type="file" accept="application/json,.json" id="backup-file-input" style="display:none;" />';
+    html += '<button class="modal-save" style="background:var(--surface2);color:var(--text);" data-act="trigger-import-backup">⬆ Elegir archivo de respaldo</button>';
+    if(ui.backupMessage) html += '<p style="color:var(--mint);font-size:12px;margin-top:10px;">'+esc(ui.backupMessage)+'</p>';
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderDevModeModal(){
+    if(!ui.devModeModal) return "";
+    var html = '<div class="modal-overlay" data-act="close-dev-mode-modal-bg"><div class="modal" data-stop="1">';
+    html += '<div class="modal-head"><h3>⚠ Modo desarrollador (beta)</h3><button data-act="close-dev-mode-modal">✕</button></div>';
+    html += '<div style="color:var(--text);font-size:12px;line-height:1.6;margin-bottom:12px;">';
+    html += 'Esta app todavía no tiene un backend propio para leer recibos con IA. La forma correcta de hacerlo en un producto comercial es: <strong>tu foto → tu backend → API de Anthropic</strong>, sin que tu clave nunca toque el navegador de nadie.';
+    html += '</div>';
+    html += '<div style="background:var(--surface3);border-left:3px solid var(--amber);border-radius:10px;padding:10px 12px;margin-bottom:14px;">';
+    html += '<div style="color:var(--amber);font-size:12px;font-weight:600;margin-bottom:4px;">Lo que estás a punto de activar es distinto</div>';
+    html += '<div style="color:var(--muted);font-size:11px;line-height:1.5;">Si activas el modo desarrollador, tu clave personal de Anthropic se guarda en el <strong>localStorage de este navegador</strong> y las llamadas a la API salen <strong>directo desde tu teléfono o computadora</strong>. Es útil para probar la función tú mismo, pero <strong>no es apta para repartir a clientes</strong> — cualquiera con acceso a este dispositivo o navegador podría ver o usar esa clave.</div>';
+    html += '</div>';
+    html += '<button class="modal-save" data-act="enable-dev-mode">Entiendo el riesgo, activar solo para pruebas</button>';
+    html += '<button class="modal-save" style="background:var(--surface2);color:var(--text);margin-top:8px;" data-act="close-dev-mode-modal">Cancelar</button>';
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderApiKeyModal(){
+    if(!ui.apiKeyModal) return "";
+    var current = getApiKey();
+    var html = '<div class="modal-overlay" data-act="close-api-key-modal-bg"><div class="modal" data-stop="1">';
+    html += '<div class="modal-head"><h3>Clave de API de Anthropic (modo desarrollador)</h3><button data-act="close-api-key-modal">✕</button></div>';
+    html += '<p style="color:var(--amber);font-size:11px;line-height:1.5;margin:0 0 8px;">Estás en modo desarrollador: esta clave se guarda solo en este navegador y las llamadas salen directo desde aquí. No es la arquitectura recomendada para una versión comercial — revisa "Acerca de → Recibos con IA" en Ajustes.</p>';
+    html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px;">Consíguela en <strong>console.anthropic.com</strong> → API Keys. Tiene un costo muy bajo por foto.</p>';
+    html += '<input type="password" id="api-key-input" placeholder="sk-ant-..." value="'+esc(current)+'" />';
+    html += '<button class="modal-save" data-act="save-api-key">Guardar</button>';
+    html += '</div></div>';
+    return html;
+  }
+
+  function stat(label, value, color, icon){
+    return '<div class="stat" style="position:relative;overflow:hidden;">'+
+      '<div style="position:absolute;top:0;left:0;right:0;height:3px;background:'+color+';opacity:.9;"></div>'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'+
+      '<span class="lbl" style="margin-bottom:0;">'+label+'</span>'+
+      (icon ? '<span style="font-size:12px;opacity:.85;">'+icon+'</span>' : '')+
+      '</div>'+
+      '<div class="val" style="color:'+color+';">'+fmt(value)+'</div></div>';
+  }
+
+  function emptyState(icon, title, subtitle){
+    return '<div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:40px 16px;">'+
+      '<div style="background:var(--surface);width:48px;height:48px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:20px;">'+icon+'</div>'+
+      '<div style="color:var(--text);font-family:var(--disp);font-size:14px;font-weight:500;margin-bottom:4px;">'+title+'</div>'+
+      '<div style="color:var(--muted);font-size:12px;max-width:220px;">'+subtitle+'</div>'+
+      '</div>';
+  }
+
+  function renderAlerts(){
+    var s = data.settings;
+    var alerts = s.alertPayments ? upcomingDuePayments(data.cards) : [];
+    var loanAlerts = s.alertPayments ? upcomingPersonalCreditPayments(data.personalCredits) : [];
+    var cutoffs = s.alertCutoffs ? upcomingCutoffs(data.cards) : [];
+    var out = "";
+
+    if(s.alertBudget && data.budget.configured){
+      var now0 = new Date();
+      var gastoMes0 = data.cards.reduce(function(sum,c){ return sum+monthTotal(c.expenses||[], now0.getFullYear(), now0.getMonth()); },0);
+      var presu0 = (data.budget.salary||0)*4.33*(data.budget.pctGastos/100);
+      if(presu0>0 && gastoMes0>presu0){
+        out += '<div class="alerts" style="background:#241A1D;border-left-color:var(--coral);"><div class="title">🔴 Presupuesto excedido</div>'+
+          '<div class="row"><span>Gastos del mes</span><span class="amt" style="color:var(--coral)">'+fmt(gastoMes0)+' / '+fmt(presu0)+'</span></div></div>';
+      }
+    }
+    if(s.alertGoals){
+      var delayedGoals = data.savings.filter(function(sv){
+        if(!sv.targetDate) return false;
+        var target = new Date(sv.targetDate); target.setHours(0,0,0,0);
+        var today = new Date(); today.setHours(0,0,0,0);
+        return target<today && sv.current<sv.goal;
+      });
+      if(delayedGoals.length){
+        var goalRows = delayedGoals.map(function(sv){
+          return '<div class="row"><span>'+esc(sv.name)+'</span><span class="amt" style="color:var(--amber)">meta retrasada</span></div>';
+        }).join("");
+        out += '<div class="alerts" style="background:#241E15;border-left-color:var(--amber);margin-top:'+(out?"8px":"0")+';"><div class="title" style="color:var(--amber);">🟡 Metas de ahorro retrasadas</div>'+goalRows+'</div>';
+      }
+    }
+    if(s.alertUtilization){
+      var highUtilCards = data.cards.filter(function(c){ return c.limit>0 && cardUtilizationPct(c)>=70; });
+      if(highUtilCards.length){
+        var utilRows = highUtilCards.map(function(c){
+          return '<div class="row"><span>'+esc(c.name)+'</span><span class="amt" style="color:var(--amber)">'+Math.round(cardUtilizationPct(c))+'% de uso</span></div>';
+        }).join("");
+        out += '<div class="alerts" style="background:#241E15;border-left-color:var(--amber);margin-top:'+(out?"8px":"0")+';"><div class="title" style="color:var(--amber);">🟡 Utilización de crédito alta</div>'+utilRows+'</div>';
+      }
+    }
+    if(s.alertDebtGrowth){
+      var histPoints = monthlyAggregate(data.history);
+      if(histPoints.length>=2){
+        var prevD = histPoints[histPoints.length-2].Deuda;
+        var lastD = histPoints[histPoints.length-1].Deuda;
+        if(prevD>0 && lastD>prevD){
+          out += '<div class="alerts" style="background:#241E15;border-left-color:var(--amber);margin-top:'+(out?"8px":"0")+';"><div class="title" style="color:var(--amber);">🟡 Tu deuda total creció</div>'+
+            '<div class="row"><span>Vs. mes anterior</span><span class="amt" style="color:var(--amber)">'+fmt(prevD)+' → '+fmt(lastD)+'</span></div></div>';
+        }
+      }
+    }
+
+    if(alerts.length){
+      var rows = alerts.map(function(a){
+        var color = a.dLeft<=3 ? "var(--coral)" : "var(--amber)";
+        var label = a.dLeft===0 ? "hoy" : ("en "+a.dLeft+" día"+(a.dLeft===1?"":"s"));
+        return '<div class="row"><span>'+esc(a.card.name)+'</span><span class="amt" style="color:'+color+'">'+label+' · '+dateLabel(a.due)+'</span></div>';
+      }).join("");
+      out += '<div class="alerts"><div class="title">⏰ Pagos próximos (tarjetas)</div>'+rows+'</div>';
+    }
+    if(loanAlerts.length){
+      var rows3 = loanAlerts.map(function(a){
+        var color = a.dLeft<=3 ? "var(--coral)" : "var(--amber)";
+        var label = a.dLeft===0 ? "hoy" : ("en "+a.dLeft+" día"+(a.dLeft===1?"":"s"));
+        return '<div class="row"><span>'+esc(a.credit.description)+'</span><span class="amt" style="color:'+color+'">'+label+' · '+dateLabel(a.date)+'</span></div>';
+      }).join("");
+      out += '<div class="alerts" style="background:#1A1D24;border-left-color:var(--mint);margin-top:'+(alerts.length?'8px':'0')+';"><div class="title" style="color:var(--mint);">⏰ Cuotas próximas (préstamos)</div>'+rows3+'</div>';
+    }
+    if(cutoffs.length){
+      var rows2 = cutoffs.map(function(a){
+        var label = a.dLeft===0 ? "hoy" : ("en "+a.dLeft+" día"+(a.dLeft===1?"":"s"));
+        return '<div class="row"><span>'+esc(a.card.name)+'</span><span class="amt" style="color:var(--amber)">'+label+' · '+dateLabel(a.cutoff)+'</span></div>';
+      }).join("");
+      out += '<div class="alerts" style="background:#241E15;border-left-color:var(--amber);margin-top:'+((alerts.length||loanAlerts.length)?'8px':'0')+';"><div class="title" style="color:var(--amber);">⏰ Cortes próximos</div>'+rows2+'</div>';
+    }
+    return out;
+  }
+
+  function renderHealthScore(totalDebt, totalSavings){
+    var h = computeHealthScore(data, totalDebt, totalSavings);
+    var pct = h.score;
+    var circumference = 2*Math.PI*30;
+    var offset = circumference*(1-pct/100);
+    var html = '<section style="margin-bottom:32px;"><div class="sec-title" style="margin-bottom:12px;">💚 Salud financiera</div>';
+    html += '<div class="card">';
+    html += '<div style="display:flex;align-items:center;gap:16px;">';
+    html += '<svg width="72" height="72" viewBox="0 0 72 72" style="flex-shrink:0;">'+
+      '<circle cx="36" cy="36" r="30" fill="none" stroke="var(--surface3)" stroke-width="7"/>'+
+      '<circle cx="36" cy="36" r="30" fill="none" stroke="'+h.level.color+'" stroke-width="7" stroke-linecap="round" '+
+      'stroke-dasharray="'+circumference+'" stroke-dashoffset="'+offset+'" transform="rotate(-90 36 36)"/>'+
+      '<text x="36" y="41" text-anchor="middle" font-size="18" font-weight="600" fill="var(--text)">'+pct+'</text>'+
+      '</svg>';
+    html += '<div style="flex:1;">'+
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'+
+      '<span style="color:'+h.level.color+';font-family:var(--disp);font-size:14px;font-weight:600;">'+h.level.icon+' '+h.level.label+'</span>'+
+      '<span style="color:var(--muted);font-size:11px;">('+pct+'/100)</span></div>'+
+      '<div style="color:var(--muted);font-size:12px;line-height:1.4;">'+esc(h.mainReason)+'</div>'+
+      '</div>';
+    html += '</div>'; /* cierra la fila flex (svg + texto) */
+    if(h.reasons && h.reasons.length){
+      html += '<div style="border-top:1px solid var(--surface2);margin-top:12px;padding-top:12px;">';
+      html += '<div style="color:var(--text);font-size:12px;font-weight:500;margin-bottom:8px;">¿Por qué tengo este resultado?</div>';
+      html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+      h.reasons.slice(0,3).forEach(function(r){
+        html += '<div style="display:flex;gap:8px;align-items:flex-start;">'+
+          '<span style="color:var(--amber);font-size:11px;flex-shrink:0;">●</span>'+
+          '<span style="color:var(--muted);font-size:11px;line-height:1.4;">'+esc(r.text)+'</span></div>';
+      });
+      html += '</div></div>';
+    }
+    if(h.factorsSkipped && h.factorsSkipped.length){
+      html += '<div style="border-top:1px solid var(--surface2);margin-top:12px;padding-top:12px;">';
+      html += '<div style="color:var(--text);font-size:11px;font-weight:500;margin-bottom:6px;">No evaluamos estos factores todavía</div>';
+      h.factorsSkipped.forEach(function(f){
+        html += '<div style="color:var(--muted);font-size:11px;line-height:1.4;">· '+esc(f)+'</div>';
+      });
+      html += '</div>';
+    }
+    html += '<div style="color:var(--muted);font-size:10px;margin-top:10px;line-height:1.5;">Calculado con '+h.factorsEvaluated+' de 5 factores posibles, usando solo lo que registraste en la app (saldos, tasas, presupuesto). Los umbrales y penalizaciones son criterios propios de esta app, no estándares bancarios ni una calificación crediticia real.</div>';
+    html += '</div>'; /* cierra .card */
+    html += '</section>';
+    return html;
+  }
+
+  function renderBudgetPanel(totalDebt){
+    var b = data.budget;
+    var salary = b.salary || 0;
+    var pctSum = b.pctGastos + b.pctDiversion + b.pctAhorro;
+    function weekly(pct){ return salary*pct/100; }
+    function monthly(pct){ return weekly(pct)*4.33; }
+    var rows = [
+      {key:"gastos", label:"Gastos", val:b.pctGastos, color:"var(--coral)"},
+      {key:"diversion", label:"Diversión", val:b.pctDiversion, color:"var(--amber)"},
+      {key:"ahorro", label:"Ahorro", val:b.pctAhorro, color:"var(--mint)"}
+    ];
+    var html = '<div class="bank-box">';
+    html += '<div class="bank-title">Presupuesto semanal</div>';
+    if(!b.configured){
+      html += '<div style="color:var(--muted);font-size:11px;line-height:1.5;margin-bottom:10px;">Todavía no has confirmado tu sueldo real. Hasta que lo hagas, no usamos ningún número de sueldo en tu Salud financiera ni en el semáforo de presupuesto — el campo de abajo trae un valor de ejemplo, no lo tomamos como tuyo.</div>';
+    }
+    html += '<span class="field-label">Sueldo semanal</span><input type="text" inputmode="decimal" id="budget-salary" value="'+salary+'" style="margin-bottom:10px;" />';
+    rows.forEach(function(r){
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--surface2);">'+
+        '<div style="display:flex;align-items:center;gap:8px;">'+
+        '<span style="font-size:14px;">'+r.label+'</span>'+
+        '<input type="text" inputmode="numeric" id="budget-pct-'+r.key+'" value="'+r.val+'" style="width:44px;padding:6px 8px;text-align:center;color:'+r.color+';" />'+
+        '<span style="color:var(--muted);font-size:12px;">%</span>'+
+        '</div>'+
+        '<div style="text-align:right;">'+
+        '<div style="color:'+r.color+';font-family:var(--mono);font-size:13px;">'+fmt(weekly(r.val))+'/sem</div>'+
+        '<div style="color:var(--muted);font-family:var(--mono);font-size:11px;">≈ '+fmt(monthly(r.val))+'/mes</div>'+
+        '</div></div>';
+    });
+    if(pctSum !== 100){
+      html += '<div style="color:var(--amber);font-size:11px;margin-top:8px;">Los porcentajes suman '+pctSum+'%, no 100% — ajústalos si quieres que cuadre exacto.</div>';
+    }
+    if(!b.configured){
+      html += '<button class="modal-save" data-act="save-budget" style="margin-top:12px;">Confirmar mi sueldo y activar el presupuesto</button>';
+      html += '</div>';
+      return html;
+    }
+    var now = new Date();
+    var gastoMesActual = data.cards.reduce(function(s,c){ return s+monthTotal(c.expenses||[], now.getFullYear(), now.getMonth()); },0);
+    var presupuestoGastoMensual = monthly(b.pctGastos);
+    if(presupuestoGastoMensual>0){
+      var usedPct = Math.min(999, (gastoMesActual/presupuestoGastoMensual)*100);
+      var semColor = usedPct>=100 ? "var(--coral)" : usedPct>=80 ? "var(--amber)" : "var(--mint)";
+      var semIcon = usedPct>=100 ? "🔴" : usedPct>=80 ? "🟡" : "🟢";
+      var daysInMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+      var daysLeft = daysInMonth - now.getDate();
+      html += '<div style="background:var(--surface3);border-radius:10px;padding:10px 12px;margin-top:12px;">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'+
+        '<span style="color:var(--text);font-size:12px;">'+semIcon+' Presupuesto de gastos del mes</span>'+
+        '<span style="color:'+semColor+';font-family:var(--mono);font-size:12px;">'+Math.round(usedPct)+'%</span></div>'+
+        '<div class="bar"><div class="bar-fill" style="width:'+Math.min(100,usedPct)+'%;background:'+semColor+';"></div></div>'+
+        '<div style="color:var(--muted);font-size:11px;margin-top:6px;">Has usado '+fmt(gastoMesActual)+' de '+fmt(presupuestoGastoMensual)+' y quedan '+daysLeft+' día'+(daysLeft===1?"":"s")+' del mes.</div>'+
+        '</div>';
+    }
+    if(totalDebt > 0){
+      var PAYOFF_WEEKS = 26;
+      var suggestedWeekly = totalDebt / PAYOFF_WEEKS;
+      var currentAhorroWeekly = weekly(b.pctAhorro);
+      var onTrack = currentAhorroWeekly >= suggestedWeekly;
+      var suggestedPct = salary>0 ? Math.min(100, Math.round((suggestedWeekly/salary)*100)) : null;
+      html += '<div style="background:var(--surface3);border-left:3px solid '+(onTrack?"var(--mint)":"var(--coral)")+';border-radius:10px;padding:10px 12px;margin-top:12px;">'+
+        '<div style="color:var(--text);font-size:12px;">💡 Con tu deuda actual de <span style="font-family:var(--mono);">'+fmt(totalDebt)+'</span>, te sugerimos destinar al menos '+
+        '<span style="font-family:var(--mono);color:'+(onTrack?"var(--mint)":"var(--coral)")+';">'+fmt(suggestedWeekly)+'/sem</span> para liquidarla en unos 6 meses'+
+        (suggestedPct!==null ? ' (≈'+suggestedPct+'% de tu sueldo)' : '')+'.</div>'+
+        '<div style="color:'+(onTrack?"var(--mint)":"var(--amber)")+';font-size:11px;margin-top:4px;">'+
+        (onTrack ? 'Tu Ahorro actual ('+fmt(currentAhorroWeekly)+'/sem) ya cubre esa meta ✓' : 'Tu Ahorro actual ('+fmt(currentAhorroWeekly)+'/sem) queda corto — considera subir el % de Ahorro o bajar Diversión.')+
+        '</div></div>';
+    }
+    html += '<button class="modal-save" data-act="save-budget" style="margin-top:12px;">Guardar cambios</button>';
+    html += '</div>';
+    return html;
+  }
+
+  function renderPersonalCreditsSection(){
+    var html = '<section style="margin-bottom:32px;"><div class="sec-head"><div class="sec-title">🏦 Créditos personales</div>';
+    if(ui.personalCreditForm !== "new"){
+      html += '<button class="add-btn" data-act="open-personal-credit-form" data-mode="new">+ agregar</button>';
+    }
+    html += '</div>';
+    if(ui.personalCreditForm === "new"){
+      html += renderPersonalCreditForm(null);
+    }
+    if(!data.personalCredits.length && !ui.personalCreditForm){
+      html += emptyState("🏦", "Sin créditos personales", "Registra un préstamo para calcular sus cuotas con interés e IVA automáticamente.");
+    }
+    sortPersonalCreditsByDue(data.personalCredits).forEach(function(c){
+      if(ui.personalCreditForm === c.id){
+        html += renderPersonalCreditForm(c);
+      }else{
+        html += renderPersonalCreditRow(c);
+      }
+    });
+    html += '</section>';
+    return html;
+  }
+
+  function renderPersonalCreditRow(credit){
+    var paid = personalElapsed(credit);
+    var done = paid >= credit.months;
+    var remaining = personalRemaining(credit);
+    var nextRow = personalNextPaymentRow(credit);
+    var nextDate = personalNextPaymentDate(credit);
+    var donePct = Math.min(100, (paid/credit.months)*100);
+    var dLeft = nextDate ? daysUntil(nextDate) : null;
+    var dueColor = dLeft===null ? "var(--muted)" : dLeft<=3 ? "var(--coral)" : dLeft<=7 ? "var(--amber)" : "var(--muted)";
+    var html = '<div class="card">';
+    html += '<div class="card-top">';
+    html += '<div style="flex:1;">';
+    html += '<div class="name">'+esc(credit.description)+'</div>';
+    html += '<div class="amount-line"><span class="amount-main">'+fmt(remaining)+'</span><span class="amount-sub">de '+fmt(credit.principal)+' · '+credit.annualRate+'% anual</span></div>';
+    if(!done && nextRow && nextDate){
+      html += '<div style="color:'+dueColor+';font-size:11px;margin-top:4px;">Próxima cuota: '+fmt(nextRow.total)+' · '+dateLabel(nextDate)+
+        (dLeft!==null ? ' ('+(dLeft===0?"hoy":"en "+dLeft+" día"+(dLeft===1?"":"s"))+')' : '')+'</div>';
+      html += '<div style="color:var(--muted);font-size:11px;margin-top:2px;">'+fmt(nextRow.capital)+' capital + '+fmt(nextRow.interest)+' interés + '+fmt(nextRow.iva)+' IVA</div>';
+    }
+    if(done) html += '<div style="color:var(--mint);font-size:11px;margin-top:4px;">Liquidado ✓</div>';
+    html += '</div>';
+    html += '<div style="display:flex;gap:2px;">'+
+      '<button class="icon-btn" data-act="edit-personal-credit" data-id="'+credit.id+'">✎</button>'+
+      '<button class="icon-btn" data-act="delete-personal-credit" data-id="'+credit.id+'">🗑</button>'+
+      '</div></div>';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-top:10px;">'+
+      '<div class="bar" style="flex:1;"><div class="bar-fill" style="width:'+donePct+'%;background:'+(done?"var(--mint)":"var(--coral)")+'"></div></div>'+
+      '<span style="color:var(--muted);font-family:var(--mono);font-size:11px;">'+paid+'/'+credit.months+'</span>'+
+      '</div>';
+    html += '<div style="display:flex;gap:8px;margin-top:8px;">';
+    if(paid>0) html += '<button class="mark-btn" style="color:var(--muted);" data-act="unmark-personal-credit" data-id="'+credit.id+'">Desmarcar cuota</button>';
+    if(!done) html += '<button class="mark-btn" data-act="mark-personal-credit" data-id="'+credit.id+'">Marcar cuota pagada</button>';
+    html += '</div>';
+    html += '</div>';
+    return html;
+  }
+
+  function renderPersonalCreditForm(credit){
+    var today = new Date().toISOString().slice(0,10);
+    var startVal = credit && credit.startDate ? new Date(credit.startDate).toISOString().slice(0,10) : today;
+    var html = '<div class="card">';
+    html += '<div style="color:var(--text);font-size:13px;font-weight:500;margin-bottom:10px;">'+(credit?"Editar crédito personal":"Nuevo crédito personal")+'</div>';
+    html += '<input type="text" placeholder="Descripción (ej. Préstamo personal BBVA)" id="pc-desc" value="'+(credit?esc(credit.description):"")+'" style="margin-bottom:8px;" />';
+    html += '<div class="form-row">'+
+      '<input type="text" inputmode="decimal" placeholder="Monto del préstamo" id="pc-principal" value="'+(credit?credit.principal:"")+'" />'+
+      '<input type="text" inputmode="numeric" placeholder="Plazo (meses)" id="pc-months" value="'+(credit?credit.months:"")+'" style="max-width:110px;" />'+
+      '</div>';
+    html += '<span class="field-label">Tasa de interés anual (%)</span>'+
+      '<input type="text" inputmode="decimal" placeholder="ej. 24 (revísala en tu contrato)" id="pc-rate" value="'+(credit?credit.annualRate:"")+'" style="margin-bottom:8px;" />';
+    html += '<div class="form-row">'+
+      '<div style="flex:1;"><span class="field-label">Fecha de inicio</span><input type="date" id="pc-start" value="'+startVal+'" /></div>'+
+      '<div style="max-width:110px;"><span class="field-label">Día de pago</span><input type="text" inputmode="numeric" placeholder="1–31" id="pc-day" value="'+(credit?credit.paymentDay:"")+'" /></div>'+
+      '</div>';
+    html += '<div style="color:var(--muted);font-size:11px;margin-bottom:10px;">Se calcula como los bancos: interés mensual sobre el saldo pendiente + IVA del 16% sobre ese interés.</div>';
+    html += '<div class="form-actions">'+
+      '<button class="btn-cancel" data-act="close-personal-credit-form">Cancelar</button>'+
+      '<button class="btn-save" data-act="submit-personal-credit" data-id="'+(credit?credit.id:"")+'">Guardar</button>'+
+      '</div>';
+    html += '</div>';
+    return html;
+  }
+
+  function renderReassignCategoryModal(){
+    if(!ui.reassignCategory) return "";
+    var r = ui.reassignCategory;
+    var targets = (data.categories||DEFAULT_CATEGORIES.slice()).filter(function(c){ return c!==r.from; });
+    var html = '<div class="modal-overlay" data-act="close-reassign-category-bg"><div class="modal" data-stop="1">';
+    html += '<div class="modal-head"><h3>Reasignar movimientos</h3><button data-act="close-reassign-category">✕</button></div>';
+    html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px;">"'+esc(r.from)+'" tiene '+r.count+' movimiento'+(r.count===1?"":"s")+' asociado'+(r.count===1?"":"s")+'. Elige a qué categoría quieres moverlos antes de eliminarla.</p>';
+    html += '<span class="field-label">Mover a</span>';
+    html += '<select id="reassign-to-select" style="width:100%;background:var(--surface3);color:var(--text);font-size:14px;padding:10px 12px;border-radius:10px;border:1px solid transparent;outline:none;margin-bottom:14px;font-family:inherit;">';
+    targets.forEach(function(t){ html += '<option value="'+esc(t)+'" '+(t===r.to?"selected":"")+'>'+esc(t)+'</option>'; });
+    html += '</select>';
+    html += '<button class="modal-save" data-act="confirm-reassign-category">Reasignar y eliminar categoría</button>';
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderMovCardPicker(){
+    if(!ui.movCardPicker) return "";
+    var html = '<div class="modal-overlay" data-act="close-mov-card-picker-bg"><div class="modal" data-stop="1">';
+    html += '<div class="modal-head"><h3>¿En qué tarjeta?</h3><button data-act="close-mov-card-picker">✕</button></div>';
+    html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+    data.cards.forEach(function(c){
+      html += '<button class="modal-save" style="background:var(--surface2);color:var(--text);margin-top:0;" data-act="pick-mov-card" data-id="'+c.id+'">'+esc(c.name)+'</button>';
+    });
+    html += '</div></div></div>';
+    return html;
+  }
+
+  function renderMovimientosSection(){
+    var results = filterMovements(data.cards, { query: ui.movQuery, category: ui.movCategory, cardId: ui.movCard });
+    var total = results.reduce(function(s,r){ return s+r.amount; },0);
+    var html = '<section><div class="sec-head"><div class="sec-title">🧾 Movimientos</div>'+
+      (data.cards.length ? '<button class="add-btn" data-act="movimientos-add">+ agregar</button>' : '')+
+      '</div>';
+
+    if(!data.cards.length){
+      html += emptyState("🧾", "Todavía no hay tarjetas", "Agrega una tarjeta primero; los movimientos se registran dentro de cada tarjeta.");
+      html += '</section>';
+      return html;
+    }
+
+    html += '<div class="form-box" style="margin-top:0;margin-bottom:14px;">';
+    html += '<input type="text" placeholder="Buscar por descripción…" id="mov-query" value="'+esc(ui.movQuery)+'" style="margin-bottom:8px;" />';
+    html += '<div class="form-row" style="margin-bottom:0;">';
+    html += '<select id="mov-cat" style="flex:1;background:var(--surface2);color:var(--text);font-size:12px;padding:8px 10px;border-radius:8px;border:1px solid transparent;outline:none;">';
+    html += '<option value="">Todas las categorías</option>';
+    (data.categories||DEFAULT_CATEGORIES).forEach(function(cat){
+      html += '<option value="'+esc(cat)+'" '+(ui.movCategory===cat?"selected":"")+'>'+esc(cat)+'</option>';
+    });
+    html += '</select>';
+    html += '<select id="mov-card" style="flex:1;background:var(--surface2);color:var(--text);font-size:12px;padding:8px 10px;border-radius:8px;border:1px solid transparent;outline:none;">';
+    html += '<option value="">Todas las tarjetas</option>';
+    data.cards.forEach(function(c){
+      html += '<option value="'+c.id+'" '+(ui.movCard===c.id?"selected":"")+'>'+esc(c.name)+'</option>';
+    });
+    html += '</select>';
+    html += '</div></div>';
+
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'+
+      '<span style="color:var(--muted);font-size:12px;">'+results.length+' movimiento'+(results.length===1?"":"s")+'</span>'+
+      '<span style="color:var(--text);font-family:var(--mono);font-size:14px;">'+fmt(total)+'</span></div>';
+
+    if(!results.length){
+      html += emptyState("🔍", "Sin resultados", "Ajusta la búsqueda o los filtros para ver tus movimientos.");
+    }else{
+      html += '<div class="card" style="padding:6px 16px;">';
+      results.forEach(function(r, idx){
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;'+(idx<results.length-1?'border-bottom:1px solid var(--surface2);':'')+'">'+
+          '<div style="min-width:0;flex:1;">'+
+          '<div style="color:var(--text);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(r.description)+'</div>'+
+          '<div style="color:var(--muted);font-size:11px;margin-top:2px;">'+esc(r.cardName)+' · '+esc(r.category)+' · '+dateLabel(r.date)+'</div>'+
+          '</div>'+
+          '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">'+
+          '<span style="color:var(--text);font-family:var(--mono);font-size:13px;">'+fmt(r.amount)+'</span>'+
+          '<button class="icon-btn" data-act="edit-expense" data-card="'+r.cardId+'" data-exp="'+r.id+'">✎</button>'+
+          '<button class="icon-btn" data-act="delete-expense" data-card="'+r.cardId+'" data-exp="'+r.id+'">🗑</button>'+
+          '</div></div>';
+      });
+      html += '</div>';
+      html += '<button class="modal-save" style="background:var(--surface2);color:var(--text);margin-top:10px;" data-act="export-csv">⬇ Exportar a CSV</button>';
+    }
+
+    html += '</section>';
+    return html;
+  }
+
+  function renderCardsSection(){
+    var html = '<section><div class="sec-head"><div class="sec-title">💳 Tarjetas de crédito</div>'+
+      '<button class="add-btn" data-act="open-modal" data-kind="card">+ agregar</button></div>';
+    if(!data.cards.length){
+      html += emptyState("💳", "Sin tarjetas todavía", 'Toca "agregar" para registrar tu primera tarjeta de crédito.');
+    }
+    sortCardsByDue(data.cards).forEach(function(c){ html += renderCard(c); });
+    html += '</section>';
+    return html;
+  }
+
+  function renderCard(item){
+    var msiOwed = cardMsiTotal(item);
+    var deferredOwed = cardDeferredTotal(item);
+    var usedTotal = Math.max(0, item.balance + msiOwed + deferredOwed - (item.extraCredit||0));
+    var pct = item.limit>0 ? Math.min(100, (usedTotal/item.limit)*100) : 0;
+    var barColor = pct>90 ? "var(--coral)" : pct>70 ? "var(--amber)" : "var(--mint)";
+    var available = item.limit>0 ? Math.max(0, item.limit-usedTotal) : null;
+    var due = nextDueDate(item.dueDay);
+    var dLeft = due ? daysUntil(due) : null;
+    var dueColor = dLeft===null ? "var(--muted)" : dLeft<=3 ? "var(--coral)" : dLeft<=7 ? "var(--amber)" : "var(--muted)";
+    var dueLabel = dLeft===null ? null : (dLeft===0?"Pago hoy":"Pago en "+dLeft+" día"+(dLeft===1?"":"s"));
+    var payments = item.payments || [];
+    var lastPayment = payments.length ? payments[payments.length-1] : null;
+    var open = ui.openCard === item.id;
+
+    var html = '<div class="card" data-card="'+item.id+'">';
+    html += '<div class="card-top">';
+    html += '<button class="card-main" data-act="toggle-card" data-id="'+item.id+'">';
+    html += '<div class="name">'+esc(item.name)+'</div>';
+    html += '<div class="amount-line"><span class="amount-main">'+fmt(item.balance)+'</span><span class="amount-sub">/ '+fmt(item.limit)+'</span>';
+    if(msiOwed>0) html += '<span class="amount-msi">+ '+fmt(msiOwed)+' MSI</span>';
+    if(deferredOwed>0) html += '<span style="color:var(--coral);font-family:var(--mono);font-size:12px;">+ '+fmt(deferredOwed)+' diferido</span>';
+    html += '</div>';
+    if(available!==null) html += '<div style="color:var(--muted);font-family:var(--mono);font-size:11px;margin-top:2px;">Disponible: '+fmt(available)+'</div>';
+    if(dueLabel || item.cutoffDay || lastPayment){
+      html += '<div class="badges">';
+      if(dueLabel) html += '<span class="badge" style="color:'+dueColor+';border-color:'+dueColor+'">⏰ '+dueLabel+'</span>';
+      if(item.cutoffDay) html += '<span class="badge-muted">Corte: día '+item.cutoffDay+'</span>';
+      if(lastPayment) html += '<span class="badge-muted">Último pago: '+fmt(lastPayment.amount)+' · '+dateLabel(lastPayment.date)+'</span>';
+      if(item.extraCredit > 0) html += '<span class="badge-muted" style="color:var(--mint);">Crédito a favor: '+fmt(item.extraCredit)+'</span>';
+      html += '</div>';
+    }
+    var dueInfo = cardAmountDueNow(item);
+    var msiDue = msiDueThisPeriod(item, due);
+    var defDue = deferredDueThisPeriod(item, due);
+    var futureCycleTotal = dueInfo.futureCycleTotal;
+    var amountDueNow = dueInfo.amountDueNow;
+    if(due && dueInfo.amount>0){
+      var dueTotal = dueInfo.amount;
+      html += '<div style="background:var(--surface3);border-left:3px solid '+dueColor+';border-radius:10px;padding:8px 10px;margin-top:8px;">'+
+        '<div style="color:var(--text);font-size:12px;">Según los movimientos registrados, deberías cubrir aproximadamente <span style="font-family:var(--mono);color:'+dueColor+'">'+fmt(dueTotal)+'</span> antes del '+dateLabel(due)+'</div>'+
+        '<div style="color:var(--muted);font-size:10px;margin-top:2px;">Consulta tu estado de cuenta para confirmar el pago para no generar intereses — la app no conoce el saldo oficial del banco.</div>'+
+        (msiDue>0 ? '<div style="color:var(--amber);font-size:11px;margin-top:2px;">incluye '+fmt(msiDue)+' de cuotas MSI</div>' : '')+
+        (defDue>0 ? '<div style="color:var(--coral);font-size:11px;margin-top:2px;">incluye '+fmt(defDue)+' de pagos diferidos (con interés + IVA)</div>' : '')+
+        (dueInfo.credit>0 ? '<div style="color:var(--mint);font-size:11px;margin-top:2px;">se restó '+fmt(dueInfo.credit)+' de crédito a favor</div>' : '')+
+        (futureCycleTotal>0 ? '<div style="color:var(--muted);font-size:11px;margin-top:2px;">'+fmt(futureCycleTotal)+' en compras recientes no entran aquí — se facturan en el próximo corte</div>' : '')+
+        '<div style="color:var(--muted);font-size:11px;margin-top:2px;">'+(dLeft===0?"vence hoy":"faltan "+dLeft+" día"+(dLeft===1?"":"s"))+' desde el corte del día '+item.cutoffDay+'</div>'+
+        '</div>';
+    }
+    html += '</button>';
+    html += '<div style="display:flex;gap:2px;">';
+    html += '<button class="icon-btn" data-act="edit-card" data-id="'+item.id+'">✎</button>';
+    html += '<button class="icon-btn" data-act="delete-card" data-id="'+item.id+'">🗑</button>';
+    html += '</div></div>';
+    html += '<div class="bar"><div class="bar-fill" style="width:'+pct+'%;background:'+barColor+'"></div></div>';
+
+    if(open){
+      html += renderChips(item.id, "card");
+      html += renderExpensesSection(item);
+      html += renderPaymentsSection(item, payments);
+      html += renderMsiSection(item);
+      html += renderDeferredSection(item);
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderExpensesSection(item){
+    var schedule = paymentSchedule(item);
+    var expenses = item.expenses || [];
+    var scanning = ui.scanningCard === item.id;
+    var html = '<div class="subsection"><div class="subsection-head"><span class="subsection-label">Gastos</span>';
+    html += '<div style="display:flex;align-items:center;gap:10px;">';
+    html += '<input type="file" accept="image/*" capture="environment" id="receipt-input-'+item.id+'" style="display:none;" />';
+    html += '<button class="mini-add" style="color:var(--amber);" data-act="scan-receipt" data-id="'+item.id+'" '+(scanning?"disabled":"")+'>📷 '+(scanning?"leyendo…":"escanear recibo")+'</button>';
+    if(ui.expenseForm !== item.id){
+      html += '<button class="mini-add" data-act="show-expense-form" data-id="'+item.id+'">+ registrar gasto</button>';
+    }
+    html += '</div></div>';
+
+    if(ui.expenseForm === item.id && ui.scanError){
+      html += '<div style="color:var(--coral);font-size:11px;margin-bottom:8px;">'+esc(ui.scanError)+'</div>';
+    }
+
+    if(!item.cutoffDay || !item.dueDay){
+      html += '<div class="empty" style="margin-bottom:8px;">Agrega el día de corte y de pago en "editar" para que te diga cuándo pagar cada gasto.</div>';
+    }
+
+    var now = new Date();
+    var prevMonthDate = new Date(now.getFullYear(), now.getMonth()-1, 1);
+    var thisTotal = monthTotal(expenses, now.getFullYear(), now.getMonth());
+    var prevTotal = monthTotal(expenses, prevMonthDate.getFullYear(), prevMonthDate.getMonth());
+    if(thisTotal>0 || prevTotal>0){
+      var diff = thisTotal-prevTotal;
+      var pctChange = prevTotal>0 ? Math.round((diff/prevTotal)*100) : null;
+      html += '<div style="background:var(--surface3);border-radius:10px;padding:8px 10px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">'+
+        '<span style="color:var(--muted);font-size:11px;">Este mes: <span style="color:var(--text);font-family:var(--mono);">'+fmt(thisTotal)+'</span> · mes anterior: '+fmt(prevTotal)+'</span>'+
+        (pctChange!==null ? '<span style="color:'+(diff>0?"var(--coral)":"var(--mint)")+';font-size:11px;white-space:nowrap;">'+(diff>0?"▲":diff<0?"▼":"—")+' '+Math.abs(pctChange)+'%</span>' : '')+
+        '</div>';
+    }
+
+    schedule.cycles.forEach(function(g){
+      var dl = daysUntil(g.pago);
+      var color = dl<=3 ? "var(--coral)" : dl<=10 ? "var(--amber)" : "var(--mint)";
+      html += '<div class="mini-card"><div class="mini-row">'+
+        '<span style="font-size:12px;">Corte '+dateLabel(g.corte)+' · '+g.count+' gasto'+(g.count===1?"":"s")+'</span>'+
+        '<span style="font-family:var(--mono);font-size:12px;">'+fmt(g.total)+'</span></div>'+
+        '<div style="color:'+color+';font-size:11px;margin-top:4px;">Paga antes del '+dateLabel(g.pago)+' · '+(dl<=0?"vence hoy":"faltan "+dl+" día"+(dl===1?"":"s"))+'</div>'+
+        '</div>';
+    });
+    if(schedule.unassigned.count>0){
+      html += '<div class="empty" style="margin-bottom:8px;">'+schedule.unassigned.count+' gasto'+(schedule.unassigned.count===1?"":"s")+' sin ciclo asignado ('+fmt(schedule.unassigned.total)+')</div>';
+    }
+
+    if(expenses.length){
+      var recent = expenses.slice().reverse().slice(0,5);
+      recent.forEach(function(e){
+        html += '<div class="swipe-row" data-swipe-id="exp-'+e.id+'">'+
+          '<div class="swipe-actions">'+
+          '<button style="background:var(--amber);" data-act="edit-expense" data-card="'+item.id+'" data-exp="'+e.id+'">✎</button>'+
+          '<button style="background:var(--coral);" data-act="delete-expense" data-card="'+item.id+'" data-exp="'+e.id+'">✕</button>'+
+          '</div>'+
+          '<div class="swipe-content mini-row" style="padding:2px 0;">'+
+          '<span class="pay-date" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:65%;">'+esc(e.description)+' · '+dateLabel(e.date)+'</span>'+
+          '<span style="font-family:var(--mono);font-size:12px;">'+fmt(e.amount)+'</span>'+
+          '</div></div>';
+      });
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  function renderExpenseFormModal(){
+    if(!ui.expenseForm) return "";
+    var item = data.cards.find(function(c){ return c.id === ui.expenseForm; });
+    if(!item) return "";
+    var expenses = item.expenses || [];
+    var today = new Date().toISOString().slice(0,10);
+    var draft = ui.expenseDraft || {};
+    var editingExp = ui.expenseEditId ? expenses.find(function(e){return e.id===ui.expenseEditId;}) : null;
+    var expDescVal = editingExp ? editingExp.description : (draft.description||"");
+    var expAmountVal = editingExp ? editingExp.amount : (draft.amount||"");
+    var expDateVal = editingExp ? new Date(editingExp.date).toISOString().slice(0,10) : (draft.date||today);
+    var expCatVal = editingExp ? (editingExp.category||"Otros") : (draft.category||"Otros");
+    var html = '<div class="modal-overlay" data-act="hide-expense-form-bg"><div class="modal" data-stop="1">';
+    html += '<div class="modal-head"><h3>'+(editingExp?"Editar gasto":"Nuevo gasto")+' · '+esc(item.name)+'</h3><button data-act="hide-expense-form">✕</button></div>';
+    html += '<input type="text" list="expense-suggestions" placeholder="Descripción (ej. Supermercado)" id="exp-desc-'+item.id+'" value="'+esc(expDescVal)+'" />';
+    var allDescriptions = [];
+    data.cards.forEach(function(c){ (c.expenses||[]).forEach(function(e){ if(allDescriptions.indexOf(e.description)===-1) allDescriptions.push(e.description); }); });
+    allDescriptions.sort();
+    html += '<datalist id="expense-suggestions">'+allDescriptions.map(function(d){ return '<option value="'+esc(d)+'"></option>'; }).join("")+'</datalist>';
+    html += '<div class="modal-2col">'+
+      '<div><input type="text" inputmode="decimal" placeholder="Monto" id="exp-amount-'+item.id+'" value="'+esc(expAmountVal)+'" /></div>'+
+      '<div><input type="date" value="'+expDateVal+'" id="exp-date-'+item.id+'" /></div>'+
+      '</div>';
+    html += '<span class="field-label">Categoría</span>';
+    html += '<select id="exp-cat-'+item.id+'" style="width:100%;background:var(--surface3);color:var(--text);font-size:14px;padding:10px 12px;border-radius:10px;border:1px solid transparent;outline:none;margin-bottom:10px;font-family:inherit;">';
+    (data.categories||DEFAULT_CATEGORIES).forEach(function(cat){
+      html += '<option value="'+esc(cat)+'" '+(cat===expCatVal?"selected":"")+'>'+esc(cat)+'</option>';
+    });
+    html += '</select>';
+    html += '<div class="form-actions" style="margin-top:6px;">'+
+      '<button class="btn-cancel" data-act="hide-expense-form">Cancelar</button>'+
+      '<button class="btn-save" data-act="submit-expense" data-id="'+item.id+'">'+(editingExp?"Guardar cambios":"Registrar")+'</button>'+
+      '</div>';
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderChips(id, kind){
+    var negs = CHIPS.map(function(c){ return '<button class="chip neg" data-act="adjust" data-kind="'+kind+'" data-id="'+id+'" data-delta="-'+c+'">−'+c+'</button>'; }).join("");
+    var poss = CHIPS.map(function(c){ return '<button class="chip pos" data-act="adjust" data-kind="'+kind+'" data-id="'+id+'" data-delta="'+c+'">+'+c+'</button>'; }).join("");
+    return '<div class="chips">'+negs+poss+
+      '<div class="chip-custom">'+
+      '<input type="text" inputmode="decimal" placeholder="monto" id="custom-'+kind+'-'+id+'" />'+
+      '<button class="icon-btn" style="color:var(--coral)" data-act="custom-adjust" data-kind="'+kind+'" data-id="'+id+'" data-sign="-1">−</button>'+
+      '<button class="icon-btn" style="color:var(--mint)" data-act="custom-adjust" data-kind="'+kind+'" data-id="'+id+'" data-sign="1">+</button>'+
+      '</div></div>';
+  }
+
+  function renderPaymentsSection(item, payments){
+    var html = '<div class="subsection"><div class="subsection-head"><span class="subsection-label">Pagos</span>';
+    if(ui.paymentForm !== item.id){
+      html += '<button class="mini-add" data-act="show-payment-form" data-id="'+item.id+'">+ registrar pago</button>';
+    }
+    html += '</div>';
+    if(!payments.length && ui.paymentForm!==item.id){
+      html += '<div class="empty">Aún no registras pagos de esta tarjeta.</div>';
+    }
+    if(payments.length){
+      var recent = payments.slice().reverse().slice(0,5);
+      recent.forEach(function(p){
+        html += '<div class="swipe-row" data-swipe-id="pay-'+p.id+'">'+
+          '<div class="swipe-actions">'+
+          '<button style="background:var(--amber);" data-act="edit-payment" data-card="'+item.id+'" data-pay="'+p.id+'">✎</button>'+
+          '<button style="background:var(--coral);" data-act="delete-payment" data-card="'+item.id+'" data-pay="'+p.id+'">✕</button>'+
+          '</div>'+
+          '<div class="swipe-content mini-row" style="padding:2px 0;">'+
+          '<span class="pay-date">'+dateLabelFull(p.date)+'</span>'+
+          '<span class="pay-amt">'+fmt(p.amount)+'</span>'+
+          '</div></div>';
+      });
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderPaymentFormModal(){
+    if(!ui.paymentForm) return "";
+    var item = data.cards.find(function(c){ return c.id === ui.paymentForm; });
+    if(!item) return "";
+    var payments = item.payments || [];
+    var today = new Date().toISOString().slice(0,10);
+    var editingPay = ui.paymentEditId ? payments.find(function(p){return p.id===ui.paymentEditId;}) : null;
+    var payAmountVal = editingPay ? editingPay.amount : "";
+    var payDateVal = editingPay ? new Date(editingPay.date).toISOString().slice(0,10) : today;
+    var html = '<div class="modal-overlay" data-act="hide-payment-form-bg"><div class="modal" data-stop="1">';
+    html += '<div class="modal-head"><h3>'+(editingPay?"Editar pago":"Nuevo pago")+' · '+esc(item.name)+'</h3><button data-act="hide-payment-form">✕</button></div>';
+    html += '<div class="modal-2col">'+
+      '<div><input type="text" inputmode="decimal" placeholder="Monto pagado" id="pay-amount-'+item.id+'" value="'+esc(payAmountVal)+'" /></div>'+
+      '<div><input type="date" value="'+payDateVal+'" id="pay-date-'+item.id+'" /></div>'+
+      '</div>';
+    html += '<div class="form-actions" style="margin-top:6px;">'+
+      '<button class="btn-cancel" data-act="hide-payment-form">Cancelar</button>'+
+      '<button class="btn-save" data-act="submit-payment" data-id="'+item.id+'">'+(editingPay?"Guardar cambios":"Registrar")+'</button>'+
+      '</div>';
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderMsiSection(item){
+    var plans = item.msi || [];
+    var html = '<div class="subsection"><div class="subsection-head"><span class="subsection-label">Meses sin intereses</span>';
+    if(ui.msiForm !== item.id){
+      html += '<button class="mini-add" data-act="show-msi-form" data-id="'+item.id+'">+ agregar</button>';
+    }
+    html += '</div>';
+    if(!plans.length && ui.msiForm!==item.id){
+      html += '<div class="empty">Sin compras a meses activas.</div>';
+    }
+    plans.forEach(function(plan){
+      var monthly = msiMonthly(plan);
+      var paid = msiEffectivePaid(plan, item.cutoffDay, item.dueDay);
+      var donePct = Math.min(100, (paid/plan.months)*100);
+      var done = paid >= plan.months;
+      var nextPago = msiNextPago(plan, item.cutoffDay, item.dueDay);
+      html += '<div class="mini-card"><div class="mini-row">'+
+        '<div><div class="mini-desc">'+esc(plan.description)+'</div>'+
+        '<div class="mini-sub">'+fmt(monthly)+'/mes · '+paid+'/'+plan.months+' meses'+
+        (done ? ' · pagado' : ' · restan '+fmt(msiRemaining(plan,item.cutoffDay,item.dueDay)))+'</div>'+
+        (!done && nextPago ? '<div style="color:var(--amber);font-size:11px;margin-top:2px;">próxima cuota: '+dateLabel(nextPago)+'</div>' : '')+
+        '</div>'+
+        '<div class="mini-actions">'+
+        '<button class="icon-btn" style="padding:2px;" data-act="edit-msi" data-card="'+item.id+'" data-plan="'+plan.id+'">✎</button>'+
+        '<button class="icon-btn" style="padding:2px;" data-act="delete-msi" data-card="'+item.id+'" data-plan="'+plan.id+'">🗑</button>'+
+        '</div></div>'+
+        '<div style="display:flex;align-items:center;gap:8px;margin-top:8px;">'+
+        '<div class="bar" style="height:4px;margin-top:0;flex:1;"><div class="bar-fill" style="width:'+donePct+'%;background:'+(done?"var(--mint)":"var(--amber)")+'"></div></div>'+
+        (paid>0 ? '<button class="mark-btn" style="color:var(--muted);" data-act="unmark-msi" data-card="'+item.id+'" data-plan="'+plan.id+'">Desmarcar</button>' : '')+
+        (!done ? '<button class="mark-btn" data-act="mark-msi" data-card="'+item.id+'" data-plan="'+plan.id+'">Marcar cuota</button>' : '')+
+        '</div>'+
+        '</div>';
+    });
+    if(ui.msiForm === item.id){
+      var today = new Date().toISOString().slice(0,10);
+      var editing = ui.msiEditId ? plans.find(function(p){return p.id===ui.msiEditId;}) : null;
+      html += '<div class="form-box">'+
+        '<div style="color:var(--text);font-size:12px;font-weight:500;margin-bottom:8px;">'+(editing?"Editar compra MSI":"Nueva compra MSI")+'</div>'+
+        '<input type="text" placeholder="Descripción (ej. Laptop)" id="msi-desc-'+item.id+'" value="'+(editing?esc(editing.description):"")+'" style="margin-bottom:8px;" />'+
+        '<div class="form-row">'+
+        '<input type="text" inputmode="decimal" placeholder="Monto total" id="msi-total-'+item.id+'" value="'+(editing?editing.total:"")+'" />'+
+        '<input type="text" inputmode="numeric" placeholder="# meses" id="msi-months-'+item.id+'" value="'+(editing?editing.months:"")+'" style="max-width:90px;" />'+
+        '</div>'+
+        '<div id="msi-preview-'+item.id+'" style="display:none;background:var(--surface3);border-left:3px solid var(--amber);border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:11px;color:var(--muted);"></div>'+
+        '<span style="color:var(--muted);font-size:11px;display:block;margin-bottom:4px;">Fecha de compra</span>'+
+        '<input type="date" value="'+(editing&&editing.date?new Date(editing.date).toISOString().slice(0,10):today)+'" id="msi-date-'+item.id+'" style="margin-bottom:8px;" />'+
+        '<div class="form-actions">'+
+        '<button class="btn-cancel" data-act="hide-msi-form">Cancelar</button>'+
+        '<button class="btn-save" data-act="submit-msi" data-id="'+item.id+'">Guardar</button>'+
+        '</div></div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderDeferredSection(item){
+    var plans = item.diferidos || [];
+    var html = '<div class="subsection"><div class="subsection-head"><span class="subsection-label">Pagos diferidos (con interés)</span>';
+    if(ui.deferredForm !== item.id){
+      html += '<button class="mini-add" data-act="show-deferred-form" data-id="'+item.id+'">+ agregar</button>';
+    }
+    html += '</div>';
+    if(!plans.length && ui.deferredForm!==item.id){
+      html += '<div class="empty">Sin pagos diferidos activos.</div>';
+    }
+    plans.forEach(function(plan){
+      var paid = msiEffectivePaid(plan, item.cutoffDay, item.dueDay);
+      var done = paid >= plan.months;
+      var remaining = deferredRemaining(plan, item.cutoffDay, item.dueDay);
+      var nextRow = deferredNextPayment(plan, item.cutoffDay, item.dueDay);
+      var nextPago = msiNextPago(plan, item.cutoffDay, item.dueDay);
+      var donePct = Math.min(100, (paid/plan.months)*100);
+      html += '<div class="mini-card"><div class="mini-row">'+
+        '<div><div class="mini-desc">'+esc(plan.description)+'</div>'+
+        '<div class="mini-sub">'+plan.annualRate+'% anual · '+paid+'/'+plan.months+' meses'+
+        (done ? ' · pagado' : ' · restan '+fmt(remaining))+'</div>'+
+        (!done && nextRow ? '<div style="color:var(--coral);font-size:11px;margin-top:2px;">próxima cuota: '+fmt(nextRow.total)+' ('+fmt(nextRow.capital)+' capital + '+fmt(nextRow.interest)+' interés + '+fmt(nextRow.iva)+' IVA)'+(nextPago?' · '+dateLabel(nextPago):'')+'</div>' : '')+
+        '</div>'+
+        '<div class="mini-actions">'+
+        '<button class="icon-btn" style="padding:2px;" data-act="edit-deferred" data-card="'+item.id+'" data-plan="'+plan.id+'">✎</button>'+
+        '<button class="icon-btn" style="padding:2px;" data-act="delete-deferred" data-card="'+item.id+'" data-plan="'+plan.id+'">🗑</button>'+
+        '</div></div>'+
+        '<div style="display:flex;align-items:center;gap:8px;margin-top:8px;">'+
+        '<div class="bar" style="height:4px;margin-top:0;flex:1;"><div class="bar-fill" style="width:'+donePct+'%;background:'+(done?"var(--mint)":"var(--coral)")+'"></div></div>'+
+        (paid>0 ? '<button class="mark-btn" style="color:var(--muted);" data-act="unmark-deferred" data-card="'+item.id+'" data-plan="'+plan.id+'">Desmarcar</button>' : '')+
+        (!done ? '<button class="mark-btn" data-act="mark-deferred" data-card="'+item.id+'" data-plan="'+plan.id+'">Marcar cuota</button>' : '')+
+        '</div>'+
+        '</div>';
+    });
+    if(ui.deferredForm === item.id){
+      var today = new Date().toISOString().slice(0,10);
+      var editing = ui.deferredEditId ? plans.find(function(p){return p.id===ui.deferredEditId;}) : null;
+      html += '<div class="form-box">'+
+        '<div style="color:var(--text);font-size:12px;font-weight:500;margin-bottom:8px;">'+(editing?"Editar pago diferido":"Nuevo pago diferido")+'</div>'+
+        '<input type="text" placeholder="Descripción (ej. Refrigerador)" id="def-desc-'+item.id+'" value="'+(editing?esc(editing.description):"")+'" style="margin-bottom:8px;" />'+
+        '<div class="form-row">'+
+        '<input type="text" inputmode="decimal" placeholder="Monto original" id="def-principal-'+item.id+'" value="'+(editing?editing.principal:"")+'" />'+
+        '<input type="text" inputmode="numeric" placeholder="Plazo (meses)" id="def-months-'+item.id+'" value="'+(editing?editing.months:"")+'" style="max-width:100px;" />'+
+        '</div>'+
+        '<span style="color:var(--muted);font-size:11px;display:block;margin-bottom:4px;">Tasa de interés anual (%)</span>'+
+        '<input type="text" inputmode="decimal" placeholder="ej. 42 (revísala en tu contrato)" id="def-rate-'+item.id+'" value="'+(editing?editing.annualRate:"")+'" style="margin-bottom:8px;" />'+
+        '<div id="def-preview-'+item.id+'" style="display:none;background:var(--surface3);border-left:3px solid var(--coral);border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:11px;color:var(--muted);"></div>'+
+        '<span style="color:var(--muted);font-size:11px;display:block;margin-bottom:4px;">Fecha de compra</span>'+
+        '<input type="date" value="'+(editing&&editing.date?new Date(editing.date).toISOString().slice(0,10):today)+'" id="def-date-'+item.id+'" style="margin-bottom:8px;" />'+
+        '<div style="color:var(--muted);font-size:11px;margin-bottom:8px;">Se calcula como los bancos: interés mensual sobre el saldo pendiente + IVA del 16% sobre ese interés.</div>'+
+        '<div class="form-actions">'+
+        '<button class="btn-cancel" data-act="hide-deferred-form">Cancelar</button>'+
+        '<button class="btn-save" data-act="submit-deferred" data-id="'+item.id+'">'+(editing?"Guardar cambios":"Guardar")+'</button>'+
+        '</div></div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderSavingsSection(){
+    var html = '<section><div class="sec-head"><div class="sec-title">🐷 Ahorros</div>'+
+      '<button class="add-btn" data-act="open-modal" data-kind="saving">+ agregar</button></div>';
+    html += renderBankBreakdown();
+    if(!data.savings.length){
+      html += emptyState("🐷", "Sin metas de ahorro", "Crea una meta y sigue tu avance por banco, con fecha límite si quieres.");
+    }
+    data.savings.forEach(function(s){ html += renderSaving(s); });
+    html += '</section>';
+    return html;
+  }
+
+  function renderBankBreakdown(){
+    if(!data.savings.length) return "";
+    var byBank = {};
+    data.savings.forEach(function(s){
+      var key = (s.bank && s.bank.trim()) ? s.bank.trim() : "Sin banco";
+      byBank[key] = (byBank[key]||0) + (s.current||0);
+    });
+    var rows = Object.keys(byBank).map(function(k){ return [k, byBank[k]]; }).sort(function(a,b){ return b[1]-a[1]; });
+    var total = rows.reduce(function(s,r){ return s+r[1]; },0);
+    var html = '<div class="bank-box"><div class="bank-title">Desglose por banco</div>';
+    rows.forEach(function(r){
+      var pct = total>0 ? (r[1]/total)*100 : 0;
+      html += '<div class="bank-row"><div class="bank-row-top"><span>'+esc(r[0])+'</span><span class="bank-row-amt">'+fmt(r[1])+'</span></div>'+
+        '<div class="bar"><div class="bar-fill" style="width:'+pct+'%;background:var(--mint)"></div></div></div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function renderSaving(item){
+    var pct = item.goal>0 ? Math.min(100, (item.current/item.goal)*100) : 0;
+    var open = ui.openSaving === item.id;
+    var remaining = Math.max(0, item.goal-item.current);
+    var suggestion = "";
+    if(item.targetDate && remaining>0){
+      var today = new Date(); today.setHours(0,0,0,0);
+      var target = new Date(item.targetDate); target.setHours(0,0,0,0);
+      var overdue = target < today;
+      var monthsLeft = Math.max(0, (target.getFullYear()-today.getFullYear())*12 + (target.getMonth()-today.getMonth()) + (target.getDate()>=today.getDate()?0:-1) + 1);
+      var monthlyNeeded = overdue ? remaining : remaining/Math.max(1, monthsLeft);
+      var tLabel = target.toLocaleDateString("es-MX",{day:"numeric",month:"short",year:"numeric"});
+      if(overdue){
+        suggestion = '<div style="color:var(--coral);font-size:11px;margin-top:6px;">Meta vencida el '+dateLabel(target)+' · te faltan '+fmt(remaining)+'</div>';
+      }else if(item.monthlyContribution && item.monthlyContribution>0){
+        var monthsAtCurrentRate = Math.ceil(remaining/item.monthlyContribution);
+        if(monthsAtCurrentRate > monthsLeft){
+          var estCompletion = new Date(today.getFullYear(), today.getMonth()+monthsAtCurrentRate, today.getDate());
+          var monthsLate = monthsAtCurrentRate - monthsLeft;
+          suggestion = '<div style="color:var(--amber);font-size:11px;margin-top:6px;line-height:1.4;">Con tu aportación actual de '+fmt(item.monthlyContribution)+'/mes, alcanzarías esta meta aproximadamente '+monthsLate+' mes'+(monthsLate===1?"":"es")+' después de la fecha objetivo (≈ '+dateLabel(estCompletion)+'). Necesitarías '+fmt(monthlyNeeded)+'/mes para llegar a tiempo.</div>';
+        }else{
+          suggestion = '<div style="color:var(--mint);font-size:11px;margin-top:6px;">Vas bien: con '+fmt(item.monthlyContribution)+'/mes llegarías antes del '+tLabel+'. El mínimo para llegar a tiempo es '+fmt(monthlyNeeded)+'/mes.</div>';
+        }
+      }else{
+        suggestion = '<div style="color:var(--mint);font-size:11px;margin-top:6px;">Ahorra '+fmt(monthlyNeeded)+'/mes para llegar el '+tLabel+'</div>';
+      }
+    }
+    var html = '<div class="card"><div class="card-top">';
+    html += '<button class="card-main" data-act="toggle-saving" data-id="'+item.id+'">';
+    html += '<div class="name">'+esc(item.name);
+    if(item.bank) html += '<span class="tag">'+esc(item.bank)+'</span>';
+    html += '</div>';
+    html += '<div class="amount-line"><span class="amount-main" style="color:var(--mint)">'+fmt(item.current)+'</span>'+
+      '<span class="amount-sub">/ '+fmt(item.goal)+' · '+Math.round(pct)+'%</span></div>';
+    html += suggestion;
+    html += '</button>';
+    html += '<div style="display:flex;gap:2px;">'+
+      '<button class="icon-btn" data-act="edit-saving" data-id="'+item.id+'">✎</button>'+
+      '<button class="icon-btn" data-act="delete-saving" data-id="'+item.id+'">🗑</button>'+
+      '</div></div>';
+    html += '<div class="bar"><div class="bar-fill" style="width:'+pct+'%;background:var(--mint)"></div></div>';
+    if(open) html += renderChips(item.id, "saving");
+    html += '</div>';
+    return html;
+  }
+
+  function renderChartSection(){
+    var points = monthlyAggregate(data.history);
+    var html = '<section><div class="sec-title" style="margin-bottom:12px;">Evolución mensual</div>';
+    if(points.length < 2){
+      html += '<div class="chart-box"><div class="chart-empty">Aquí verás tu evolución mensual de deuda y ahorro conforme registres cambios en al menos dos meses distintos.</div></div>';
+    }else{
+      html += '<div class="chart-box">'+
+        '<div class="legend"><span><span class="dot" style="background:var(--coral)"></span>Deuda</span><span><span class="dot" style="background:var(--mint)"></span>Ahorro</span></div>'+
+        buildSvgChart(points) +
+        '</div>';
+    }
+    html += '</section>';
+    return html;
+  }
+
+  function buildSvgChart(points){
+    var w = 400, h = 180, padL = 40, padR = 10, padT = 10, padB = 20;
+    var maxVal = Math.max(1, Math.max.apply(null, points.map(function(p){ return Math.max(p.Deuda, p.Ahorro); })));
+    var stepX = (w - padL - padR) / Math.max(1, points.length-1);
+    function xAt(i){ return padL + i*stepX; }
+    function yAt(v){ return padT + (h-padT-padB) * (1 - v/maxVal); }
+    function pathFor(key, color){
+      var d = points.map(function(p,i){ return (i===0?"M":"L") + xAt(i).toFixed(1) + "," + yAt(p[key]).toFixed(1); }).join(" ");
+      return '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2" />';
+    }
+    var dots = "";
+    points.forEach(function(p,i){
+      dots += '<circle cx="'+xAt(i).toFixed(1)+'" cy="'+yAt(p.Deuda).toFixed(1)+'" r="2.5" fill="var(--coral)" />';
+      dots += '<circle cx="'+xAt(i).toFixed(1)+'" cy="'+yAt(p.Ahorro).toFixed(1)+'" r="2.5" fill="var(--mint)" />';
+    });
+    var labels = points.map(function(p,i){
+      return '<text x="'+xAt(i).toFixed(1)+'" y="'+(h-4)+'" font-size="9" fill="var(--muted)" text-anchor="middle">'+p.label+'</text>';
+    }).join("");
+    var gridLines = "";
+    for(var g=0; g<=2; g++){
+      var yv = padT + (h-padT-padB) * (g/2);
+      gridLines += '<line x1="'+padL+'" y1="'+yv.toFixed(1)+'" x2="'+(w-padR)+'" y2="'+yv.toFixed(1)+'" stroke="var(--surface2)" stroke-width="1" />';
+    }
+    return '<svg viewBox="0 0 '+w+' '+h+'" style="width:100%;height:200px;">'+
+      gridLines + pathFor("Deuda","var(--coral)") + pathFor("Ahorro","var(--mint)") + dots + labels +
+      '</svg>';
+  }
+
+  function buildDonutChart(items){
+    var total = items.reduce(function(s,d){ return s+d.value; },0);
+    if(total<=0) return "";
+    var size=130, radius=50, stroke=16, circumference=2*Math.PI*radius;
+    var offset=0;
+    var selected = ui.donutSelected;
+    var arcs = '<circle cx="'+(size/2)+'" cy="'+(size/2)+'" r="'+radius+'" fill="none" stroke="#0C121B" stroke-width="'+stroke+'" />';
+    items.forEach(function(d,i){
+      var frac = d.value/total;
+      var dash = frac*circumference;
+      var isActive = selected===i;
+      var isDim = selected!=null && !isActive;
+      arcs += '<circle cx="'+(size/2)+'" cy="'+(size/2)+'" r="'+radius+'" fill="none" stroke="'+d.color+'" stroke-width="'+(isActive?stroke+3:stroke)+'" '+
+        'stroke-opacity="'+(isDim?0.25:1)+'" data-act="select-donut" data-idx="'+i+'" style="cursor:pointer;transition:stroke-opacity .15s ease,stroke-width .15s ease;" '+
+        'stroke-dasharray="'+dash.toFixed(2)+' '+(circumference-dash).toFixed(2)+'" stroke-dashoffset="'+(-offset).toFixed(2)+'" />';
+      offset += dash;
+    });
+    var centerHtml;
+    if(selected!=null && items[selected]){
+      var sel = items[selected];
+      centerHtml = '<span style="color:'+sel.color+';font-family:var(--mono);font-size:14px;font-weight:600;">'+Math.round(sel.value/total*100)+'%</span>'+
+        '<span style="color:var(--muted);font-size:10px;text-align:center;max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(sel.label)+'</span>';
+    }else{
+      centerHtml = '<span style="color:var(--text);font-family:var(--mono);font-size:12px;font-weight:600;">'+fmt(total)+'</span>'+
+        '<span style="color:var(--muted);font-size:10px;">total</span>';
+    }
+    var svg = '<div style="position:relative;width:'+size+'px;height:'+size+'px;flex-shrink:0;">'+
+      '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'">'+
+      '<g transform="rotate(-90 '+(size/2)+' '+(size/2)+')">'+arcs+'</g></svg>'+
+      '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;padding:0 8px;">'+centerHtml+'</div>'+
+      '</div>';
+    var legend = '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;">';
+    items.forEach(function(d,i){
+      var isDim = selected!=null && selected!==i;
+      legend += '<button data-act="select-donut" data-idx="'+i+'" style="background:none;border:none;padding:0;display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;opacity:'+(isDim?0.45:1)+';">'+
+        '<div style="display:flex;align-items:center;gap:6px;min-width:0;">'+
+        '<span style="width:8px;height:8px;border-radius:4px;background:'+d.color+';flex-shrink:0;"></span>'+
+        '<span style="color:var(--text);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(d.label)+'</span>'+
+        '</div>'+
+        '<span style="color:var(--muted);font-family:var(--mono);font-size:11px;flex-shrink:0;">'+fmt(d.value)+' · '+Math.round(d.value/total*100)+'%</span>'+
+        '</button>';
+    });
+    legend += '</div>';
+    return '<div style="display:flex;align-items:center;gap:16px;">'+svg+legend+'</div>';
+  }
+
+  function renderModal(){
+    if(!ui.modal) return "";
+    var kind = ui.modal.kind;
+    var initial = ui.modal.data || null;
+    var isCard = kind==="card";
+    var title = (initial?"Editar ":"Agregar ") + (isCard?"tarjeta":"ahorro");
+    var html = '<div class="modal-overlay" data-act="close-modal-bg"><div class="modal" data-stop="1">';
+    html += '<div class="modal-head"><h3>'+title+'</h3><button data-act="close-modal">✕</button></div>';
+    html += '<input type="text" id="m-name" placeholder="'+(isCard?"Nombre (ej. BBVA Oro)":"Nombre (ej. Fondo de emergencia)")+'" value="'+esc(initial?initial.name:"")+'" />';
+    if(!isCard){
+      html += '<input type="text" id="m-bank" placeholder="Banco (ej. BBVA, Nu, efectivo)" value="'+esc(initial&&initial.bank?initial.bank:"")+'" />';
+    }
+    html += '<input type="text" inputmode="decimal" id="m-a" placeholder="'+(isCard?"Saldo actual":"Monto actual")+'" value="'+(initial?(isCard?initial.balance:initial.current):"")+'" />';
+    html += '<input type="text" inputmode="decimal" id="m-b" placeholder="'+(isCard?"Límite de crédito":"Meta de ahorro")+'" value="'+(initial?(isCard?initial.limit:initial.goal):"")+'" />';
+    if(!isCard){
+      var tdVal = initial&&initial.targetDate ? new Date(initial.targetDate).toISOString().slice(0,10) : "";
+      html += '<span class="field-label">Fecha límite (opcional)</span><input type="date" id="m-target-date" value="'+tdVal+'" style="margin-bottom:10px;" />';
+      html += '<span class="field-label">Aportación mensual actual (opcional)</span><input type="text" inputmode="decimal" id="m-contribution" placeholder="ej. 2000" value="'+(initial&&initial.monthlyContribution?initial.monthlyContribution:"")+'" style="margin-bottom:10px;" />';
+    }
+    if(isCard){
+      html += '<div class="modal-2col">'+
+        '<div><span class="field-label">Día de corte (opcional)</span><input type="text" inputmode="numeric" id="m-cutoff" placeholder="1–31" value="'+(initial&&initial.cutoffDay?initial.cutoffDay:"")+'" /></div>'+
+        '<div><span class="field-label">Día de pago (opcional)</span><input type="text" inputmode="numeric" id="m-due" placeholder="1–31" value="'+(initial&&initial.dueDay?initial.dueDay:"")+'" /></div>'+
+        '</div>';
+      html += '<span class="field-label">Tasa de interés anual del saldo (opcional, %)</span><input type="text" inputmode="decimal" id="m-revolving-rate" placeholder="ej. 45 (para el orden de prioridad de pago)" value="'+(initial&&initial.revolvingRate?initial.revolvingRate:"")+'" style="margin-bottom:10px;" />';
+      html += '<span class="field-label">Pago mínimo real de tu estado de cuenta (opcional)</span><input type="text" inputmode="decimal" id="m-min-payment" placeholder="Si lo dejas vacío, estimamos 5% del saldo" value="'+(initial&&initial.minPayment?initial.minPayment:"")+'" style="margin-bottom:10px;" />';
+    }
+    html += '<button class="modal-save" data-act="save-modal" data-kind="'+kind+'" data-existing-id="'+(initial?initial.id:"")+'">Guardar</button>';
+    html += '</div></div>';
+    return html;
+  }
+
+  /* ---------- events ---------- */
+  function clampDay(v){
+    var n = v.replace(/[^0-9]/g,"");
+    if(n==="") return "";
+    return String(Math.min(31, Math.max(1, parseInt(n,10))));
+  }
+
+  function bindHandlers(){
+    var app = document.getElementById("app");
+
+    // numeric-only filtering for free-typed inputs
+    app.querySelectorAll('input[inputmode="decimal"]').forEach(function(inp){
+      inp.addEventListener("input", function(){
+        this.value = this.value.replace(/[^0-9.]/g,"");
+      });
+    });
+    app.querySelectorAll('#m-cutoff, #m-due, #pc-day').forEach(function(inp){
+      inp.addEventListener("input", function(){ this.value = clampDay(this.value); });
+    });
+
+    // Live preview for MSI cuota (updates only the preview div, never re-renders — keeps focus)
+    if(ui.msiForm){
+      var mTotalEl = document.getElementById("msi-total-"+ui.msiForm);
+      var mMonthsEl = document.getElementById("msi-months-"+ui.msiForm);
+      var mPreviewEl = document.getElementById("msi-preview-"+ui.msiForm);
+      var updateMsiPreview = function(){
+        if(!mTotalEl || !mMonthsEl || !mPreviewEl) return;
+        var t = parseFloat(mTotalEl.value), m = parseInt(mMonthsEl.value,10);
+        if(t>0 && m>0){
+          mPreviewEl.style.display = "block";
+          mPreviewEl.innerHTML = 'Cuota mensual: <span style="color:var(--amber);font-family:var(--mono);font-weight:600;">'+fmt(t/m)+'/mes</span>';
+        }else{
+          mPreviewEl.style.display = "none";
+        }
+      };
+      if(mTotalEl) mTotalEl.addEventListener("input", updateMsiPreview);
+      if(mMonthsEl) mMonthsEl.addEventListener("input", updateMsiPreview);
+      updateMsiPreview();
+    }
+
+    // Live preview for the first diferido installment (capital + interés + IVA)
+    if(ui.deferredForm){
+      var dPrincipalEl = document.getElementById("def-principal-"+ui.deferredForm);
+      var dMonthsEl = document.getElementById("def-months-"+ui.deferredForm);
+      var dRateEl = document.getElementById("def-rate-"+ui.deferredForm);
+      var dPreviewEl = document.getElementById("def-preview-"+ui.deferredForm);
+      var updateDefPreview = function(){
+        if(!dPrincipalEl || !dMonthsEl || !dRateEl || !dPreviewEl) return;
+        var p = parseFloat(dPrincipalEl.value), m = parseInt(dMonthsEl.value,10), r = parseFloat(dRateEl.value);
+        if(p>0 && m>0 && !isNaN(r)){
+          var rows = buildAmortization(p, m, r);
+          var first = rows[0];
+          dPreviewEl.style.display = "block";
+          dPreviewEl.innerHTML = 'Primera cuota: <span style="color:var(--coral);font-family:var(--mono);font-weight:600;">'+fmt(first.total)+'</span>'+
+            '<div style="margin-top:2px;">'+fmt(first.capital)+' capital + '+fmt(first.interest)+' interés + '+fmt(first.iva)+' IVA</div>';
+        }else{
+          dPreviewEl.style.display = "none";
+        }
+      };
+      if(dPrincipalEl) dPrincipalEl.addEventListener("input", updateDefPreview);
+      if(dMonthsEl) dMonthsEl.addEventListener("input", updateDefPreview);
+      if(dRateEl) dRateEl.addEventListener("input", updateDefPreview);
+      updateDefPreview();
+    }
+    app.querySelectorAll('input[inputmode="numeric"]').forEach(function(inp){
+      if(inp.id==="m-cutoff"||inp.id==="m-due") return;
+      inp.addEventListener("input", function(){ this.value = this.value.replace(/[^0-9]/g,""); });
+    });
+
+    var movQueryEl = document.getElementById("mov-query");
+    if(movQueryEl) movQueryEl.addEventListener("change", function(){ ui.movQuery = this.value; render(); });
+    var movCatEl = document.getElementById("mov-cat");
+    if(movCatEl) movCatEl.addEventListener("change", function(){ ui.movCategory = this.value; render(); });
+    var movCardEl = document.getElementById("mov-card");
+    if(movCardEl) movCardEl.addEventListener("change", function(){ ui.movCard = this.value; render(); });
+
+    var extraPayEl = document.getElementById("extra-payment-input");
+    if(extraPayEl) extraPayEl.addEventListener("change", function(){
+      ui.extraPayment = Math.max(0, parseFloat(this.value)||0); render();
+    });
+
+    app.addEventListener("click", onClick);
+
+    app.querySelectorAll('input[id^="receipt-input-"]').forEach(function(inp){
+      inp.addEventListener("change", function(){
+        var file = this.files && this.files[0];
+        this.value = "";
+        if(!file) return;
+        var cardId = this.id.replace("receipt-input-","");
+        scanReceipt(cardId, file);
+      });
+    });
+
+    var backupInput = document.getElementById("backup-file-input");
+    if(backupInput){
+      backupInput.addEventListener("change", function(){
+        var file = this.files && this.files[0];
+        this.value = "";
+        if(!file) return;
+        var reader = new FileReader();
+        reader.onload = function(){
+          try{
+            var rawParsed = JSON.parse(reader.result);
+            var normalized = normalizeData(rawParsed);
+            if(!normalized){
+              ui.backupMessage = "Ese archivo no parece un respaldo válido.";
+              render();
+              return;
+            }
+            if(!confirm("Esta acción reemplazará los datos actuales. ¿Deseas continuar?")){
+              return;
+            }
+            data = normalized;
+            saveData();
+            try{ localStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString()); }catch(e){}
+            ui.backupMessage = "Respaldo restaurado ✓";
+            ui.backupModal = false;
+            render();
+          }catch(err){
+            ui.backupMessage = "No se pudo leer ese archivo. Verifica que sea un respaldo exportado desde esta app.";
+            render();
+          }
+        };
+        reader.readAsText(file);
+      });
+    }
+
+    // --- Swipe-to-reveal for expense/payment rows ---
+    var ACTIONS_WIDTH = 104; // 2 buttons x 52px
+    app.querySelectorAll(".swipe-row").forEach(function(row){
+      var content = row.querySelector(".swipe-content");
+      if(!content) return;
+      var startX = 0, startY = 0, currentX = 0, dragging = false, isHorizontal = null;
+      var open = swipeOpenId === row.getAttribute("data-swipe-id");
+      content.style.transform = open ? "translateX(-"+ACTIONS_WIDTH+"px)" : "translateX(0)";
+
+      content.addEventListener("touchstart", function(e){
+        // Close any other open row
+        if(swipeOpenId && swipeOpenId !== row.getAttribute("data-swipe-id")){
+          var prevRow = app.querySelector('.swipe-row[data-swipe-id="'+swipeOpenId+'"] .swipe-content');
+          if(prevRow) prevRow.style.transform = "translateX(0)";
+          swipeOpenId = null;
+        }
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        currentX = open ? -ACTIONS_WIDTH : 0;
+        dragging = true;
+        isHorizontal = null;
+        content.style.transition = "none";
+      }, {passive:true});
+
+      content.addEventListener("touchmove", function(e){
+        if(!dragging) return;
+        var dx = e.touches[0].clientX - startX;
+        var dy = e.touches[0].clientY - startY;
+        if(isHorizontal === null){
+          isHorizontal = Math.abs(dx) > Math.abs(dy);
+        }
+        if(!isHorizontal) return;
+        var next = currentX + dx;
+        next = Math.max(-ACTIONS_WIDTH, Math.min(0, next));
+        content.style.transform = "translateX("+next+"px)";
+      }, {passive:true});
+
+      content.addEventListener("touchend", function(e){
+        if(!dragging) return;
+        dragging = false;
+        content.style.transition = "transform .2s ease";
+        var dx = (e.changedTouches[0].clientX - startX);
+        var willOpen = open ? dx > -ACTIONS_WIDTH/2 : dx < -ACTIONS_WIDTH/2;
+        content.style.transform = willOpen ? "translateX(-"+ACTIONS_WIDTH+"px)" : "translateX(0)";
+        swipeOpenId = willOpen ? row.getAttribute("data-swipe-id") : null;
+      });
+    });
+  }
+
+  function onClick(e){
+    var el = e.target.closest("[data-act]");
+    if(!el) return;
+    var act = el.getAttribute("data-act");
+
+    if(act==="open-modal"){
+      ui.modal = { kind: el.getAttribute("data-kind"), data:null };
+      render();
+    }else if(act==="set-tab"){
+      ui.tab = el.getAttribute("data-tab");
+      window.scrollTo(0,0);
+      render();
+    }else if(act==="movimientos-add"){
+      if(data.cards.length===1){
+        ui.expenseForm = data.cards[0].id; ui.expenseEditId = null; ui.expenseDraft = null; render();
+      }else{
+        ui.movCardPicker = true; render();
+      }
+    }else if(act==="pick-mov-card"){
+      ui.movCardPicker = false;
+      ui.expenseForm = el.getAttribute("data-id"); ui.expenseEditId = null; ui.expenseDraft = null;
+      render();
+    }else if(act==="close-mov-card-picker" || act==="close-mov-card-picker-bg"){
+      if(act==="close-mov-card-picker-bg" && e.target !== el) return;
+      ui.movCardPicker = false; render();
+    }else if(act==="run-search"){
+      var searchInput = document.getElementById("analysis-search");
+      ui.analysisQuery = searchInput ? searchInput.value : "";
+      render();
+    }else if(act==="select-donut"){
+      var idx = parseInt(el.getAttribute("data-idx"),10);
+      ui.donutSelected = ui.donutSelected===idx ? null : idx;
+      render();
+    }else if(act==="undo-toast"){
+      if(toastTimer) clearTimeout(toastTimer);
+      var fn = ui.toast ? ui.toast.onUndo : null;
+      ui.toast = null;
+      if(fn) fn();
+      else render();
+    }else if(act==="set-font-size"){
+      updateSettings(Object.assign({}, data.settings, {fontSize: el.getAttribute("data-size")}));
+    }else if(act==="enable-notifications"){
+      if(typeof Notification === "undefined"){ render(); return; }
+      if(Notification.permission === "granted"){
+        updateSettings(Object.assign({}, data.settings, {notificationsEnabled:true}));
+        checkAndNotify(true);
+      }else{
+        Notification.requestPermission().then(function(perm){
+          if(perm === "granted"){
+            updateSettings(Object.assign({}, data.settings, {notificationsEnabled:true}));
+            checkAndNotify(true);
+          }else{
+            render();
+          }
+        });
+      }
+    }else if(act==="disable-notifications"){
+      updateSettings(Object.assign({}, data.settings, {notificationsEnabled:false}));
+    }else if(act==="toggle-alert-setting"){
+      var key = el.getAttribute("data-key");
+      var patch = {}; patch[key] = !data.settings[key];
+      updateSettings(Object.assign({}, data.settings, patch));
+    }else if(act==="add-category"){
+      var newCatInput = document.getElementById("new-category-input");
+      var newCat = newCatInput ? newCatInput.value.trim() : "";
+      if(newCat && (data.categories||[]).indexOf(newCat)===-1){
+        persist(Object.assign({}, data, {categories: (data.categories||DEFAULT_CATEGORIES.slice()).concat([newCat])}));
+      }else{
+        render();
+      }
+    }else if(act==="remove-category"){
+      var catToRemove = el.getAttribute("data-cat");
+      var usageCount = categoryUsageCount(data.cards, catToRemove);
+      var remainingCats = (data.categories||DEFAULT_CATEGORIES.slice()).filter(function(c){return c!==catToRemove;});
+      if(usageCount>0){
+        if(!remainingCats.length){
+          alert("No puedes eliminar tu única categoría.");
+        }else{
+          ui.reassignCategory = { from: catToRemove, count: usageCount, to: remainingCats[0] };
+          render();
+        }
+      }else{
+        persist(Object.assign({}, data, {categories: remainingCats}));
+      }
+    }else if(act==="close-reassign-category" || act==="close-reassign-category-bg"){
+      if(act==="close-reassign-category-bg" && e.target!==el) return;
+      ui.reassignCategory = null; render();
+    }else if(act==="confirm-reassign-category"){
+      var toSel = document.getElementById("reassign-to-select");
+      var toCat = toSel ? toSel.value : (ui.reassignCategory ? ui.reassignCategory.to : null);
+      if(ui.reassignCategory && toCat){
+        reassignCategory(ui.reassignCategory.from, toCat);
+        ui.reassignCategory = null;
+      }
+      render();
+    }else if(act==="confirm-subscription"){
+      var confKey = el.getAttribute("data-key");
+      var confirmedList = (data.confirmedSubscriptions||[]).slice();
+      if(confirmedList.indexOf(confKey)===-1) confirmedList.push(confKey);
+      persist(Object.assign({}, data, {confirmedSubscriptions: confirmedList}));
+    }else if(act==="discard-subscription"){
+      var discKey = el.getAttribute("data-key");
+      var dismissedList = (data.dismissedSubscriptions||[]).slice();
+      if(dismissedList.indexOf(discKey)===-1) dismissedList.push(discKey);
+      persist(Object.assign({}, data, {dismissedSubscriptions: dismissedList}));
+    }else if(act==="reload-app"){
+      if("serviceWorker" in navigator){
+        navigator.serviceWorker.getRegistration().then(function(reg){
+          if(reg && reg.waiting){
+            reg.waiting.postMessage({type:"SKIP_WAITING"});
+          }
+        }).finally(function(){ window.location.reload(); });
+      }else{
+        window.location.reload();
+      }
+    }else if(act==="install-pwa"){
+      if(ui.deferredInstallPrompt){
+        ui.deferredInstallPrompt.prompt();
+        ui.deferredInstallPrompt.userChoice.then(function(){ ui.deferredInstallPrompt = null; render(); });
+      }
+    }else if(act==="open-personal-credit-form"){
+      ui.personalCreditForm = "new"; render();
+    }else if(act==="close-personal-credit-form"){
+      ui.personalCreditForm = null; render();
+    }else if(act==="edit-personal-credit"){
+      ui.personalCreditForm = el.getAttribute("data-id"); render();
+    }else if(act==="submit-personal-credit"){
+      var pcExistingId = el.getAttribute("data-id");
+      var pcDesc = document.getElementById("pc-desc").value.trim();
+      var pcPrincipal = parseFloat(document.getElementById("pc-principal").value);
+      var pcMonths = parseInt(document.getElementById("pc-months").value,10);
+      var pcRate = parseFloat(document.getElementById("pc-rate").value);
+      var pcStart = document.getElementById("pc-start").value;
+      var pcDay = parseInt(document.getElementById("pc-day").value,10);
+      if(pcDesc && pcPrincipal>0 && pcMonths>0 && pcRate>=0 && pcStart && pcDay>=1 && pcDay<=31){
+        var oldCredit = pcExistingId ? data.personalCredits.find(function(c){return c.id===pcExistingId;}) : null;
+        var newPaidMonths = oldCredit && oldCredit.paidMonths!=null ? Math.min(oldCredit.paidMonths, pcMonths) : (oldCredit ? oldCredit.paidMonths : null);
+        var credit = {
+          id: pcExistingId || uid(),
+          description: pcDesc,
+          principal: pcPrincipal,
+          months: pcMonths,
+          annualRate: pcRate,
+          startDate: new Date(pcStart+"T12:00:00").toISOString(),
+          paymentDay: pcDay,
+          paidMonths: newPaidMonths
+        };
+        ui.personalCreditForm = null;
+        savePersonalCredit(credit);
+      }
+    }else if(act==="mark-personal-credit"){
+      markPersonalCredit(el.getAttribute("data-id"));
+    }else if(act==="unmark-personal-credit"){
+      unmarkPersonalCredit(el.getAttribute("data-id"));
+    }else if(act==="delete-personal-credit"){
+      if(confirm("¿Eliminar este crédito personal?")) deletePersonalCredit(el.getAttribute("data-id"));
+    }else if(act==="save-budget"){
+      var bSalary = parseFloat(document.getElementById("budget-salary").value) || 0;
+      var bGastos = parseFloat(document.getElementById("budget-pct-gastos").value) || 0;
+      var bDiversion = parseFloat(document.getElementById("budget-pct-diversion").value) || 0;
+      var bAhorro = parseFloat(document.getElementById("budget-pct-ahorro").value) || 0;
+      updateBudget({ salary:bSalary, pctGastos:bGastos, pctDiversion:bDiversion, pctAhorro:bAhorro, configured:true });
+    }else if(act==="export-csv"){
+      try{
+        var csv = buildMovementsCSV(data);
+        var csvBlob = new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8;"});
+        var csvUrl = URL.createObjectURL(csvBlob);
+        var csvA = document.createElement("a");
+        csvA.href = csvUrl;
+        csvA.download = "movimientos-"+new Date().toISOString().slice(0,10)+".csv";
+        document.body.appendChild(csvA);
+        csvA.click();
+        document.body.removeChild(csvA);
+        URL.revokeObjectURL(csvUrl);
+      }catch(err){}
+    }else if(act==="open-api-key-modal"){
+      ui.apiKeyModal = true; render();
+    }else if(act==="open-backup-modal"){
+      ui.backupMessage = ""; ui.backupModal = true; render();
+    }else if(act==="close-backup-modal"){
+      ui.backupModal = false; render();
+    }else if(act==="close-backup-modal-bg"){
+      if(e.target===el){ ui.backupModal = false; render(); }
+    }else if(act==="export-backup"){
+      try{
+        var blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        var stamp = new Date().toISOString().slice(0,10);
+        a.href = url;
+        a.download = "control-financiero-respaldo-"+stamp+".json";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        try{ localStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString()); }catch(e){}
+        ui.backupMessage = "Respaldo descargado ✓";
+        render();
+      }catch(err){
+        ui.backupMessage = "No se pudo generar el respaldo.";
+        render();
+      }
+    }else if(act==="trigger-import-backup"){
+      var fi = document.getElementById("backup-file-input");
+      if(fi) fi.click();
+    }else if(act==="close-modal" ){
+      ui.modal = null; render();
+    }else if(act==="close-modal-bg"){
+      if(e.target === el){ ui.modal = null; render(); }
+    }else if(act==="edit-card"){
+      var c = data.cards.find(function(x){return x.id===el.getAttribute("data-id");});
+      ui.modal = { kind:"card", data:c }; render();
+    }else if(act==="edit-saving"){
+      var s = data.savings.find(function(x){return x.id===el.getAttribute("data-id");});
+      ui.modal = { kind:"saving", data:s }; render();
+    }else if(act==="delete-card"){
+      if(confirm("¿Eliminar esta tarjeta?")) deleteCard(el.getAttribute("data-id"));
+    }else if(act==="delete-saving"){
+      if(confirm("¿Eliminar este ahorro?")) deleteSaving(el.getAttribute("data-id"));
+    }else if(act==="toggle-card"){
+      var id = el.getAttribute("data-id");
+      ui.openCard = ui.openCard===id ? null : id;
+      ui.msiForm = null; ui.msiEditId = null; ui.paymentForm = null; ui.paymentEditId = null;
+      ui.expenseForm = null; ui.expenseEditId = null; ui.deferredForm = null; ui.deferredEditId = null;
+      render();
+    }else if(act==="toggle-saving"){
+      var sid = el.getAttribute("data-id");
+      ui.openSaving = ui.openSaving===sid ? null : sid;
+      render();
+    }else if(act==="adjust"){
+      var delta = parseFloat(el.getAttribute("data-delta"));
+      if(el.getAttribute("data-kind")==="card") adjustCard(el.getAttribute("data-id"), delta);
+      else adjustSaving(el.getAttribute("data-id"), delta);
+    }else if(act==="custom-adjust"){
+      var kind = el.getAttribute("data-kind"), id2 = el.getAttribute("data-id"), sign = parseFloat(el.getAttribute("data-sign"));
+      var input = document.getElementById("custom-"+kind+"-"+id2);
+      var val = input ? parseFloat(input.value) : NaN;
+      if(!isNaN(val) && val>0){
+        if(kind==="card") adjustCard(id2, sign*val); else adjustSaving(id2, sign*val);
+      }
+    }else if(act==="show-payment-form"){
+      ui.paymentForm = el.getAttribute("data-id"); ui.paymentEditId = null; render();
+    }else if(act==="hide-payment-form"){
+      ui.paymentForm = null; ui.paymentEditId = null; render();
+    }else if(act==="hide-payment-form-bg"){
+      if(e.target === el){ ui.paymentForm = null; ui.paymentEditId = null; render(); }
+    }else if(act==="edit-payment"){
+      ui.paymentForm = el.getAttribute("data-card"); ui.paymentEditId = el.getAttribute("data-pay"); render();
+    }else if(act==="submit-payment"){
+      var pcid = el.getAttribute("data-id");
+      var amt = parseFloat(document.getElementById("pay-amount-"+pcid).value);
+      var dt = document.getElementById("pay-date-"+pcid).value;
+      if(amt>0){
+        if(ui.paymentEditId){ updatePayment(pcid, ui.paymentEditId, amt, dt); }
+        else{ registerPayment(pcid, amt, dt); }
+        ui.paymentForm=null; ui.paymentEditId=null;
+      }
+    }else if(act==="delete-payment"){
+      deletePayment(el.getAttribute("data-card"), el.getAttribute("data-pay"));
+    }else if(act==="show-expense-form"){
+      ui.expenseForm = el.getAttribute("data-id"); ui.expenseEditId = null; render();
+    }else if(act==="hide-expense-form"){
+      ui.expenseForm = null; ui.expenseEditId = null; ui.expenseDraft = null; ui.scanError = ""; render();
+    }else if(act==="hide-expense-form-bg"){
+      if(e.target === el){ ui.expenseForm = null; ui.expenseEditId = null; ui.expenseDraft = null; ui.scanError = ""; render(); }
+    }else if(act==="edit-expense"){
+      ui.expenseForm = el.getAttribute("data-card"); ui.expenseEditId = el.getAttribute("data-exp"); ui.expenseDraft = null; render();
+    }else if(act==="submit-expense"){
+      var ecid = el.getAttribute("data-id");
+      var edesc = document.getElementById("exp-desc-"+ecid).value.trim();
+      var eamt = parseFloat(document.getElementById("exp-amount-"+ecid).value);
+      var edt = document.getElementById("exp-date-"+ecid).value;
+      var ecatEl = document.getElementById("exp-cat-"+ecid);
+      var ecat = ecatEl ? ecatEl.value : "Otros";
+      if(eamt>0){
+        if(ui.expenseEditId){ updateExpense(ecid, ui.expenseEditId, eamt, edesc, edt, ecat); }
+        else{ registerExpense(ecid, eamt, edesc, edt, ecat); }
+        ui.expenseForm=null; ui.expenseEditId=null; ui.expenseDraft=null; ui.scanError="";
+      }
+    }else if(act==="delete-expense"){
+      deleteExpense(el.getAttribute("data-card"), el.getAttribute("data-exp"));
+    }else if(act==="show-deferred-form"){
+      ui.deferredForm = el.getAttribute("data-id"); ui.deferredEditId = null; render();
+    }else if(act==="hide-deferred-form"){
+      ui.deferredForm = null; ui.deferredEditId = null; render();
+    }else if(act==="edit-deferred"){
+      ui.deferredForm = el.getAttribute("data-card"); ui.deferredEditId = el.getAttribute("data-plan"); render();
+    }else if(act==="submit-deferred"){
+      var dfcid = el.getAttribute("data-id");
+      var ddesc = document.getElementById("def-desc-"+dfcid).value.trim();
+      var dprincipal = parseFloat(document.getElementById("def-principal-"+dfcid).value);
+      var dmonths = parseInt(document.getElementById("def-months-"+dfcid).value,10);
+      var drate = parseFloat(document.getElementById("def-rate-"+dfcid).value);
+      var ddate = document.getElementById("def-date-"+dfcid).value;
+      if(ddesc && dprincipal>0 && dmonths>0 && drate>=0){
+        var dfcard = data.cards.find(function(c){return c.id===dfcid;});
+        var diferidos;
+        if(ui.deferredEditId){
+          diferidos = (dfcard.diferidos||[]).map(function(p){
+            if(p.id!==ui.deferredEditId) return p;
+            var newPaid = p.paidMonths!=null ? Math.min(p.paidMonths, dmonths) : p.paidMonths;
+            return Object.assign({}, p, {description:ddesc, principal:dprincipal, months:dmonths, annualRate:drate, date:new Date(ddate+"T12:00:00").toISOString(), paidMonths:newPaid});
+          });
+        }else{
+          diferidos = (dfcard.diferidos||[]).concat([{id:uid(), description:ddesc, principal:dprincipal, months:dmonths, annualRate:drate, date:new Date(ddate+"T12:00:00").toISOString(), paidMonths:null}]);
+        }
+        ui.deferredForm = null; ui.deferredEditId = null;
+        updateCardDeferred(dfcid, diferidos);
+      }
+    }else if(act==="mark-deferred"){
+      var mdcid = el.getAttribute("data-card"), mdpid = el.getAttribute("data-plan");
+      var mdcard = data.cards.find(function(c){return c.id===mdcid;});
+      var mdplan = (mdcard.diferidos||[]).find(function(p){return p.id===mdpid;});
+      var mdpaid = msiEffectivePaid(mdplan, mdcard.cutoffDay, mdcard.dueDay);
+      var mdList = (mdcard.diferidos||[]).map(function(p){ return p.id===mdpid ? Object.assign({},p,{paidMonths:Math.min(p.months, mdpaid+1)}) : p; });
+      updateCardDeferred(mdcid, mdList);
+    }else if(act==="unmark-deferred"){
+      var udcid = el.getAttribute("data-card"), udpid = el.getAttribute("data-plan");
+      var udcard = data.cards.find(function(c){return c.id===udcid;});
+      var udplan = (udcard.diferidos||[]).find(function(p){return p.id===udpid;});
+      var udpaid = msiEffectivePaid(udplan, udcard.cutoffDay, udcard.dueDay);
+      var udList = (udcard.diferidos||[]).map(function(p){ return p.id===udpid ? Object.assign({},p,{paidMonths:Math.max(0, udpaid-1)}) : p; });
+      updateCardDeferred(udcid, udList);
+    }else if(act==="delete-deferred"){
+      var deldcid = el.getAttribute("data-card"), deldpid = el.getAttribute("data-plan");
+      if(confirm("¿Eliminar esta compra diferida?")){
+        var deldcard = data.cards.find(function(c){return c.id===deldcid;});
+        updateCardDeferred(deldcid, (deldcard.diferidos||[]).filter(function(p){return p.id!==deldpid;}));
+      }
+    }else if(act==="scan-receipt"){
+      var scid = el.getAttribute("data-id");
+      var inp = document.getElementById("receipt-input-"+scid);
+      if(inp) inp.click();
+    }else if(act==="save-api-key"){
+      var keyInput = document.getElementById("api-key-input");
+      var val = keyInput ? keyInput.value.trim() : "";
+      if(val){ setApiKey(val); ui.apiKeyModal = false; render(); }
+    }else if(act==="close-api-key-modal"){
+      ui.apiKeyModal = false; render();
+    }else if(act==="close-api-key-modal-bg"){
+      if(e.target===el){ ui.apiKeyModal = false; render(); }
+    }else if(act==="enable-dev-mode"){
+      setDevModeEnabled(true);
+      ui.devModeModal = false;
+      ui.apiKeyModal = true;
+      render();
+    }else if(act==="close-dev-mode-modal"){
+      ui.devModeModal = false; render();
+    }else if(act==="close-dev-mode-modal-bg"){
+      if(e.target===el){ ui.devModeModal = false; render(); }
+    }else if(act==="disable-dev-mode"){
+      if(confirm("Esto apaga el modo desarrollador y borra la clave de API guardada en este navegador. ¿Continuar?")){
+        setDevModeEnabled(false);
+        setApiKey("");
+        render();
+      }
+    }else if(act==="show-msi-form"){
+      ui.msiForm = el.getAttribute("data-id"); ui.msiEditId = null; render();
+    }else if(act==="hide-msi-form"){
+      ui.msiForm = null; ui.msiEditId = null; render();
+    }else if(act==="edit-msi"){
+      ui.msiForm = el.getAttribute("data-card"); ui.msiEditId = el.getAttribute("data-plan"); render();
+    }else if(act==="submit-msi"){
+      var mcid = el.getAttribute("data-id");
+      var desc = document.getElementById("msi-desc-"+mcid).value.trim();
+      var total = parseFloat(document.getElementById("msi-total-"+mcid).value);
+      var months = parseInt(document.getElementById("msi-months-"+mcid).value,10);
+      var mdate = document.getElementById("msi-date-"+mcid).value;
+      if(desc && total>0 && months>0){
+        var card = data.cards.find(function(c){return c.id===mcid;});
+        var msi;
+        if(ui.msiEditId){
+          msi = (card.msi||[]).map(function(p){
+            if(p.id!==ui.msiEditId) return p;
+            var newPaid = p.paidMonths!=null ? Math.min(p.paidMonths, months) : p.paidMonths;
+            return Object.assign({}, p, {description:desc, total:total, months:months, date:new Date(mdate+"T12:00:00").toISOString(), paidMonths:newPaid});
+          });
+        }else{
+          msi = (card.msi||[]).concat([{id:uid(), description:desc, total:total, months:months, date:new Date(mdate+"T12:00:00").toISOString(), paidMonths:null}]);
+        }
+        ui.msiForm = null; ui.msiEditId = null;
+        updateCardMsi(mcid, msi);
+      }
+    }else if(act==="mark-msi"){
+      var mkcid = el.getAttribute("data-card"), mpid = el.getAttribute("data-plan");
+      var mkcard = data.cards.find(function(c){return c.id===mkcid;});
+      var mkplan = (mkcard.msi||[]).find(function(p){return p.id===mpid;});
+      var mkpaid = msiEffectivePaid(mkplan, mkcard.cutoffDay, mkcard.dueDay);
+      var msiMk = (mkcard.msi||[]).map(function(p){ return p.id===mpid ? Object.assign({},p,{paidMonths:Math.min(p.months, mkpaid+1)}) : p; });
+      updateCardMsi(mkcid, msiMk);
+    }else if(act==="unmark-msi"){
+      var unkcid = el.getAttribute("data-card"), unpid = el.getAttribute("data-plan");
+      var uncard = data.cards.find(function(c){return c.id===unkcid;});
+      var unplan = (uncard.msi||[]).find(function(p){return p.id===unpid;});
+      var unpaid = msiEffectivePaid(unplan, uncard.cutoffDay, uncard.dueDay);
+      var msiUn = (uncard.msi||[]).map(function(p){ return p.id===unpid ? Object.assign({},p,{paidMonths:Math.max(0, unpaid-1)}) : p; });
+      updateCardMsi(unkcid, msiUn);
+    }else if(act==="delete-msi"){
+      var dkcid = el.getAttribute("data-card"), dpid = el.getAttribute("data-plan");
+      if(confirm("¿Eliminar este plan a MSI?")){
+        var card3 = data.cards.find(function(c){return c.id===dkcid;});
+        var msi3 = (card3.msi||[]).filter(function(p){ return p.id!==dpid; });
+        updateCardMsi(dkcid, msi3);
+      }
+    }else if(act==="save-modal"){
+      var kind2 = el.getAttribute("data-kind");
+      var existingId = el.getAttribute("data-existing-id");
+      var name = document.getElementById("m-name").value.trim();
+      var a = parseFloat(document.getElementById("m-a").value);
+      var b = parseFloat(document.getElementById("m-b").value);
+      if(!name || isNaN(a) || isNaN(b)) return;
+      var item = { id: existingId || uid(), name: name };
+      if(kind2==="card"){
+        var cutoff = document.getElementById("m-cutoff").value;
+        var due = document.getElementById("m-due").value;
+        var revRate = document.getElementById("m-revolving-rate").value;
+        var minPay = document.getElementById("m-min-payment").value;
+        item.balance = a; item.limit = b;
+        item.cutoffDay = cutoff ? parseInt(cutoff,10) : null;
+        item.dueDay = due ? parseInt(due,10) : null;
+        item.revolvingRate = revRate ? parseFloat(revRate) : null;
+        item.minPayment = minPay ? parseFloat(minPay) : null;
+        if(existingId){
+          var old = data.cards.find(function(c){return c.id===existingId;});
+          if(old){ item.msi = old.msi; item.payments = old.payments; item.expenses = old.expenses; item.diferidos = old.diferidos; item.extraCredit = old.extraCredit; }
+        }
+      }else{
+        var bank = document.getElementById("m-bank").value.trim();
+        var targetDateVal = document.getElementById("m-target-date").value;
+        var contribEl = document.getElementById("m-contribution");
+        var contrib = contribEl ? parseFloat(contribEl.value) : NaN;
+        item.current = a; item.goal = b; item.bank = bank;
+        item.targetDate = targetDateVal ? new Date(targetDateVal+"T12:00:00").toISOString() : null;
+        item.monthlyContribution = (!isNaN(contrib) && contrib>0) ? contrib : null;
+      }
+      saveFromModal(item, kind2);
+    }
+  }
+
+  function checkAndNotify(force){
+    if(!data.settings.notificationsEnabled) return;
+    if(typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    var todayStr = new Date().toDateString();
+    if(!force){
+      var lastNotified = null;
+      try{ lastNotified = localStorage.getItem("last-notification-date"); }catch(e){}
+      if(lastNotified === todayStr) return;
+    }
+    var dueCards = upcomingDuePayments(data.cards).filter(function(a){ return a.dLeft<=3; });
+    var dueLoans = upcomingPersonalCreditPayments(data.personalCredits).filter(function(a){ return a.dLeft<=3; });
+    if(dueCards.length===0 && dueLoans.length===0) return;
+    var names = dueCards.map(function(a){ return a.card.name; }).concat(dueLoans.map(function(a){ return a.credit.description; }));
+    try{
+      new Notification("Pagos próximos", { body: names.join(", ")+" — revisa Control financiero." });
+      localStorage.setItem("last-notification-date", todayStr);
+    }catch(e){}
+  }
+
+  window.addEventListener("beforeinstallprompt", function(e){
+    e.preventDefault();
+    ui.deferredInstallPrompt = e;
+    if(ui.tab === "config") render();
+  });
+  window.addEventListener("appinstalled", function(){ ui.deferredInstallPrompt = null; });
+
+  if("serviceWorker" in navigator){
+    var swRefreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", function(){
+      if(swRefreshing) return;
+      swRefreshing = true;
+      window.location.reload();
+    });
+    window.addEventListener("load", function(){
+      navigator.serviceWorker.register("sw.js").then(function(reg){
+        reg.addEventListener("updatefound", function(){
+          var newWorker = reg.installing;
+          if(!newWorker) return;
+          newWorker.addEventListener("statechange", function(){
+            if(newWorker.state==="installed" && navigator.serviceWorker.controller){
+              // hay una versión nueva instalada y en espera: avisamos sin forzar el recargo
+              ui.updateAvailable = true;
+              render();
+            }
+          });
+        });
+      }).catch(function(){});
+    });
+  }
+
+  render();
+  checkAndNotify(false);
+})();
+</script>
+</body>
+</html>
