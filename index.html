@@ -201,7 +201,7 @@
              apiKeyModal:false, backupModal:false, backupMessage:"", scanningCard:null, scanError:"", expenseDraft:null,
              personalCreditForm:null, tab:"resumen", analysisQuery:"", donutSelected:null, toast:null,
              movQuery:"", movCategory:"", movCard:"", extraPayment:0, movCardPicker:false, deferredInstallPrompt:null, reassignCategory:null, updateAvailable:false, devModeModal:false,
-             cloudModal:false, cloudMode:"login", cloudError:"", cloudBusy:false, cloudUser:null, cloudStatus:"signed-out", cloudConflict:null };
+             cloudModal:false, cloudMode:"login", cloudError:"", cloudBusy:false, cloudUser:null, cloudStatus:"signed-out", cloudConflict:null, authChecked:false };
   var API_KEY_STORAGE = "anthropic-api-key";
   var LAST_BACKUP_KEY = "last-backup-date";
   var DEV_MODE_STORAGE = "receipt-dev-mode-enabled";
@@ -481,6 +481,7 @@
 
   if(fbAuth){
     fbAuth.onAuthStateChanged(function(user){
+      ui.authChecked = true;
       ui.cloudBusy = false;
       ui.cloudError = "";
       if(user){
@@ -495,6 +496,11 @@
       }
       render();
     });
+  }else{
+    /* El SDK de Firebase no cargó (sin internet, script bloqueado, etc.).
+       No dejamos a la persona atorada en "cargando…" para siempre: mostramos
+       la pantalla de acceso con un aviso claro de que hace falta conexión. */
+    ui.authChecked = true;
   }
 
   function monthlyAggregate(history){
@@ -1311,6 +1317,16 @@
 
   /* ---------- render ---------- */
   function render(){
+    var app = document.getElementById("app");
+    app.addEventListener("click", onClick); /* idempotente: seguro llamarlo en cada render */
+    if(!ui.authChecked){
+      app.innerHTML = renderAuthLoadingScreen();
+      return;
+    }
+    if(!ui.cloudUser){
+      app.innerHTML = renderLoginGate();
+      return;
+    }
     var totalDebt = data.cards.reduce(function(s,c){ return s + Math.max(0, (c.balance||0) + cardMsiTotal(c) + cardDeferredTotal(c) - (c.extraCredit||0)); },0) + totalPersonalCreditsDebt(data.personalCredits);
     var totalSavings = data.savings.reduce(function(s,sv){ return s + (sv.current||0); },0);
     var net = totalSavings - totalDebt;
@@ -1587,6 +1603,35 @@
     html += '</section>';
 
     html += '</div>';
+    return html;
+  }
+
+  function renderAuthLoadingScreen(){
+    return '<div class="loading">cargando…</div>';
+  }
+
+  function renderLoginGate(){
+    var isSignup = ui.cloudMode === "signup";
+    var html = '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;">';
+    html += '<div style="width:100%;max-width:360px;">';
+    html += '<div style="text-align:center;margin-bottom:28px;">'+
+      '<div style="background:rgba(94,234,212,0.12);width:56px;height:56px;border-radius:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:24px;">💼</div>'+
+      '<h1 style="margin:0 0 4px;font-family:var(--disp);font-size:20px;">Control financiero</h1>'+
+      '<p style="color:var(--muted);font-size:12px;margin:0;">Controla tus tarjetas, deudas, gastos y ahorro en un solo lugar.</p>'+
+      '</div>';
+
+    html += '<div class="card">';
+    html += '<h3 style="font-family:var(--disp);font-size:15px;font-weight:500;margin:0 0 14px;">'+(isSignup?"Crea tu cuenta":"Inicia sesión")+'</h3>';
+    html += '<input type="email" id="gate-email-input" placeholder="tu@correo.com" autocomplete="email" />';
+    html += '<input type="password" id="gate-password-input" placeholder="Contraseña (mín. 6 caracteres)" autocomplete="'+(isSignup?"new-password":"current-password")+'" />';
+    if(ui.cloudError) html += '<p style="color:var(--coral);font-size:12px;margin:0 0 10px;">'+esc(ui.cloudError)+'</p>';
+    if(!fbAuth) html += '<p style="color:var(--amber);font-size:12px;margin:0 0 10px;">No se pudo conectar con el servicio de cuentas. Revisa tu conexión a internet e intenta de nuevo.</p>';
+    html += '<button class="modal-save" data-act="'+(isSignup?"gate-do-signup":"gate-do-login")+'" '+(ui.cloudBusy?"disabled":"")+'>'+(ui.cloudBusy?"Un momento…":(isSignup?"Crear cuenta":"Iniciar sesión"))+'</button>';
+    html += '<button class="modal-save" style="background:none;color:var(--muted);margin-top:6px;" data-act="gate-toggle-mode">'+(isSignup?"¿Ya tienes cuenta? Inicia sesión":"¿No tienes cuenta? Créala aquí")+'</button>';
+    html += '</div>';
+
+    html += '<p style="color:var(--muted);font-size:10px;text-align:center;margin-top:16px;line-height:1.5;">Tus datos financieros se guardan protegidos con tu contraseña, y se sincronizan entre tus dispositivos cuando inicias sesión con la misma cuenta.</p>';
+    html += '</div></div>';
     return html;
   }
 
@@ -3097,6 +3142,16 @@
       if(!cEmail || !cPass){ ui.cloudError = "Escribe tu correo y contraseña."; render(); }
       else if(act==="cloud-do-signup"){ cloudSignUp(cEmail, cPass); }
       else{ cloudSignIn(cEmail, cPass); }
+    }else if(act==="gate-toggle-mode"){
+      ui.cloudMode = ui.cloudMode==="signup" ? "login" : "signup";
+      ui.cloudError = "";
+      render();
+    }else if(act==="gate-do-signup" || act==="gate-do-login"){
+      var gEmail = document.getElementById("gate-email-input").value.trim();
+      var gPass = document.getElementById("gate-password-input").value;
+      if(!gEmail || !gPass){ ui.cloudError = "Escribe tu correo y contraseña."; render(); }
+      else if(act==="gate-do-signup"){ cloudSignUp(gEmail, gPass); }
+      else{ cloudSignIn(gEmail, gPass); }
     }else if(act==="cloud-logout"){
       if(confirm("¿Cerrar sesión? Tus datos se quedan guardados en la nube y en este dispositivo, solo dejarán de sincronizarse.")){
         cloudSignOutUser();
