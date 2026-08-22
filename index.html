@@ -118,6 +118,11 @@
 <body>
 <div id="app"><div class="loading">cargando…</div></div>
 
+<!-- Firebase (sincronización en la nube, opcional — la app funciona 100% sin esto si no inicias sesión) -->
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+
 <script>
 (function(){
   "use strict";
@@ -195,7 +200,8 @@
              expenseForm:null, expenseEditId:null, deferredForm:null, deferredEditId:null, modal:null,
              apiKeyModal:false, backupModal:false, backupMessage:"", scanningCard:null, scanError:"", expenseDraft:null,
              personalCreditForm:null, tab:"resumen", analysisQuery:"", donutSelected:null, toast:null,
-             movQuery:"", movCategory:"", movCard:"", extraPayment:0, movCardPicker:false, deferredInstallPrompt:null, reassignCategory:null, updateAvailable:false, devModeModal:false };
+             movQuery:"", movCategory:"", movCard:"", extraPayment:0, movCardPicker:false, deferredInstallPrompt:null, reassignCategory:null, updateAvailable:false, devModeModal:false,
+             cloudModal:false, cloudMode:"login", cloudError:"", cloudBusy:false, cloudUser:null, cloudStatus:"signed-out", cloudConflict:null };
   var API_KEY_STORAGE = "anthropic-api-key";
   var LAST_BACKUP_KEY = "last-backup-date";
   var DEV_MODE_STORAGE = "receipt-dev-mode-enabled";
@@ -332,7 +338,164 @@
     next.history = history;
     return next;
   }
-  function persist(next){ data = next; saveData(); render(); }
+  function persist(next){ data = next; saveData(); render(); cloudScheduleSync(); }
+
+  /* ====================================================================
+     SINCRONIZACIÓN EN LA NUBE (Firebase) — completamente opcional.
+     Si la persona nunca inicia sesión, la app funciona exactamente igual
+     que antes: todo se queda en localStorage de este dispositivo.
+     Al iniciar sesión con correo/contraseña, además de guardar local,
+     se guarda una copia en Firestore bajo su propia cuenta, y un listener
+     en tiempo real trae los cambios que se hagan desde otro dispositivo.
+     ==================================================================== */
+  var firebaseConfig = {
+    apiKey: "AIzaSyDCx8_kHbqkQTBjmY8Q2wETr8TNqeO9EnU",
+    authDomain: "control-finanzas-a9c37.firebaseapp.com",
+    projectId: "control-finanzas-a9c37",
+    storageBucket: "control-finanzas-a9c37.firebasestorage.app",
+    messagingSenderId: "383558493314",
+    appId: "1:383558493314:web:fd5c3f0948af936e1a009b"
+  };
+  var fbApp = null, fbAuth = null, fbDb = null, cloudUnsub = null, cloudSyncTimer = null, cloudApplyingRemote = false;
+  try{
+    if(typeof firebase !== "undefined"){
+      fbApp = firebase.initializeApp(firebaseConfig);
+      fbAuth = firebase.auth();
+      fbDb = firebase.firestore();
+      try{ fbDb.enablePersistence({synchronizeTabs:true}).catch(function(){}); }catch(e){}
+    }
+  }catch(e){ fbApp = null; }
+
+  function cloudDocRef(uid){ return fbDb.collection("users").doc(uid).collection("appdata").doc("main"); }
+
+  /* Aplica datos recibidos de la nube al estado local, sin volver a reenviarlos (evita bucles). */
+  function cloudApplyRemoteData(remote){
+    var normalized = normalizeData(remote);
+    if(!normalized) return;
+    cloudApplyingRemote = true;
+    data = normalized;
+    saveData();
+    render();
+    cloudApplyingRemote = false;
+  }
+
+  function cloudStartListening(uid){
+    if(cloudUnsub) cloudUnsub();
+    cloudUnsub = cloudDocRef(uid).onSnapshot(function(snap){
+      if(!snap.exists) return;
+      if(snap.metadata.hasPendingWrites) return; // es un cambio que hicimos nosotros mismos, ya lo tenemos local
+      var remote = snap.data() && snap.data().payload;
+      if(remote) cloudApplyRemoteData(remote);
+      ui.cloudStatus = "synced";
+      render();
+    }, function(){
+      ui.cloudStatus = "error";
+      render();
+    });
+  }
+
+  function cloudStopListening(){
+    if(cloudUnsub){ cloudUnsub(); cloudUnsub = null; }
+  }
+
+  function cloudPushNow(){
+    if(!fbDb || !ui.cloudUser) return;
+    ui.cloudStatus = "syncing";
+    cloudDocRef(ui.cloudUser.uid).set({
+      payload: data,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function(){
+      ui.cloudStatus = "synced";
+      render();
+    }).catch(function(){
+      ui.cloudStatus = "error";
+      render();
+    });
+  }
+
+  /* Agrupa varios cambios seguidos (ej. escribir en un campo) en un solo guardado a la nube. */
+  function cloudScheduleSync(){
+    if(!fbDb || !ui.cloudUser || cloudApplyingRemote) return;
+    if(cloudSyncTimer) clearTimeout(cloudSyncTimer);
+    ui.cloudStatus = "pending";
+    cloudSyncTimer = setTimeout(cloudPushNow, 1500);
+  }
+
+  function cloudResolveInitialSync(uid){
+    cloudDocRef(uid).get().then(function(snap){
+      var remote = snap.exists ? (snap.data() && snap.data().payload) : null;
+      var localHasContent = data.cards.length || data.savings.length || (data.personalCredits||[]).length;
+      var remoteHasContent = remote && (remote.cards||[]).length || (remote && (remote.savings||[]).length);
+      if(remote && remoteHasContent && localHasContent){
+        // hay datos en ambos lados y podrían ser distintos: pedimos confirmación en vez de perder algo silenciosamente
+        ui.cloudConflict = { remote: remote };
+        render();
+      }else if(remote && remoteHasContent && !localHasContent){
+        cloudApplyRemoteData(remote);
+      }else{
+        cloudPushNow();
+      }
+      cloudStartListening(uid);
+    }).catch(function(){
+      ui.cloudStatus = "error";
+      render();
+    });
+  }
+
+  function cloudSignUp(email, password){
+    if(!fbAuth) return;
+    ui.cloudBusy = true; ui.cloudError = ""; render();
+    fbAuth.createUserWithEmailAndPassword(email, password).catch(function(err){
+      ui.cloudError = cloudTranslateError(err);
+      ui.cloudBusy = false;
+      render();
+    });
+  }
+  function cloudSignIn(email, password){
+    if(!fbAuth) return;
+    ui.cloudBusy = true; ui.cloudError = ""; render();
+    fbAuth.signInWithEmailAndPassword(email, password).catch(function(err){
+      ui.cloudError = cloudTranslateError(err);
+      ui.cloudBusy = false;
+      render();
+    });
+  }
+  function cloudSignOutUser(){
+    cloudStopListening();
+    if(fbAuth) fbAuth.signOut();
+    ui.cloudUser = null;
+    ui.cloudStatus = "signed-out";
+    ui.cloudModal = false;
+    render();
+  }
+  function cloudTranslateError(err){
+    var code = err && err.code || "";
+    if(code.indexOf("email-already-in-use")!==-1) return "Ya existe una cuenta con ese correo. Intenta iniciar sesión en vez de crear una cuenta.";
+    if(code.indexOf("invalid-email")!==-1) return "Ese correo no parece válido.";
+    if(code.indexOf("weak-password")!==-1) return "La contraseña debe tener al menos 6 caracteres.";
+    if(code.indexOf("wrong-password")!==-1 || code.indexOf("invalid-credential")!==-1) return "Correo o contraseña incorrectos.";
+    if(code.indexOf("user-not-found")!==-1) return "No existe una cuenta con ese correo.";
+    if(code.indexOf("network-request-failed")!==-1) return "No hay conexión a internet en este momento.";
+    return "No se pudo completar la operación. Intenta de nuevo.";
+  }
+
+  if(fbAuth){
+    fbAuth.onAuthStateChanged(function(user){
+      ui.cloudBusy = false;
+      ui.cloudError = "";
+      if(user){
+        ui.cloudUser = { uid:user.uid, email:user.email };
+        ui.cloudModal = false;
+        ui.cloudStatus = "syncing";
+        cloudResolveInitialSync(user.uid);
+      }else{
+        ui.cloudUser = null;
+        ui.cloudStatus = "signed-out";
+        cloudStopListening();
+      }
+      render();
+    });
+  }
 
   function monthlyAggregate(history){
     if(!history || !history.length) return [];
@@ -1211,6 +1374,8 @@
     html += renderBackupModal();
     html += renderMovCardPicker();
     html += renderReassignCategoryModal();
+    html += renderCloudModal();
+    html += renderCloudConflictModal();
 
     var appEl = document.getElementById("app");
     appEl.innerHTML = html;
@@ -1425,6 +1590,65 @@
     return html;
   }
 
+  function renderCloudSyncSection(){
+    var html = '<div class="bank-box" style="margin-bottom:0;">';
+    html += '<div class="bank-title">☁ Sincronización en la nube</div>';
+
+    if(!fbAuth){
+      html += '<p style="color:var(--amber);font-size:12px;line-height:1.5;margin:0;">No se pudo cargar el servicio de sincronización (revisa tu conexión a internet). La app sigue funcionando normalmente en modo local.</p>';
+      html += '</div>';
+      return html;
+    }
+
+    if(ui.cloudUser){
+      var statusMap = {
+        synced: {icon:"🟢", label:"Sincronizado"},
+        syncing: {icon:"🔵", label:"Sincronizando…"},
+        pending: {icon:"🟡", label:"Cambios pendientes de subir"},
+        error: {icon:"🔴", label:"No se pudo sincronizar (revisa tu conexión)"}
+      };
+      var st = statusMap[ui.cloudStatus] || statusMap.synced;
+      html += '<p style="color:var(--text);font-size:13px;margin:0 0 4px;">'+esc(ui.cloudUser.email)+'</p>';
+      html += '<p style="color:var(--muted);font-size:11px;margin:0 0 12px;">'+st.icon+' '+st.label+'</p>';
+      html += '<button class="modal-save" style="background:var(--surface2);color:var(--coral);" data-act="cloud-logout">Cerrar sesión</button>';
+    }else{
+      html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px;">Inicia sesión para que tus datos se sincronicen automáticamente entre tus dispositivos. Si no inicias sesión, la app sigue funcionando 100% local, como hasta ahora.</p>';
+      html += '<button class="modal-save" data-act="open-cloud-modal">Iniciar sesión / crear cuenta</button>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderCloudModal(){
+    if(!ui.cloudModal) return "";
+    var isSignup = ui.cloudMode === "signup";
+    var html = '<div class="modal-overlay" data-act="close-cloud-modal-bg"><div class="modal" data-stop="1">';
+    html += '<div class="modal-head"><h3>'+(isSignup?"Crear cuenta":"Iniciar sesión")+'</h3><button data-act="close-cloud-modal">✕</button></div>';
+    html += '<input type="email" id="cloud-email-input" placeholder="tu@correo.com" autocomplete="email" />';
+    html += '<input type="password" id="cloud-password-input" placeholder="Contraseña (mín. 6 caracteres)" autocomplete="'+(isSignup?"new-password":"current-password")+'" />';
+    if(ui.cloudError) html += '<p style="color:var(--coral);font-size:12px;margin:0 0 10px;">'+esc(ui.cloudError)+'</p>';
+    html += '<button class="modal-save" data-act="'+(isSignup?"cloud-do-signup":"cloud-do-login")+'" '+(ui.cloudBusy?"disabled":"")+'>'+(ui.cloudBusy?"Un momento…":(isSignup?"Crear cuenta":"Iniciar sesión"))+'</button>';
+    html += '<button class="modal-save" style="background:none;color:var(--muted);margin-top:6px;" data-act="cloud-toggle-mode">'+(isSignup?"¿Ya tienes cuenta? Inicia sesión":"¿No tienes cuenta? Créala aquí")+'</button>';
+    html += '<p style="color:var(--muted);font-size:10px;margin-top:10px;">Tus datos financieros viajarán a un servidor externo (Firebase) para poder sincronizarse entre dispositivos. Si prefieres que nada salga de este dispositivo, no inicies sesión.</p>';
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderCloudConflictModal(){
+    if(!ui.cloudConflict) return "";
+    var r = ui.cloudConflict.remote;
+    var remoteCards = (r.cards||[]).length, remoteSavings = (r.savings||[]).length;
+    var localCards = data.cards.length, localSavings = data.savings.length;
+    var html = '<div class="modal-overlay" data-act="cloud-conflict-noop"><div class="modal" data-stop="1">';
+    html += '<div class="modal-head"><h3>Encontramos datos en dos lugares</h3></div>';
+    html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 14px;">Esta cuenta ya tiene información guardada en la nube, y este dispositivo también tiene datos guardados localmente. ¿Cuál quieres conservar? (la otra copia se reemplazará)</p>';
+    html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+    html += '<button class="modal-save" data-act="cloud-conflict-use-remote">Usar los datos de la nube ('+remoteCards+' tarjeta(s), '+remoteSavings+' ahorro(s))</button>';
+    html += '<button class="modal-save" style="background:var(--surface2);color:var(--text);" data-act="cloud-conflict-use-local">Usar los datos de este dispositivo ('+localCards+' tarjeta(s), '+localSavings+' ahorro(s))</button>';
+    html += '</div></div></div>';
+    return html;
+  }
+
   function renderConfigSection(){
     var f = data.settings.fontSize;
     var sizes = [
@@ -1500,6 +1724,8 @@
     }
     html += '</div>';
 
+    html += renderCloudSyncSection();
+
     html += '<div class="bank-box" style="margin-bottom:0;">';
     html += '<div class="bank-title">Respaldo de datos</div>';
     html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px;">Tus datos se guardan en este navegador. Descarga un respaldo de vez en cuando, o restaura uno si lo necesitas.</p>';
@@ -1534,8 +1760,9 @@
     html += '<ul style="color:var(--muted);font-size:11px;line-height:1.7;margin:0;padding-left:16px;">'+
       '<li>No usamos analíticas ni rastreo de comportamiento.</li>'+
       '<li>No compartimos tu información con terceros.</li>'+
-      '<li>El escaneo de recibos con IA es la única función que envía datos fuera de tu dispositivo.</li>'+
-      '<li>Borrar el navegador o la app sin haber exportado un respaldo elimina tus datos de forma permanente.</li>'+
+      '<li>El escaneo de recibos con IA envía la foto a un servicio de IA solo si activas esa función.</li>'+
+      '<li>Si inicias sesión para sincronizar entre dispositivos, tus datos se guardan también en un servidor (Firebase), protegido con tu contraseña. Si nunca inicias sesión, nada sale de este dispositivo.</li>'+
+      '<li>Borrar el navegador o la app sin haber exportado un respaldo (o sin haber iniciado sesión) elimina tus datos de forma permanente.</li>'+
       '</ul>';
     html += '</div>';
 
@@ -2854,6 +3081,38 @@
         ui.deferredInstallPrompt.prompt();
         ui.deferredInstallPrompt.userChoice.then(function(){ ui.deferredInstallPrompt = null; render(); });
       }
+    }else if(act==="open-cloud-modal"){
+      ui.cloudModal = true; ui.cloudMode = "login"; ui.cloudError = ""; render();
+    }else if(act==="close-cloud-modal"){
+      ui.cloudModal = false; render();
+    }else if(act==="close-cloud-modal-bg"){
+      if(e.target===el){ ui.cloudModal = false; render(); }
+    }else if(act==="cloud-toggle-mode"){
+      ui.cloudMode = ui.cloudMode==="signup" ? "login" : "signup";
+      ui.cloudError = "";
+      render();
+    }else if(act==="cloud-do-signup" || act==="cloud-do-login"){
+      var cEmail = document.getElementById("cloud-email-input").value.trim();
+      var cPass = document.getElementById("cloud-password-input").value;
+      if(!cEmail || !cPass){ ui.cloudError = "Escribe tu correo y contraseña."; render(); }
+      else if(act==="cloud-do-signup"){ cloudSignUp(cEmail, cPass); }
+      else{ cloudSignIn(cEmail, cPass); }
+    }else if(act==="cloud-logout"){
+      if(confirm("¿Cerrar sesión? Tus datos se quedan guardados en la nube y en este dispositivo, solo dejarán de sincronizarse.")){
+        cloudSignOutUser();
+      }
+    }else if(act==="cloud-conflict-use-remote"){
+      cloudApplyRemoteData(ui.cloudConflict.remote);
+      ui.cloudConflict = null;
+      cloudStartListening(ui.cloudUser.uid);
+      render();
+    }else if(act==="cloud-conflict-use-local"){
+      ui.cloudConflict = null;
+      cloudPushNow();
+      cloudStartListening(ui.cloudUser.uid);
+      render();
+    }else if(act==="cloud-conflict-noop"){
+      // no permitimos cerrar sin elegir, para no dejar la sincronización en un estado ambiguo
     }else if(act==="open-personal-credit-form"){
       ui.personalCreditForm = "new"; render();
     }else if(act==="close-personal-credit-form"){
