@@ -1224,6 +1224,16 @@
      de más al analizar una resolución innecesariamente alta para leer un recibo.
      Reducimos a un máximo razonable (1600px de lado mayor) antes de enviar —
      de sobra para que la IA lea texto impreso con claridad. */
+  /* Construye el bloque de contenido correcto para la API de Anthropic: las imágenes
+     usan type:"image" y los PDF usan type:"document" — enviar un PDF como si fuera
+     una imagen hace que la API lo rechace o falle en vez de leerlo. */
+  function buildAiContentBlock(mediaType, base64){
+    if(mediaType==="application/pdf"){
+      return { type:"document", source:{ type:"base64", media_type:"application/pdf", data:base64 } };
+    }
+    return { type:"image", source:{ type:"base64", media_type:mediaType, data:base64 } };
+  }
+
   function prepareReceiptImage(file){
     var MAX_DIMENSION = 1600;
     var JPEG_QUALITY = 0.85;
@@ -1335,7 +1345,7 @@
           messages: [{
             role: "user",
             content: [
-              { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
+              buildAiContentBlock(mediaType, base64),
               { type: "text", text: prompt }
             ]
           }]
@@ -1422,7 +1432,7 @@
           messages: [{
             role: "user",
             content: [
-              { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
+              buildAiContentBlock(mediaType, base64),
               { type: "text", text: 'Analiza esta foto de un recibo o comprobante de compra. Responde ÚNICAMENTE con un objeto JSON, sin texto adicional ni markdown, con este formato exacto: {"description": "nombre breve del comercio o compra (máx 40 caracteres)", "amount": monto_total_pagado_como_numero, "date": "YYYY-MM-DD si la fecha es visible, si no null"}. Si no puedes leer el recibo con claridad, responde {"description": null, "amount": null, "date": null}.' }
             ]
           }]
@@ -2929,7 +2939,7 @@
     var scanning = ui.scanningCard === item.id;
     var html = '<div class="subsection"><div class="subsection-head"><span class="subsection-label">Gastos</span>';
     html += '<div style="display:flex;align-items:center;gap:10px;">';
-    html += '<input type="file" accept="image/*" capture="environment" id="receipt-input-'+item.id+'" style="display:none;" />';
+    html += '<input type="file" accept="image/*,.pdf,application/pdf" id="receipt-input-'+item.id+'" style="display:none;" />';
     html += '<button class="mini-add" style="color:var(--amber);" data-act="scan-receipt" data-id="'+item.id+'" '+(scanning?"disabled":"")+'>📷 '+(scanning?"leyendo…":"escanear recibo")+'</button>';
     if(ui.expenseForm !== item.id){
       html += '<button class="mini-add" data-act="show-expense-form" data-id="'+item.id+'">+ registrar gasto</button>';
@@ -2960,7 +2970,7 @@
     var reconciling = ui.reconcileBusy && ui.reconcileTarget === item.id;
     html += '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface3);border-radius:10px;padding:8px 10px;margin-bottom:8px;">'+
       '<span style="color:var(--muted);font-size:11px;">📄 ¿Coincide con tu estado de cuenta?</span>'+
-      '<input type="file" accept="image/*" capture="environment" id="statement-input-'+item.id+'" style="display:none;" />'+
+      '<input type="file" accept="image/*,.pdf,application/pdf" id="statement-input-'+item.id+'" style="display:none;" />'+
       '<button class="mini-add" style="color:var(--blue);" data-act="reconcile-statement" data-id="'+item.id+'" '+(reconciling?"disabled":"")+'>'+(reconciling?"comparando…":"conciliar")+'</button>'+
       '</div>';
     if(!reconciling && ui.reconcileTarget===item.id && ui.reconcileError){
