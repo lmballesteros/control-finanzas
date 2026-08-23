@@ -369,7 +369,15 @@
   function cloudDocRef(uid){ return fbDb.collection("users").doc(uid).collection("appdata").doc("main"); }
 
   /* Aplica datos recibidos de la nube al estado local, sin volver a reenviarlos (evita bucles). */
-  function cloudApplyRemoteData(remote){
+  var LAST_SYNC_KEY_PREFIX = "cloud-last-synced-";
+  function getLastSyncedMarker(uid){
+    try{ return localStorage.getItem(LAST_SYNC_KEY_PREFIX+uid); }catch(e){ return null; }
+  }
+  function setLastSyncedMarker(uid, marker){
+    try{ localStorage.setItem(LAST_SYNC_KEY_PREFIX+uid, String(marker)); }catch(e){}
+  }
+
+  function cloudApplyRemoteData(remote, remoteMarker){
     var normalized = normalizeData(remote);
     if(!normalized) return;
     cloudApplyingRemote = true;
@@ -377,6 +385,7 @@
     saveData();
     render();
     cloudApplyingRemote = false;
+    if(ui.cloudUser && remoteMarker!=null) setLastSyncedMarker(ui.cloudUser.uid, remoteMarker);
   }
 
   function cloudStartListening(uid){
@@ -385,7 +394,9 @@
       if(!snap.exists) return;
       if(snap.metadata.hasPendingWrites) return; // es un cambio que hicimos nosotros mismos, ya lo tenemos local
       var remote = snap.data() && snap.data().payload;
-      if(remote) cloudApplyRemoteData(remote);
+      var remoteUpdatedAt = snap.data() && snap.data().updatedAt;
+      var marker = remoteUpdatedAt && remoteUpdatedAt.toMillis ? remoteUpdatedAt.toMillis() : Date.now();
+      if(remote) cloudApplyRemoteData(remote, marker);
       ui.cloudStatus = "synced";
       render();
     }, function(){
@@ -401,11 +412,17 @@
   function cloudPushNow(){
     if(!fbDb || !ui.cloudUser) return;
     ui.cloudStatus = "syncing";
-    cloudDocRef(ui.cloudUser.uid).set({
+    var uid = ui.cloudUser.uid;
+    cloudDocRef(uid).set({
       payload: data,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }).then(function(){
       ui.cloudStatus = "synced";
+      // leemos de vuelta el timestamp real que asignó el servidor, para poder compararlo la próxima vez
+      cloudDocRef(uid).get().then(function(snap){
+        var t = snap.data() && snap.data().updatedAt;
+        if(t && t.toMillis) setLastSyncedMarker(uid, t.toMillis());
+      }).catch(function(){});
       render();
     }).catch(function(){
       ui.cloudStatus = "error";
@@ -424,14 +441,24 @@
   function cloudResolveInitialSync(uid){
     cloudDocRef(uid).get().then(function(snap){
       var remote = snap.exists ? (snap.data() && snap.data().payload) : null;
+      var remoteUpdatedAt = snap.exists ? (snap.data() && snap.data().updatedAt) : null;
+      var remoteMarker = remoteUpdatedAt && remoteUpdatedAt.toMillis ? remoteUpdatedAt.toMillis() : null;
+      var lastSynced = getLastSyncedMarker(uid);
+      var alreadyReconciled = remoteMarker!=null && lastSynced!=null && String(remoteMarker)===String(lastSynced);
+
       var localHasContent = data.cards.length || data.savings.length || (data.personalCredits||[]).length;
-      var remoteHasContent = remote && (remote.cards||[]).length || (remote && (remote.savings||[]).length);
-      if(remote && remoteHasContent && localHasContent){
-        // hay datos en ambos lados y podrían ser distintos: pedimos confirmación en vez de perder algo silenciosamente
-        ui.cloudConflict = { remote: remote };
+      var remoteHasContent = remote && ((remote.cards||[]).length || (remote.savings||[]).length || (remote.personalCredits||[]).length);
+
+      if(alreadyReconciled){
+        // ya vimos y resolvimos esta versión de la nube antes en este dispositivo — no volver a preguntar
+        ui.cloudStatus = "synced";
+        render();
+      }else if(remote && remoteHasContent && localHasContent){
+        // la nube trae una versión que este dispositivo nunca ha visto, y aquí también hay datos: pedimos confirmación
+        ui.cloudConflict = { remote: remote, remoteMarker: remoteMarker };
         render();
       }else if(remote && remoteHasContent && !localHasContent){
-        cloudApplyRemoteData(remote);
+        cloudApplyRemoteData(remote, remoteMarker);
       }else{
         cloudPushNow();
       }
@@ -3157,13 +3184,13 @@
         cloudSignOutUser();
       }
     }else if(act==="cloud-conflict-use-remote"){
-      cloudApplyRemoteData(ui.cloudConflict.remote);
+      cloudApplyRemoteData(ui.cloudConflict.remote, ui.cloudConflict.remoteMarker);
       ui.cloudConflict = null;
       cloudStartListening(ui.cloudUser.uid);
       render();
     }else if(act==="cloud-conflict-use-local"){
       ui.cloudConflict = null;
-      cloudPushNow();
+      cloudPushNow(); // cloudPushNow ya guarda el marcador correcto tras escribir
       cloudStartListening(ui.cloudUser.uid);
       render();
     }else if(act==="cloud-conflict-noop"){
