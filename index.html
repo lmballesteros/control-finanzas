@@ -949,15 +949,18 @@
     var factorsEvaluated = 0;
     var factorsSkipped = [];
 
-    // 1) Utilización promedio de tarjetas (peso alto)
+    // 1) Utilización promedio de tarjetas (peso alto) — solo penaliza por arriba de 30%,
+    // que es el mismo umbral "Ideal" que usa el resto de la app (utilizationLevel()).
+    // Antes penalizaba desde 0% de forma silenciosa (sin mostrar el motivo salvo arriba
+    // de 70%), lo cual bajaba el score aunque tu utilización fuera "Ideal" y sin explicación.
     var cardsWithLimit = dataObj.cards.filter(function(c){ return c.limit>0; });
     var avgUtil = 0;
     if(cardsWithLimit.length){
       factorsEvaluated++;
       avgUtil = cardsWithLimit.reduce(function(s,c){ return s+cardUtilizationPct(c); },0)/cardsWithLimit.length;
-      var utilPenalty = Math.round(Math.min(30, (avgUtil/100)*30));
+      var utilPenalty = avgUtil>30 ? Math.round(Math.min(30, ((avgUtil-30)/70)*30)) : 0;
       score -= utilPenalty;
-      if(avgUtil>=70) reasons.push({text:"Tu utilización promedio de tarjetas es de "+Math.round(avgUtil)+"%. Bajarla de 70% suele ayudar según nuestros criterios internos (no es una regla bancaria universal).", weight:utilPenalty});
+      if(utilPenalty>0) reasons.push({text:"Tu utilización promedio de tarjetas es de "+Math.round(avgUtil)+"%, por arriba del 30% que consideramos ideal (no es una regla bancaria universal, es un criterio interno de esta app).", weight:utilPenalty});
     }
 
     // 2) Capacidad de ahorro (ingresos vs gasto) — SOLO si el usuario configuró su sueldo real en Presupuesto.
