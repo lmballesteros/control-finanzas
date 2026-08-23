@@ -4,7 +4,7 @@
    si no hay red, esas llamadas simplemente fallarán con su propio manejo de error,
    pero el resto de la app sigue funcionando con normalidad. */
 
-var CACHE_NAME = "control-financiero-v15";
+var CACHE_NAME = "control-financiero-v16";
 var APP_SHELL = [
   "./",
   "./index.html",

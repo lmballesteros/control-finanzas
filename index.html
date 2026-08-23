@@ -152,9 +152,63 @@
     fontSize: "normal", notificationsEnabled: false,
     alertPayments: true, alertCutoffs: true, alertBudget: true, alertGoals: true,
     alertUtilization: true, alertDebtGrowth: true,
-    monthlyBudgetLimit: 0
+    monthlyBudgetLimit: 0,
+    accentColor: "blue", language: "es"
   };
   var FONT_SCALE = { small: "0.9", normal: "1", large: "1.15", xlarge: "1.3" };
+
+  /* ---------- tema: color de acento ---------- */
+  var ACCENT_COLORS = {
+    blue:   { label:"Azul",     hex:"#0A84FF" },
+    purple: { label:"Púrpura",  hex:"#5E5CE6" },
+    green:  { label:"Verde",    hex:"#32D74B" },
+    pink:   { label:"Rosa",     hex:"#FF375F" },
+    orange: { label:"Naranja",  hex:"#FF9F0A" },
+    teal:   { label:"Aqua",     hex:"#64D2FF" }
+  };
+  function applyAccentColor(colorKey){
+    var color = (ACCENT_COLORS[colorKey] || ACCENT_COLORS.blue).hex;
+    document.documentElement.style.setProperty("--blue", color);
+  }
+
+  /* ---------- idioma ----------
+     Cobertura actual: navegación, pantalla de acceso, y Ajustes.
+     El resto de la app (formularios, cálculos, explicaciones detalladas) sigue en
+     español por ahora — traducir cada texto de la app es un trabajo grande que se
+     está ampliando por partes en vez de todo de una vez, para no dejar nada roto. */
+  var TRANSLATIONS = {
+    es: {
+      nav_resumen:"Resumen", nav_movimientos:"Movim.", nav_tarjetas:"Tarjetas", nav_prestamos:"Préstamos",
+      nav_ahorros:"Ahorros", nav_analisis:"Análisis", nav_ajustes:"Ajustes",
+      gate_login_title:"Inicia sesión", gate_signup_title:"Crea tu cuenta",
+      gate_login_btn:"Iniciar sesión", gate_signup_btn:"Crear cuenta",
+      gate_toggle_to_signup:"¿No tienes cuenta? Créala aquí", gate_toggle_to_login:"¿Ya tienes cuenta? Inicia sesión",
+      gate_forgot:"¿Olvidaste tu contraseña?", gate_tagline:"Controla tus tarjetas, deudas, gastos y ahorro en un solo lugar.",
+      settings_appearance:"Apariencia", settings_accent:"Color de acento", settings_language:"Idioma",
+      settings_font_size:"Tamaño de letra", settings_logout:"Cerrar sesión"
+    },
+    en: {
+      nav_resumen:"Overview", nav_movimientos:"Activity", nav_tarjetas:"Cards", nav_prestamos:"Loans",
+      nav_ahorros:"Savings", nav_analisis:"Insights", nav_ajustes:"Settings",
+      gate_login_title:"Sign in", gate_signup_title:"Create your account",
+      gate_login_btn:"Sign in", gate_signup_btn:"Create account",
+      gate_toggle_to_signup:"Don't have an account? Create one", gate_toggle_to_login:"Already have an account? Sign in",
+      gate_forgot:"Forgot your password?", gate_tagline:"Manage your cards, debts, expenses, and savings in one place.",
+      settings_appearance:"Appearance", settings_accent:"Accent color", settings_language:"Language",
+      settings_font_size:"Text size", settings_logout:"Sign out"
+    }
+  };
+  function t(key){
+    var lang = getDeviceLanguage() || (data.settings && data.settings.language) || "es";
+    return (TRANSLATIONS[lang] && TRANSLATIONS[lang][key]) || TRANSLATIONS.es[key] || key;
+  }
+  var DEVICE_LANG_KEY = "device-language";
+  function getDeviceLanguage(){ try{ return localStorage.getItem(DEVICE_LANG_KEY); }catch(e){ return null; } }
+  function setLanguage(lang){
+    try{ localStorage.setItem(DEVICE_LANG_KEY, lang); }catch(e){}
+    if(ui.cloudUser) updateSettings(Object.assign({}, data.settings, {language: lang}));
+    else render();
+  }
 
   /* migración progresiva de datos — nunca elimina información existente */
   function migrateData(parsed){
@@ -209,9 +263,11 @@
 
   var data = loadData();
   saveData(); /* persiste inmediatamente cualquier migración de datos antiguos */
+  applyAccentColor(data.settings.accentColor);
   var ui = { openCard:null, openSaving:null, msiForm:null, msiEditId:null, paymentForm:null, paymentEditId:null,
              expenseForm:null, expenseEditId:null, deferredForm:null, deferredEditId:null, modal:null,
              apiKeyModal:false, backupModal:false, backupMessage:"", scanningCard:null, scanError:"", expenseDraft:null,
+             reconcileBusy:false, reconcileError:"", reconcileResult:null, reconcileTarget:null,
              personalCreditForm:null, tab:"resumen", analysisQuery:"", donutSelected:null, toast:null,
              movQuery:"", movCategory:"", movCard:"", extraPayment:0, movCardPicker:false, deferredInstallPrompt:null, reassignCategory:null, updateAvailable:false, devModeModal:false, renamingCategory:null,
              cloudModal:false, cloudMode:"login", cloudError:"", cloudBusy:false, cloudUser:null, cloudStatus:"signed-out", cloudConflict:null, authChecked:false,
@@ -257,12 +313,24 @@
       return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
     });
   }
+  /* Construye una fecha para un "día del mes" dado, ajustando automáticamente si ese
+     día no existe en el mes de destino (ej. día 31 en febrero) al último día real de
+     ese mes, en vez de dejar que JavaScript se brinque silenciosamente al mes siguiente
+     (new Date(2026,1,31) se convierte en 3 de marzo sin avisar — este bug afectaba
+     fechas de corte/pago con día 29, 30 o 31 cada vez que caían en un mes más corto). */
+  function clampedDate(year, month, day){
+    var y = year + Math.floor(month/12);
+    var m = ((month % 12) + 12) % 12;
+    var maxDay = new Date(y, m+1, 0).getDate();
+    return new Date(y, m, Math.min(day, maxDay));
+  }
+
   function nextDueDate(day){
     if(!day) return null;
     var now = new Date();
     var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    var cand = new Date(now.getFullYear(), now.getMonth(), day);
-    if(cand < today) cand = new Date(now.getFullYear(), now.getMonth()+1, day);
+    var cand = clampedDate(now.getFullYear(), now.getMonth(), day);
+    if(cand < today) cand = clampedDate(now.getFullYear(), now.getMonth()+1, day);
     return cand;
   }
   function daysUntil(date){
@@ -274,8 +342,8 @@
     if(!day) return null;
     var now = new Date();
     var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    var cand = new Date(now.getFullYear(), now.getMonth(), day);
-    if(cand < today) cand = new Date(now.getFullYear(), now.getMonth()+1, day);
+    var cand = clampedDate(now.getFullYear(), now.getMonth(), day);
+    if(cand < today) cand = clampedDate(now.getFullYear(), now.getMonth()+1, day);
     return cand;
   }
   function msiMonthly(p){ return p.months>0 ? p.total/p.months : 0; }
@@ -288,7 +356,7 @@
     var pago = cycle0.pago;
     while(count < plan.months && pago < today){
       count++;
-      pago = new Date(pago.getFullYear(), pago.getMonth()+1, pago.getDate());
+      pago = clampedDate(pago.getFullYear(), pago.getMonth()+1, dueDay);
     }
     return count;
   }
@@ -299,7 +367,7 @@
     var paid = msiEffectivePaid(plan, cutoffDay, dueDay);
     if(paid >= plan.months) return null;
     var pago = cycle0.pago;
-    for(var i=0;i<paid;i++) pago = new Date(pago.getFullYear(), pago.getMonth()+1, pago.getDate());
+    for(var i=0;i<paid;i++) pago = clampedDate(pago.getFullYear(), pago.getMonth()+1, dueDay);
     return pago;
   }
   function msiEffectivePaid(plan, cutoffDay, dueDay){
@@ -323,11 +391,11 @@
     var raw = new Date(dateISO);
     var d = new Date(raw.getFullYear(), raw.getMonth(), raw.getDate());
     var y = d.getFullYear(), m = d.getMonth();
-    var cutThis = new Date(y, m, cutoffDay);
-    var corte = d <= cutThis ? cutThis : new Date(y, m+1, cutoffDay);
+    var cutThis = clampedDate(y, m, cutoffDay);
+    var corte = d <= cutThis ? cutThis : clampedDate(y, m+1, cutoffDay);
     var cy = corte.getFullYear(), cm = corte.getMonth();
-    var pagoSame = new Date(cy, cm, dueDay);
-    var pago = pagoSame > corte ? pagoSame : new Date(cy, cm+1, dueDay);
+    var pagoSame = clampedDate(cy, cm, dueDay);
+    var pago = pagoSame > corte ? pagoSame : clampedDate(cy, cm+1, dueDay);
     return {corte:corte, pago:pago};
   }
   function paymentSchedule(card){
@@ -767,7 +835,7 @@
 
   function personalInstallmentDate(credit, k){
     var start = new Date(credit.startDate);
-    return new Date(start.getFullYear(), start.getMonth()+k, credit.paymentDay);
+    return clampedDate(start.getFullYear(), start.getMonth()+k, credit.paymentDay);
   }
   function personalElapsed(credit){
     if(credit.paidMonths != null) return Math.min(credit.months, credit.paidMonths);
@@ -856,6 +924,7 @@
         items.push({label:c.name+" · saldo", type:"revolving", rate:c.revolvingRate, remaining:c.balance, monthlyPayment:estMin, amortPayment:estMin, isEstimated:!hasRealMin});
       }
       (c.diferidos||[]).forEach(function(p){
+        if(!p.annualRate || p.annualRate<=0) return; // 0% de interés: igual que MSI, no aplica a este plan
         var rem = deferredRemaining(p, c.cutoffDay, c.dueDay);
         if(rem>0.5){
           var paidD = msiEffectivePaid(p, c.cutoffDay, c.dueDay);
@@ -867,6 +936,7 @@
       });
     });
     (dataObj.personalCredits||[]).forEach(function(c){
+      if(!c.annualRate || c.annualRate<=0) return; // 0% de interés: no aplica a un plan de optimización de intereses
       var rem = personalRemaining(c);
       if(rem>0.5){
         var paidP = personalElapsed(c);
@@ -965,27 +1035,36 @@
 
     // 2) Capacidad de ahorro (ingresos vs gasto) — SOLO si el usuario configuró su sueldo real en Presupuesto.
     // Nunca usamos el valor de referencia ($6,800) que trae la app por defecto: eso produciría un score falso.
+    // Si gastas más de lo que ganas (déficit activo cada mes), esto tampoco puede calificar como "Bien",
+    // por la misma razón que la deuda mayor al ahorro no puede: es una señal grave que ningún otro
+    // factor saludable debería poder compensar.
+    var monthlyDeficit = false;
     if(dataObj.budget && dataObj.budget.configured && (dataObj.budget.salary||0)>0){
       factorsEvaluated++;
       var salaryMonthly = dataObj.budget.salary*4.33;
       var now = new Date();
       var gastoMes = dataObj.cards.reduce(function(s,c){ return s+monthTotal(c.expenses||[], now.getFullYear(), now.getMonth()); },0);
       var capacidad = Math.max(-1, (salaryMonthly-gastoMes)/salaryMonthly);
-      var capPenalty = capacidad<0.1 ? Math.round(Math.min(20, (0.1-capacidad)*100)) : 0;
+      monthlyDeficit = capacidad<0;
+      var capPenalty = capacidad<0.1 ? Math.round(Math.min(30, (0.1-capacidad)*130)) : 0;
       score -= capPenalty;
-      if(capPenalty>0) reasons.push({text:"Tu capacidad de ahorro este mes es baja frente al sueldo mensual que tú configuraste en Presupuesto ("+fmt(dataObj.budget.salary)+"/semana). Si ese número ya no es correcto, actualízalo.", weight:capPenalty});
+      if(monthlyDeficit) reasons.push({text:"Este mes gastaste más de lo que configuraste como tu sueldo ("+fmt(dataObj.budget.salary)+"/semana). Mientras tengas un déficit así, no calificamos tu salud financiera como \"Bien\", sin importar qué tan sanos estén los demás factores.", weight:Math.max(capPenalty,1)});
+      else if(capPenalty>0) reasons.push({text:"Tu capacidad de ahorro este mes es baja frente al sueldo mensual que tú configuraste en Presupuesto ("+fmt(dataObj.budget.salary)+"/semana). Si ese número ya no es correcto, actualízalo.", weight:capPenalty});
     }else{
       factorsSkipped.push("capacidad de ahorro (no has configurado tu sueldo en Presupuesto)");
     }
 
-    // 3) Relación deuda / ahorro
+    // 3) Relación deuda / ahorro — si la deuda supera al ahorro, esto por sí solo
+    // debe impedir que el resultado diga "Bien": no tiene sentido calificar como
+    // buena salud financiera una situación donde se debe más de lo que se tiene ahorrado.
     var debtSavingsPenalty = 0;
+    var debtExceedsSavings = totalDebt > totalSavings && totalDebt > 0;
     if(totalDebt>0){
       factorsEvaluated++;
       var ratio = totalSavings>0 ? totalDebt/totalSavings : (totalDebt>0?3:0);
-      debtSavingsPenalty = Math.round(Math.min(20, Math.max(0, (ratio-1)*8)));
+      debtSavingsPenalty = Math.round(Math.min(35, Math.max(0, (ratio-1)*15)));
       score -= debtSavingsPenalty;
-      if(debtSavingsPenalty>0) reasons.push({text:"Tu deuda total es varias veces mayor que tu ahorro acumulado (criterio interno de esta app, no un estándar de la industria).", weight:debtSavingsPenalty});
+      if(debtExceedsSavings) reasons.push({text:"Tu deuda total ("+fmt(totalDebt)+") es mayor que tu ahorro acumulado ("+fmt(totalSavings)+"). Mientras esto sea así, no calificamos tu salud financiera como \"Bien\", sin importar qué tan sanos estén los demás factores.", weight:Math.max(debtSavingsPenalty, 1)});
     }
 
     // 4) Pagos próximos vencidos o urgentes
@@ -1012,6 +1091,10 @@
     }
 
     score = Math.max(0, Math.min(100, Math.round(score)));
+    // Garantía dura: si la deuda supera al ahorro, o si hay un déficit mensual activo
+    // (gastas más de lo que ganas), el score nunca puede caer en el rango de "Bien" (70+),
+    // sin importar qué tan bien salgan los demás factores.
+    if((debtExceedsSavings || monthlyDeficit) && score>=70) score = 69;
     reasons.sort(function(a,b){ return b.weight-a.weight; });
     var level = score>=70 ? {label:"Bien", color:"var(--mint)", icon:"🟢"} : score>=40 ? {label:"Atención", color:"var(--amber)", icon:"🟡"} : {label:"Crítico", color:"var(--coral)", icon:"🔴"};
     return {
@@ -1136,6 +1219,54 @@
     });
   }
 
+  /* Las fotos de cámara modernas fácilmente pesan 5-10+ MB, lo cual puede exceder
+     límites de tamaño de la API, tardar mucho en conexiones lentas, o gastar tokens
+     de más al analizar una resolución innecesariamente alta para leer un recibo.
+     Reducimos a un máximo razonable (1600px de lado mayor) antes de enviar —
+     de sobra para que la IA lea texto impreso con claridad. */
+  function prepareReceiptImage(file){
+    var MAX_DIMENSION = 1600;
+    var JPEG_QUALITY = 0.85;
+    return new Promise(function(resolve){
+      if(!file.type || file.type.indexOf("image/")!==0){
+        fileToBase64(file).then(function(b64){ resolve({base64:b64, mediaType:file.type||"image/jpeg"}); });
+        return;
+      }
+      var img = new Image();
+      var objectUrl = URL.createObjectURL(file);
+      img.onload = function(){
+        URL.revokeObjectURL(objectUrl);
+        var w = img.naturalWidth, h = img.naturalHeight;
+        if(w<=MAX_DIMENSION && h<=MAX_DIMENSION && file.size < 2*1024*1024){
+          // ya es razonablemente pequeña, no vale la pena recomprimir
+          fileToBase64(file).then(function(b64){ resolve({base64:b64, mediaType:file.type||"image/jpeg"}); });
+          return;
+        }
+        var scale = Math.min(1, MAX_DIMENSION/Math.max(w,h));
+        var canvas = document.createElement("canvas");
+        canvas.width = Math.round(w*scale);
+        canvas.height = Math.round(h*scale);
+        try{
+          var ctx = canvas.getContext("2d");
+          if(!ctx) throw new Error("sin contexto 2d");
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          var dataUrl = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+          resolve({base64: dataUrl.split(",")[1], mediaType:"image/jpeg"});
+        }catch(e){
+          // si el navegador no puede procesar el canvas por cualquier razón,
+          // mandamos el archivo original tal cual en vez de fallar todo el escaneo
+          fileToBase64(file).then(function(b64){ resolve({base64:b64, mediaType:file.type||"image/jpeg"}); });
+        }
+      };
+      img.onerror = function(){
+        URL.revokeObjectURL(objectUrl);
+        // si algo falla al procesar la imagen, mandamos el archivo original tal cual
+        fileToBase64(file).then(function(b64){ resolve({base64:b64, mediaType:file.type||"image/jpeg"}); });
+      };
+      img.src = objectUrl;
+    });
+  }
+
   function buildMovementsCSV(dataObj){
     var body = [];
     dataObj.cards.forEach(function(c){
@@ -1160,6 +1291,94 @@
     }).join("\n");
   }
 
+  /* ---------- conciliación con estado de cuenta ---------- */
+  function reconcileStatement(cardId, file){
+    if(!AI_BACKEND_URL && !isDevModeEnabled()){
+      ui.devModeModal = true;
+      render();
+      return;
+    }
+    if(!AI_BACKEND_URL && !getApiKey()){
+      ui.apiKeyModal = true;
+      render();
+      return;
+    }
+    ui.reconcileBusy = true;
+    ui.reconcileTarget = cardId;
+    ui.reconcileError = "";
+    render();
+    prepareReceiptImage(file).then(function(prepared){
+      var base64 = prepared.base64;
+      var mediaType = prepared.mediaType;
+      var prompt = 'Analiza esta foto de la página de RESUMEN de un estado de cuenta de tarjeta de crédito (normalmente la primera página, con los totales generales). Responde ÚNICAMENTE con un objeto JSON, sin texto adicional ni markdown, con este formato exacto: {"cutoffDate": "YYYY-MM-DD del corte, o null", "statementBalance": saldo_al_corte_como_numero_o_null, "minimumPayment": pago_minimo_como_numero_o_null, "noInterestPayment": pago_para_no_generar_intereses_como_numero_o_null, "dueDate": "YYYY-MM-DD fecha limite de pago, o null"}. Si no puedes leer algún dato con claridad, usa null en ese campo específico.';
+      if(AI_BACKEND_URL){
+        return fetch(AI_BACKEND_URL, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ image: base64, mediaType: mediaType, prompt: prompt })
+        }).then(function(res){ return res.json(); }).then(function(json){
+          return { fromBackend:true, data: json };
+        });
+      }
+      var apiKey = getApiKey();
+      return fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true"
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 500,
+          messages: [{
+            role: "user",
+            content: [
+              { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
+              { type: "text", text: prompt }
+            ]
+          }]
+        })
+      }).then(function(res){ return res.json(); }).then(function(resp){
+        return { fromBackend:false, data: resp };
+      });
+    }).then(function(wrapped){
+      var parsed;
+      if(wrapped.fromBackend){
+        if(wrapped.data && wrapped.data.error){ throw new Error(wrapped.data.error); }
+        parsed = wrapped.data || {};
+      }else{
+        var resp = wrapped.data;
+        if(resp && resp.error){ throw new Error(resp.error.message || "error de API"); }
+        var text = (resp.content||[]).filter(function(c){return c.type==="text";}).map(function(c){return c.text;}).join("");
+        var clean = text.replace(/```json|```/g,"").trim();
+        parsed = JSON.parse(clean);
+      }
+      if(parsed.statementBalance==null && parsed.noInterestPayment==null){
+        ui.reconcileError = "No pude leer los totales del estado de cuenta con claridad. Intenta con una foto más nítida de la página de resumen.";
+        ui.reconcileBusy = false;
+        render();
+        return;
+      }
+      var card = data.cards.find(function(c){ return c.id===cardId; });
+      var appBalance = cardUsedTotal(card);
+      var appDue = cardAmountDueNow(card);
+      ui.reconcileResult = {
+        cardId: cardId,
+        statement: parsed,
+        appBalance: appBalance,
+        appAmountDue: appDue.amount
+      };
+      ui.reconcileBusy = false;
+      render();
+    }).catch(function(err){
+      ui.reconcileError = "No se pudo leer la foto (" + err.message + "). Intenta de nuevo.";
+      ui.reconcileBusy = false;
+      render();
+    });
+  }
+
   function scanReceipt(cardId, file){
     if(!AI_BACKEND_URL && !isDevModeEnabled()){
       ui.devModeModal = true;
@@ -1174,13 +1393,15 @@
     ui.scanningCard = cardId;
     ui.scanError = "";
     render();
-    fileToBase64(file).then(function(base64){
+    prepareReceiptImage(file).then(function(prepared){
+      var base64 = prepared.base64;
+      var mediaType = prepared.mediaType;
       if(AI_BACKEND_URL){
         // Arquitectura recomendada: la imagen va a TU backend, que guarda la clave del lado del servidor.
         return fetch(AI_BACKEND_URL, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ image: base64, mediaType: file.type || "image/jpeg" })
+          body: JSON.stringify({ image: base64, mediaType: mediaType })
         }).then(function(res){ return res.json(); }).then(function(json){
           return { fromBackend:true, data: json };
         });
@@ -1201,7 +1422,7 @@
           messages: [{
             role: "user",
             content: [
-              { type: "image", source: { type: "base64", media_type: file.type || "image/jpeg", data: base64 } },
+              { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
               { type: "text", text: 'Analiza esta foto de un recibo o comprobante de compra. Responde ÚNICAMENTE con un objeto JSON, sin texto adicional ni markdown, con este formato exacto: {"description": "nombre breve del comercio o compra (máx 40 caracteres)", "amount": monto_total_pagado_como_numero, "date": "YYYY-MM-DD si la fecha es visible, si no null"}. Si no puedes leer el recibo con claridad, responde {"description": null, "amount": null, "date": null}.' }
             ]
           }]
@@ -1581,6 +1802,7 @@
     html += renderExpenseFormModal();
     html += renderPaymentFormModal();
     html += renderApiKeyModal();
+    html += renderReconcileResultModal();
     html += renderDevModeModal();
     html += renderBackupModal();
     html += renderMovCardPicker();
@@ -1596,13 +1818,13 @@
 
   function renderBottomNav(){
     var items = [
-      {id:"resumen", label:"Resumen", icon:"📊"},
-      {id:"movimientos", label:"Movim.", icon:"🧾"},
-      {id:"tarjetas", label:"Tarjetas", icon:"💳"},
-      {id:"prestamos", label:"Préstamos", icon:"🏦"},
-      {id:"ahorros", label:"Ahorros", icon:"🐷"},
-      {id:"analisis", label:"Análisis", icon:"🔍"},
-      {id:"config", label:"Ajustes", icon:"⚙"}
+      {id:"resumen", label:t("nav_resumen"), icon:"📊"},
+      {id:"movimientos", label:t("nav_movimientos"), icon:"🧾"},
+      {id:"tarjetas", label:t("nav_tarjetas"), icon:"💳"},
+      {id:"prestamos", label:t("nav_prestamos"), icon:"🏦"},
+      {id:"ahorros", label:t("nav_ahorros"), icon:"🐷"},
+      {id:"analisis", label:t("nav_analisis"), icon:"🔍"},
+      {id:"config", label:t("nav_ajustes"), icon:"⚙"}
     ];
     var html = '<div style="position:fixed;bottom:0;left:0;right:0;padding:0 8px 8px;z-index:40;">'+
       '<div style="background:rgba(28,28,30,.78);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:1px solid var(--hairline);border-radius:22px;display:flex;justify-content:space-around;padding:6px 2px;box-shadow:0 -8px 30px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);">';
@@ -1670,7 +1892,7 @@
     var html = '<section><div class="sec-title" style="margin-bottom:12px;">🎯 Plan para salir de deudas</div><div class="card">';
 
     if(plan.hasEstimated){
-      html += '<div style="background:#241E15;border:1px solid var(--amber);border-radius:10px;padding:10px 12px;margin-bottom:12px;">'+
+      html += '<div style="background:rgba(255,159,10,.12);border:1px solid rgba(255,159,10,.3);border-radius:10px;padding:10px 12px;margin-bottom:12px;">'+
         '<div style="color:var(--amber);font-size:12px;font-weight:600;margin-bottom:4px;">⚠ Este plan incluye al menos un pago estimado</div>'+
         '<div style="color:var(--text);font-size:11px;line-height:1.5;">Para el saldo de tarjeta que no tiene un pago mínimo capturado, usamos una aproximación (5% del saldo o $300, lo que sea mayor) — no es el pago mínimo real de tu estado de cuenta. Edita esa tarjeta y captura "Pago mínimo real" para que el plan use tu dato exacto en vez de esta estimación.</div>'+
         '</div>';
@@ -1684,7 +1906,7 @@
       '<div><div style="color:var(--muted);font-size:11px;">Pago mensual'+(plan.hasEstimated?' *':'')+'</div><div style="color:var(--text);font-family:var(--mono);font-size:15px;">'+fmt(plan.totalMonthlyPayment)+'</div></div>'+
       '<div style="text-align:right;"><div style="color:var(--muted);font-size:11px;">Interés estimado total</div><div style="color:var(--text);font-family:var(--mono);font-size:15px;">'+fmt(plan.currentInterest)+'</div></div>'+
       '</div>';
-    html += '<div style="color:var(--muted);font-size:11px;margin-bottom:10px;">Estrategia: método avalancha — se paga primero la deuda con mayor tasa de interés; al liquidarse una deuda, su pago mensual se redirige a la siguiente. No incluye compras a MSI (no generan interés). El interés estimado incluye el IVA del interés en diferidos y créditos personales, igual que se muestra en el detalle de cada uno.'+
+    html += '<div style="color:var(--muted);font-size:11px;margin-bottom:10px;">Estrategia: método avalancha — se paga primero la deuda con mayor tasa de interés; al liquidarse una deuda, su pago mensual se redirige a la siguiente. No incluye MSI ni créditos/diferidos a 0% de interés, ya que optimizar el orden de pago no les genera ningún ahorro. El interés estimado incluye el IVA del interés en diferidos y créditos personales, igual que se muestra en el detalle de cada uno.'+
       (plan.hasEstimated ? ' Los renglones marcados "⚠ estimado" abajo usan la aproximación descrita arriba; el resto usa mensualidades reales calculadas con tus tasas y plazos.' : ' Todas las mensualidades usadas aquí están calculadas con tus tasas y plazos reales.')+
       '</div>';
 
@@ -1809,7 +2031,12 @@
 
   function renderLoginGate(){
     var isSignup = ui.cloudMode === "signup";
-    var html = '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;">';
+    var currentLang = getDeviceLanguage() || (data.settings && data.settings.language) || "es";
+    var html = '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;position:relative;">';
+    html += '<div style="position:absolute;top:16px;right:16px;display:flex;background:var(--surface3);border-radius:20px;padding:3px;">'+
+      '<button type="button" data-act="set-language" data-lang="es" style="background:'+(currentLang==="es"?"var(--blue)":"transparent")+';color:'+(currentLang==="es"?"#fff":"var(--muted)")+';border:none;border-radius:16px;padding:5px 10px;font-size:11px;font-weight:600;">ES</button>'+
+      '<button type="button" data-act="set-language" data-lang="en" style="background:'+(currentLang==="en"?"var(--blue)":"transparent")+';color:'+(currentLang==="en"?"#fff":"var(--muted)")+';border:none;border-radius:16px;padding:5px 10px;font-size:11px;font-weight:600;">EN</button>'+
+      '</div>';
     html += '<div style="width:100%;max-width:360px;">';
     if(ui.updateAvailable){
       html += '<div style="background:var(--surface3);border:1px solid var(--mint);border-radius:12px;padding:12px 14px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:10px;">'+
@@ -1820,11 +2047,11 @@
     html += '<div style="text-align:center;margin-bottom:28px;">'+
       '<div style="background:rgba(94,234,212,0.12);width:56px;height:56px;border-radius:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:24px;">💼</div>'+
       '<h1 style="margin:0 0 4px;font-family:var(--disp);font-size:20px;">Control financiero</h1>'+
-      '<p style="color:var(--muted);font-size:12px;margin:0;">Controla tus tarjetas, deudas, gastos y ahorro en un solo lugar.</p>'+
+      '<p style="color:var(--muted);font-size:12px;margin:0;">'+t("gate_tagline")+'</p>'+
       '</div>';
 
     html += '<form class="card" id="gate-form">';
-    html += '<h3 style="font-family:var(--disp);font-size:15px;font-weight:500;margin:0 0 14px;">'+(isSignup?"Crea tu cuenta":"Inicia sesión")+'</h3>';
+    html += '<h3 style="font-family:var(--disp);font-size:15px;font-weight:500;margin:0 0 14px;">'+(isSignup?t("gate_signup_title"):t("gate_login_title"))+'</h3>';
     html += '<input type="email" id="gate-email-input" placeholder="tu@correo.com" aria-label="Correo electrónico" autocomplete="email" autofocus />';
     html += '<input type="password" id="gate-password-input" placeholder="Contraseña (mín. 6 caracteres)" aria-label="Contraseña" autocomplete="'+(isSignup?"new-password":"current-password")+'" />';
     if(isSignup){
@@ -1835,10 +2062,10 @@
     }
     if(ui.cloudError) html += '<p style="color:var(--coral);font-size:12px;margin:0 0 10px;">'+esc(ui.cloudError)+'</p>';
     if(!fbAuth) html += '<p style="color:var(--amber);font-size:12px;margin:0 0 10px;">No se pudo conectar con el servicio de cuentas. Revisa tu conexión a internet e intenta de nuevo.</p>';
-    html += '<button type="submit" class="modal-save" data-act="'+(isSignup?"gate-do-signup":"gate-do-login")+'" '+(ui.cloudBusy?"disabled":"")+'>'+(ui.cloudBusy?"Un momento…":(isSignup?"Crear cuenta":"Iniciar sesión"))+'</button>';
-    html += '<button type="button" class="modal-save" style="background:none;color:var(--muted);margin-top:6px;" data-act="gate-toggle-mode">'+(isSignup?"¿Ya tienes cuenta? Inicia sesión":"¿No tienes cuenta? Créala aquí")+'</button>';
+    html += '<button type="submit" class="modal-save" data-act="'+(isSignup?"gate-do-signup":"gate-do-login")+'" '+(ui.cloudBusy?"disabled":"")+'>'+(ui.cloudBusy?"Un momento…":(isSignup?t("gate_signup_btn"):t("gate_login_btn")))+'</button>';
+    html += '<button type="button" class="modal-save" style="background:none;color:var(--muted);margin-top:6px;" data-act="gate-toggle-mode">'+(isSignup?t("gate_toggle_to_login"):t("gate_toggle_to_signup"))+'</button>';
     if(!isSignup){
-      html += '<button type="button" class="modal-save" style="background:none;color:var(--muted);margin-top:2px;font-size:11px;" data-act="gate-forgot-password">¿Olvidaste tu contraseña?</button>';
+      html += '<button type="button" class="modal-save" style="background:none;color:var(--muted);margin-top:2px;font-size:11px;" data-act="gate-forgot-password">'+t("gate_forgot")+'</button>';
     }
     html += '</form>';
 
@@ -1862,7 +2089,7 @@
     var st = statusMap[ui.cloudStatus] || statusMap.synced;
     html += '<p style="color:var(--text);font-size:13px;margin:0 0 4px;">'+esc(ui.cloudUser.email)+'</p>';
     html += '<p style="color:var(--muted);font-size:11px;margin:0 0 12px;">'+st.icon+' '+st.label+'</p>';
-    html += '<button class="modal-save" style="background:var(--surface2);color:var(--coral);" data-act="cloud-logout">Cerrar sesión</button>';
+    html += '<button class="modal-save" style="background:var(--surface2);color:var(--coral);" data-act="cloud-logout">'+t("settings_logout")+'</button>';
     html += '<button class="modal-save" style="background:none;color:var(--muted);margin-top:8px;font-size:11px;" data-act="open-delete-account-modal">Eliminar mi cuenta y todos mis datos</button>';
     html += '</div>';
     return html;
@@ -1908,17 +2135,43 @@
     ];
     var html = '<div style="display:flex;flex-direction:column;gap:12px;">';
 
+    html += renderCloudSyncSection();
+
     html += '<div class="bank-box" style="margin-bottom:0;">';
-    html += '<div class="bank-title">Tamaño de letra</div>';
-    html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">';
+    html += '<div class="bank-title">'+t("settings_appearance")+'</div>';
+
+    html += '<span class="field-label">'+t("settings_font_size")+'</span>';
+    html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">';
     sizes.forEach(function(s){
       var active = f === s.id;
-      html += '<button data-act="set-font-size" data-size="'+s.id+'" style="background:'+(active?"var(--mint)":"var(--surface3)")+';color:'+(active?"var(--bg)":"var(--text)")+';border:none;border-radius:10px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;">'+
+      html += '<button data-act="set-font-size" data-size="'+s.id+'" style="background:'+(active?"var(--blue)":"var(--surface3)")+';color:'+(active?"#fff":"var(--text)")+';border:none;border-radius:10px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;">'+
         '<span style="font-family:var(--disp);font-weight:600;font-size:'+s.px+'px;">Aa</span>'+
-        '<span style="font-size:9px;color:'+(active?"var(--bg)":"var(--muted)")+';">'+s.label+'</span>'+
+        '<span style="font-size:9px;color:'+(active?"#fff":"var(--muted)")+';">'+s.label+'</span>'+
         '</button>';
     });
-    html += '</div></div>';
+    html += '</div>';
+
+    html += '<span class="field-label">'+t("settings_accent")+'</span>';
+    html += '<div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">';
+    var currentAccent = data.settings.accentColor || "blue";
+    Object.keys(ACCENT_COLORS).forEach(function(key){
+      var swatch = ACCENT_COLORS[key];
+      var isActive = currentAccent === key;
+      html += '<button data-act="set-accent-color" data-color="'+key+'" title="'+swatch.label+'" style="width:36px;height:36px;border-radius:50%;background:'+swatch.hex+';border:'+(isActive?"3px solid var(--text)":"3px solid transparent")+';box-shadow:0 2px 8px rgba(0,0,0,.3);position:relative;">'+
+        (isActive ? '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;">✓</span>' : '')+
+        '</button>';
+    });
+    html += '</div>';
+
+    html += '<span class="field-label">'+t("settings_language")+'</span>';
+    var currentLang2 = getDeviceLanguage() || data.settings.language || "es";
+    html += '<div style="display:flex;background:var(--surface3);border-radius:12px;padding:4px;">'+
+      '<button data-act="set-language" data-lang="es" style="flex:1;background:'+(currentLang2==="es"?"var(--blue)":"transparent")+';color:'+(currentLang2==="es"?"#fff":"var(--muted)")+';border:none;border-radius:9px;padding:8px;font-size:12px;font-weight:600;">Español</button>'+
+      '<button data-act="set-language" data-lang="en" style="flex:1;background:'+(currentLang2==="en"?"var(--blue)":"transparent")+';color:'+(currentLang2==="en"?"#fff":"var(--muted)")+';border:none;border-radius:9px;padding:8px;font-size:12px;font-weight:600;">English</button>'+
+      '</div>';
+    html += '<p style="color:var(--muted);font-size:10px;line-height:1.5;margin:8px 0 0;">El menú principal y esta pantalla ya están en inglés — el resto de la app (formularios y explicaciones detalladas) se sigue traduciendo por partes.</p>';
+    html += '</div>';
+
 
     html += '<div class="bank-box" style="margin-bottom:0;">';
     html += '<div class="bank-title">Centro de alertas</div>';
@@ -1988,8 +2241,6 @@
     }
     html += '</div>';
 
-    html += renderCloudSyncSection();
-
     html += '<div class="bank-box" style="margin-bottom:0;">';
     html += '<div class="bank-title">Respaldo de datos</div>';
     html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px;">Tus datos se guardan en este navegador. Descarga un respaldo de vez en cuando, o restaura uno si lo necesitas.</p>';
@@ -2003,12 +2254,6 @@
       html += '<button class="modal-save" style="background:var(--surface2);color:var(--text);" data-act="export-csv">⬇ Descargar movimientos (.csv)</button>';
       html += '</div>';
     }
-
-    html += '<div class="bank-box" style="margin-bottom:0;">';
-    html += '<div class="bank-title">Clave de API (para escanear recibos)</div>';
-    html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px;">Necesaria para que la app lea fotos de recibos automáticamente.</p>';
-    html += '<button class="modal-save" style="background:var(--surface2);color:var(--text);" data-act="open-api-key-modal">⚙ Configurar clave API</button>';
-    html += '</div>';
 
     if(ui.deferredInstallPrompt){
       html += '<div class="bank-box" style="margin-bottom:0;">';
@@ -2097,6 +2342,49 @@
     return html;
   }
 
+  function renderReconcileResultModal(){
+    if(!ui.reconcileResult) return "";
+    var r = ui.reconcileResult;
+    var card = data.cards.find(function(c){ return c.id===r.cardId; });
+    var cardName = card ? card.name : "";
+    var s = r.statement;
+
+    function compareRow(label, bankVal, appVal){
+      if(bankVal==null) return "";
+      var diff = Math.abs((bankVal||0) - (appVal||0));
+      var matches = diff < 1; // menos de $1 de diferencia por redondeo se considera coincidencia
+      var color = matches ? "var(--mint)" : "var(--coral)";
+      var icon = matches ? "✓" : "⚠";
+      return '<div style="background:var(--surface3);border-radius:12px;padding:10px 12px;margin-bottom:8px;">'+
+        '<div style="color:var(--muted);font-size:11px;margin-bottom:6px;">'+label+'</div>'+
+        '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:2px;">'+
+        '<span style="color:var(--muted);">Tu estado de cuenta</span><span style="font-family:var(--mono);color:var(--text);">'+fmt(bankVal)+'</span></div>'+
+        '<div style="display:flex;justify-content:space-between;font-size:13px;">'+
+        '<span style="color:var(--muted);">Lo que calculó la app</span><span style="font-family:var(--mono);color:var(--text);">'+fmt(appVal)+'</span></div>'+
+        '<div style="color:'+color+';font-size:12px;margin-top:6px;font-weight:600;">'+icon+' '+(matches?"Coincide":"Diferencia de "+fmt(diff))+'</div>'+
+        '</div>';
+    }
+
+    var html = '<div class="modal-overlay" data-act="close-reconcile-result-bg">'+
+      '<div class="modal" data-stop="1" style="max-height:85vh;overflow-y:auto;">';
+    html += '<div class="modal-head"><h3>Conciliación · '+esc(cardName)+'</h3><button data-act="close-reconcile-result">✕</button></div>';
+    if(s.cutoffDate){
+      html += '<p style="color:var(--muted);font-size:11px;margin:0 0 12px;">Corte reportado: '+dateLabel(s.cutoffDate)+(s.dueDate?' · Pago límite: '+dateLabel(s.dueDate):'')+'</p>';
+    }
+    html += compareRow("Saldo al corte", s.statementBalance, r.appBalance);
+    html += compareRow("Pago para no generar intereses", s.noInterestPayment, r.appAmountDue);
+    if(s.minimumPayment!=null){
+      html += '<div style="background:var(--surface3);border-radius:12px;padding:10px 12px;margin-bottom:8px;">'+
+        '<div style="color:var(--muted);font-size:11px;margin-bottom:4px;">Pago mínimo (según tu estado de cuenta)</div>'+
+        '<div style="color:var(--text);font-family:var(--mono);font-size:13px;">'+fmt(s.minimumPayment)+'</div>'+
+        '<div style="color:var(--muted);font-size:10px;margin-top:4px;">La app no calcula esto por separado — este dato es informativo, tal como lo reportó tu banco.</div>'+
+        '</div>';
+    }
+    html += '<p style="color:var(--muted);font-size:10px;line-height:1.5;margin-top:10px;">Si hay una diferencia, puede deberse a movimientos que aún no registras en la app, intereses o comisiones que el banco aplicó y que la app no puede predecir, o algún gasto capturado con un monto distinto al real. Revisa tus movimientos de este corte para encontrar la diferencia.</p>';
+    html += '</div></div>';
+    return html;
+  }
+
   function renderApiKeyModal(){
     if(!ui.apiKeyModal) return "";
     var current = getApiKey();
@@ -2140,7 +2428,7 @@
       var gastoMes0 = data.cards.reduce(function(sum,c){ return sum+monthTotal(c.expenses||[], now0.getFullYear(), now0.getMonth()); },0);
       var presu0 = (data.budget.salary||0)*4.33*(data.budget.pctGastos/100);
       if(presu0>0 && gastoMes0>presu0){
-        out += '<div class="alerts" style="background:#241A1D;border-left-color:var(--coral);"><div class="title">🔴 Presupuesto excedido</div>'+
+        out += '<div class="alerts" style="background:rgba(255,69,58,.12);border:1px solid rgba(255,69,58,.25);border-left:3px solid var(--coral);"><div class="title">🔴 Presupuesto excedido</div>'+
           '<div class="row"><span>Gastos del mes</span><span class="amt" style="color:var(--coral)">'+fmt(gastoMes0)+' / '+fmt(presu0)+'</span></div></div>';
       }
     }
@@ -2153,7 +2441,7 @@
           return '<div class="row" style="align-items:center;"><span>🎉 '+esc(sv.name)+'</span>'+
             '<button data-act="dismiss-goal-celebration" data-id="'+sv.id+'" style="background:none;border:none;color:var(--mint);font-size:11px;padding:0;">✓ Genial</button></div>';
         }).join("");
-        out += '<div class="alerts" style="background:#0F2A22;border-left-color:var(--mint);margin-top:'+(out?"8px":"0")+';"><div class="title" style="color:var(--mint);">🟢 ¡Meta de ahorro alcanzada!</div>'+reachedRows+'</div>';
+        out += '<div class="alerts" style="background:rgba(50,215,75,.12);border:1px solid rgba(50,215,75,.25);border-left:3px solid var(--mint);margin-top:'+(out?"8px":"0")+';"><div class="title" style="color:var(--mint);">🟢 ¡Meta de ahorro alcanzada!</div>'+reachedRows+'</div>';
       }
       var delayedGoals = data.savings.filter(function(sv){
         if(!sv.targetDate) return false;
@@ -2165,7 +2453,7 @@
         var goalRows = delayedGoals.map(function(sv){
           return '<div class="row"><span>'+esc(sv.name)+'</span><span class="amt" style="color:var(--amber)">meta retrasada</span></div>';
         }).join("");
-        out += '<div class="alerts" style="background:#241E15;border-left-color:var(--amber);margin-top:'+(out?"8px":"0")+';"><div class="title" style="color:var(--amber);">🟡 Metas de ahorro retrasadas</div>'+goalRows+'</div>';
+        out += '<div class="alerts" style="background:rgba(255,159,10,.12);border:1px solid rgba(255,159,10,.25);border-left:3px solid var(--amber);margin-top:'+(out?"8px":"0")+';"><div class="title" style="color:var(--amber);">🟡 Metas de ahorro retrasadas</div>'+goalRows+'</div>';
       }
     }
     if(s.alertUtilization){
@@ -2174,7 +2462,7 @@
         var utilRows = highUtilCards.map(function(c){
           return '<div class="row"><span>'+esc(c.name)+'</span><span class="amt" style="color:var(--amber)">'+Math.round(cardUtilizationPct(c))+'% de uso</span></div>';
         }).join("");
-        out += '<div class="alerts" style="background:#241E15;border-left-color:var(--amber);margin-top:'+(out?"8px":"0")+';"><div class="title" style="color:var(--amber);">🟡 Utilización de crédito alta</div>'+utilRows+'</div>';
+        out += '<div class="alerts" style="background:rgba(255,159,10,.12);border:1px solid rgba(255,159,10,.25);border-left:3px solid var(--amber);margin-top:'+(out?"8px":"0")+';"><div class="title" style="color:var(--amber);">🟡 Utilización de crédito alta</div>'+utilRows+'</div>';
       }
     }
     if(s.alertDebtGrowth){
@@ -2183,7 +2471,7 @@
         var prevD = histPoints[histPoints.length-2].Deuda;
         var lastD = histPoints[histPoints.length-1].Deuda;
         if(prevD>0 && lastD>prevD){
-          out += '<div class="alerts" style="background:#241E15;border-left-color:var(--amber);margin-top:'+(out?"8px":"0")+';"><div class="title" style="color:var(--amber);">🟡 Tu deuda total creció</div>'+
+          out += '<div class="alerts" style="background:rgba(255,159,10,.12);border:1px solid rgba(255,159,10,.25);border-left:3px solid var(--amber);margin-top:'+(out?"8px":"0")+';"><div class="title" style="color:var(--amber);">🟡 Tu deuda total creció</div>'+
             '<div class="row"><span>Vs. mes anterior</span><span class="amt" style="color:var(--amber)">'+fmt(prevD)+' → '+fmt(lastD)+'</span></div></div>';
         }
       }
@@ -2203,14 +2491,14 @@
         var label = a.dLeft===0 ? "hoy" : ("en "+a.dLeft+" día"+(a.dLeft===1?"":"s"));
         return '<div class="row"><span>'+esc(a.credit.description)+'</span><span class="amt" style="color:'+color+'">'+label+' · '+dateLabel(a.date)+'</span></div>';
       }).join("");
-      out += '<div class="alerts" style="background:#1A1D24;border-left-color:var(--mint);margin-top:'+(alerts.length?'8px':'0')+';"><div class="title" style="color:var(--mint);">⏰ Cuotas próximas (préstamos)</div>'+rows3+'</div>';
+      out += '<div class="alerts" style="background:rgba(50,215,75,.1);border:1px solid rgba(50,215,75,.22);border-left:3px solid var(--mint);margin-top:'+(alerts.length?'8px':'0')+';"><div class="title" style="color:var(--mint);">⏰ Cuotas próximas (préstamos)</div>'+rows3+'</div>';
     }
     if(cutoffs.length){
       var rows2 = cutoffs.map(function(a){
         var label = a.dLeft===0 ? "hoy" : ("en "+a.dLeft+" día"+(a.dLeft===1?"":"s"));
         return '<div class="row"><span>'+esc(a.card.name)+'</span><span class="amt" style="color:var(--amber)">'+label+' · '+dateLabel(a.cutoff)+'</span></div>';
       }).join("");
-      out += '<div class="alerts" style="background:#241E15;border-left-color:var(--amber);margin-top:'+((alerts.length||loanAlerts.length)?'8px':'0')+';"><div class="title" style="color:var(--amber);">⏰ Cortes próximos</div>'+rows2+'</div>';
+      out += '<div class="alerts" style="background:rgba(255,159,10,.12);border:1px solid rgba(255,159,10,.25);border-left:3px solid var(--amber);margin-top:'+((alerts.length||loanAlerts.length)?'8px':'0')+';"><div class="title" style="color:var(--amber);">⏰ Cortes próximos</div>'+rows2+'</div>';
     }
     return out;
   }
@@ -2530,53 +2818,101 @@
     var payments = item.payments || [];
     var lastPayment = payments.length ? payments[payments.length-1] : null;
     var open = ui.openCard === item.id;
-
-    var html = '<div class="card" data-card="'+item.id+'">';
-    html += '<div class="card-top">';
-    html += '<button class="card-main" data-act="toggle-card" data-id="'+item.id+'">';
     var grad = gradientForCard(item.name);
-    html += '<div style="background:linear-gradient(135deg,'+grad[0]+','+grad[1]+');border-radius:16px;padding:14px 16px;margin-bottom:2px;position:relative;overflow:hidden;">';
-    html += '<div style="position:absolute;top:14px;right:16px;width:26px;height:19px;border-radius:5px;background:rgba(255,255,255,.28);"></div>';
-    html += '<div class="name" style="color:#fff;">'+esc(item.name)+'</div>';
-    html += '<div class="amount-line"><span class="amount-main" style="color:#fff;">'+fmt(item.balance)+'</span><span class="amount-sub" style="color:rgba(255,255,255,.65);">/ '+fmt(item.limit)+'</span>';
-    if(msiOwed>0) html += '<span class="amount-msi" style="color:#FFD866;">+ '+fmt(msiOwed)+' MSI</span>';
-    if(deferredOwed>0) html += '<span style="color:#FF8A80;font-family:var(--mono);font-size:12px;">+ '+fmt(deferredOwed)+' diferido</span>';
+
+    var html = '<div class="card" data-card="'+item.id+'" style="padding:14px;">';
+
+    /* acciones (editar/eliminar) arriba, fuera de la cara de la tarjeta, para no saturarla */
+    html += '<div style="display:flex;justify-content:flex-end;gap:2px;margin-bottom:8px;">'+
+      '<button class="icon-btn" data-act="edit-card" data-id="'+item.id+'">✎</button>'+
+      '<button class="icon-btn" data-act="delete-card" data-id="'+item.id+'">🗑</button>'+
+      '</div>';
+
+    /* --- cara de la tarjeta: proporción real de una tarjeta bancaria (~1.586:1) --- */
+    html += '<button class="card-main" data-act="toggle-card" data-id="'+item.id+'" style="display:block;width:100%;">';
+    html += '<div style="aspect-ratio:1.586/1;background:linear-gradient(135deg,'+grad[0]+','+grad[1]+');border-radius:18px;padding:16px 18px;position:relative;overflow:hidden;box-shadow:0 12px 24px rgba(0,0,0,.35);display:flex;flex-direction:column;justify-content:space-between;">';
+    // brillo especular sutil, como el vinil/plastico de una tarjeta real
+    html += '<div style="position:absolute;top:-40%;left:-20%;width:90%;height:140%;background:linear-gradient(115deg,rgba(255,255,255,.16),rgba(255,255,255,0) 45%);pointer-events:none;"></div>';
+    // fila superior: nombre de la tarjeta + icono de contactless
+    html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1;">'+
+      '<span style="color:rgba(255,255,255,.92);font-family:var(--disp);font-weight:600;font-size:14px;letter-spacing:-0.01em;">'+esc(item.name)+'</span>'+
+      '<svg width="20" height="20" viewBox="0 0 24 24" style="opacity:.75;"><path d="M8.5 8.5a5 5 0 0 1 7 0M6 6a9 9 0 0 1 12 0M11 11a2 2 0 0 1 2 0" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>'+
+      '</div>';
+    // chip, a media altura como en una tarjeta real
+    html += '<div style="position:relative;z-index:1;">'+
+      '<div style="width:34px;height:26px;border-radius:6px;background:linear-gradient(160deg,#F4E2A8,#C9A227);display:flex;align-items:center;justify-content:center;">'+
+      '<div style="width:24px;height:17px;border:1.2px solid rgba(0,0,0,.35);border-radius:3px;position:relative;">'+
+      '<div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(0,0,0,.35);"></div>'+
+      '<div style="position:absolute;top:50%;left:0;right:0;height:1px;background:rgba(0,0,0,.35);"></div>'+
+      '</div></div></div>';
+    // linea inferior: saldo (numero principal, como iria el numero de tarjeta) + limite
+    html += '<div style="position:relative;z-index:1;">'+
+      '<div style="color:#fff;font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-0.01em;">'+fmt(item.balance)+'</div>'+
+      '<div style="color:rgba(255,255,255,.7);font-family:var(--mono);font-size:11px;margin-top:2px;">de '+fmt(item.limit)+' límite</div>'+
+      '</div>';
+    html += '</div>'; // fin cara de tarjeta
+    html += '</button>';
+
+    /* --- cuadrícula de datos clave, ordenada y fuera de la tarjeta --- */
+    html += '<div style="display:grid;grid-template-columns:repeat('+(item.cutoffDay?3:2)+',1fr);gap:8px;margin-top:10px;">';
+    html += '<div style="background:var(--surface3);border-radius:12px;padding:8px 10px;">'+
+      '<div style="color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Disponible</div>'+
+      '<div style="color:var(--text);font-family:var(--mono);font-size:13px;font-weight:600;">'+(available!==null?fmt(available):"—")+'</div>'+
+      '</div>';
+    html += '<div style="background:var(--surface3);border-radius:12px;padding:8px 10px;">'+
+      '<div style="color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Uso</div>'+
+      '<div style="color:'+barColor+';font-family:var(--mono);font-size:13px;font-weight:600;">'+Math.round(pct)+'%</div>'+
+      '</div>';
+    if(item.cutoffDay){
+      html += '<div style="background:var(--surface3);border-radius:12px;padding:8px 10px;">'+
+        '<div style="color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">'+(dueLabel?"Pago":"Corte")+'</div>'+
+        '<div style="color:'+(dueLabel?dueColor:"var(--text)")+';font-family:var(--mono);font-size:13px;font-weight:600;">'+(dueLabel||("día "+item.cutoffDay))+'</div>'+
+        '</div>';
+    }
     html += '</div>';
-    if(available!==null) html += '<div style="color:rgba(255,255,255,.65);font-family:var(--mono);font-size:11px;margin-top:2px;">Disponible: '+fmt(available)+' · '+Math.round(pct)+'% usado</div>';
-    html += '</div>';
-    if(dueLabel || item.cutoffDay || lastPayment){
-      html += '<div class="badges">';
-      if(dueLabel) html += '<span class="badge" style="color:'+dueColor+';border-color:'+dueColor+'">⏰ '+dueLabel+'</span>';
-      if(item.cutoffDay) html += '<span class="badge-muted">Corte: día '+item.cutoffDay+'</span>';
-      if(lastPayment) html += '<span class="badge-muted">Último pago: '+fmt(lastPayment.amount)+' · '+dateLabel(lastPayment.date)+'</span>';
-      if(item.extraCredit > 0) html += '<span class="badge-muted" style="color:var(--mint);">Crédito a favor: '+fmt(item.extraCredit)+'</span>';
+
+    /* segunda fila de datos, solo si aplica: MSI/diferido/crédito a favor/último pago */
+    var extraFacts = [];
+    if(msiOwed>0) extraFacts.push({label:"MSI pendiente", value:fmt(msiOwed), color:"var(--amber)"});
+    if(deferredOwed>0) extraFacts.push({label:"Diferido", value:fmt(deferredOwed), color:"var(--coral)"});
+    if(item.extraCredit>0) extraFacts.push({label:"Crédito a favor", value:fmt(item.extraCredit), color:"var(--mint)"});
+    if(lastPayment) extraFacts.push({label:"Último pago", value:fmt(lastPayment.amount)+" · "+dateLabel(lastPayment.date), color:"var(--text)"});
+    if(extraFacts.length){
+      html += '<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;">';
+      extraFacts.forEach(function(f){
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:0 2px;">'+
+          '<span style="color:var(--muted);">'+f.label+'</span>'+
+          '<span style="color:'+f.color+';font-family:var(--mono);">'+f.value+'</span></div>';
+      });
       html += '</div>';
     }
+
+    /* estimado de pago: una sola línea compacta; el detalle completo vive dentro al expandir */
     var dueInfo = cardAmountDueNow(item);
     var msiDue = msiDueThisPeriod(item, due);
     var defDue = deferredDueThisPeriod(item, due);
     var futureCycleTotal = dueInfo.futureCycleTotal;
-    var amountDueNow = dueInfo.amountDueNow;
     if(due && dueInfo.amount>0){
       var dueTotal = dueInfo.amount;
-      html += '<div style="background:var(--surface3);border-left:3px solid '+dueColor+';border-radius:10px;padding:8px 10px;margin-top:8px;">'+
-        '<div style="color:var(--text);font-size:12px;">Según los movimientos registrados, deberías cubrir aproximadamente <span style="font-family:var(--mono);color:'+dueColor+'">'+fmt(dueTotal)+'</span> antes del '+dateLabel(due)+'</div>'+
-        '<div style="color:var(--muted);font-size:10px;margin-top:2px;">Consulta tu estado de cuenta para confirmar el pago para no generar intereses — la app no conoce el saldo oficial del banco.</div>'+
-        (msiDue>0 ? '<div style="color:var(--amber);font-size:11px;margin-top:2px;">incluye '+fmt(msiDue)+' de cuotas MSI</div>' : '')+
-        (defDue>0 ? '<div style="color:var(--coral);font-size:11px;margin-top:2px;">incluye '+fmt(defDue)+' de pagos diferidos (con interés + IVA)</div>' : '')+
-        (dueInfo.credit>0 ? '<div style="color:var(--mint);font-size:11px;margin-top:2px;">se restó '+fmt(dueInfo.credit)+' de crédito a favor</div>' : '')+
-        (futureCycleTotal>0 ? '<div style="color:var(--muted);font-size:11px;margin-top:2px;">'+fmt(futureCycleTotal)+' en compras recientes no entran aquí — se facturan en el próximo corte</div>' : '')+
-        '<div style="color:var(--muted);font-size:11px;margin-top:2px;">'+(dLeft===0?"vence hoy":"faltan "+dLeft+" día"+(dLeft===1?"":"s"))+' desde el corte del día '+item.cutoffDay+'</div>'+
-        '</div>';
+      html += '<button data-act="toggle-card" data-id="'+item.id+'" style="width:100%;text-align:left;background:var(--surface3);border:none;border-left:3px solid '+dueColor+';border-radius:10px;padding:8px 10px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;">'+
+        '<span style="color:var(--text);font-size:11px;">Cubrir antes del '+dateLabel(due)+'</span>'+
+        '<span style="font-family:var(--mono);color:'+dueColor+';font-size:13px;font-weight:600;white-space:nowrap;">'+fmt(dueTotal)+'</span>'+
+        '</button>';
     }
-    html += '</button>';
-    html += '<div style="display:flex;gap:2px;">';
-    html += '<button class="icon-btn" data-act="edit-card" data-id="'+item.id+'">✎</button>';
-    html += '<button class="icon-btn" data-act="delete-card" data-id="'+item.id+'">🗑</button>';
-    html += '</div></div>';
-    html += '<div class="bar"><div class="bar-fill" style="width:'+pct+'%;background:'+barColor+'"></div></div>';
+
+    html += '<div class="bar" style="margin-top:10px;"><div class="bar-fill" style="width:'+pct+'%;background:'+barColor+'"></div></div>';
 
     if(open){
+      if(due && dueInfo.amount>0){
+        html += '<div style="background:var(--surface3);border-radius:10px;padding:8px 10px;margin-top:8px;">'+
+          '<div style="color:var(--muted);font-size:10px;">Consulta tu estado de cuenta para confirmar el pago para no generar intereses — la app no conoce el saldo oficial del banco.</div>'+
+          (msiDue>0 ? '<div style="color:var(--amber);font-size:11px;margin-top:4px;">incluye '+fmt(msiDue)+' de cuotas MSI</div>' : '')+
+          (defDue>0 ? '<div style="color:var(--coral);font-size:11px;margin-top:4px;">incluye '+fmt(defDue)+' de pagos diferidos (con interés + IVA)</div>' : '')+
+          (dueInfo.credit>0 ? '<div style="color:var(--mint);font-size:11px;margin-top:4px;">se restó '+fmt(dueInfo.credit)+' de crédito a favor</div>' : '')+
+          (futureCycleTotal>0 ? '<div style="color:var(--muted);font-size:11px;margin-top:4px;">'+fmt(futureCycleTotal)+' en compras recientes no entran aquí — se facturan en el próximo corte</div>' : '')+
+          '<div style="color:var(--muted);font-size:11px;margin-top:4px;">'+(dLeft===0?"vence hoy":"faltan "+dLeft+" día"+(dLeft===1?"":"s"))+' desde el corte del día '+item.cutoffDay+'</div>'+
+          '</div>';
+      }
       html += renderChips(item.id, "card");
       html += renderExpensesSection(item);
       html += renderPaymentsSection(item, payments);
@@ -2619,6 +2955,16 @@
         '<span style="color:var(--muted);font-size:11px;">Este mes: <span style="color:var(--text);font-family:var(--mono);">'+fmt(thisTotal)+'</span> · mes anterior: '+fmt(prevTotal)+'</span>'+
         (pctChange!==null ? '<span style="color:'+(diff>0?"var(--coral)":"var(--mint)")+';font-size:11px;white-space:nowrap;">'+(diff>0?"▲":diff<0?"▼":"—")+' '+Math.abs(pctChange)+'%</span>' : '')+
         '</div>';
+    }
+
+    var reconciling = ui.reconcileBusy && ui.reconcileTarget === item.id;
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface3);border-radius:10px;padding:8px 10px;margin-bottom:8px;">'+
+      '<span style="color:var(--muted);font-size:11px;">📄 ¿Coincide con tu estado de cuenta?</span>'+
+      '<input type="file" accept="image/*" capture="environment" id="statement-input-'+item.id+'" style="display:none;" />'+
+      '<button class="mini-add" style="color:var(--blue);" data-act="reconcile-statement" data-id="'+item.id+'" '+(reconciling?"disabled":"")+'>'+(reconciling?"comparando…":"conciliar")+'</button>'+
+      '</div>';
+    if(!reconciling && ui.reconcileTarget===item.id && ui.reconcileError){
+      html += '<div style="color:var(--coral);font-size:11px;margin-bottom:8px;">'+esc(ui.reconcileError)+'</div>';
     }
 
     schedule.cycles.forEach(function(g){
@@ -2913,7 +3259,7 @@
       }else if(item.monthlyContribution && item.monthlyContribution>0){
         var monthsAtCurrentRate = Math.ceil(remaining/item.monthlyContribution);
         if(monthsAtCurrentRate > monthsLeft){
-          var estCompletion = new Date(today.getFullYear(), today.getMonth()+monthsAtCurrentRate, today.getDate());
+          var estCompletion = clampedDate(today.getFullYear(), today.getMonth()+monthsAtCurrentRate, today.getDate());
           var monthsLate = monthsAtCurrentRate - monthsLeft;
           suggestion = '<div style="color:var(--amber);font-size:11px;margin-top:6px;line-height:1.4;">Con tu aportación actual de '+fmt(item.monthlyContribution)+'/mes, alcanzarías esta meta aproximadamente '+monthsLate+' mes'+(monthsLate===1?"":"es")+' después de la fecha objetivo (≈ '+dateLabel(estCompletion)+'). Necesitarías '+fmt(monthlyNeeded)+'/mes para llegar a tiempo.</div>';
         }else{
@@ -2991,7 +3337,7 @@
     var size=130, radius=50, stroke=16, circumference=2*Math.PI*radius;
     var offset=0;
     var selected = ui.donutSelected;
-    var arcs = '<circle cx="'+(size/2)+'" cy="'+(size/2)+'" r="'+radius+'" fill="none" stroke="#0C121B" stroke-width="'+stroke+'" />';
+    var arcs = '<circle cx="'+(size/2)+'" cy="'+(size/2)+'" r="'+radius+'" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="'+stroke+'" />';
     items.forEach(function(d,i){
       var frac = d.value/total;
       var dash = frac*circumference;
@@ -3076,7 +3422,15 @@
     // numeric-only filtering for free-typed inputs
     app.querySelectorAll('input[inputmode="decimal"]').forEach(function(inp){
       inp.addEventListener("input", function(){
-        this.value = this.value.replace(/[^0-9.]/g,"");
+        var cleaned = this.value.replace(/[^0-9.]/g,"");
+        // evita que se pueda escribir más de un punto decimal — antes el campo podía
+        // mostrar "12.34.56" mientras por dentro se guardaba solo "12.34", sin avisar
+        // que lo mostrado y lo guardado ya no coincidían.
+        var firstDot = cleaned.indexOf(".");
+        if(firstDot !== -1){
+          cleaned = cleaned.slice(0, firstDot+1) + cleaned.slice(firstDot+1).replace(/\./g, "");
+        }
+        this.value = cleaned;
       });
     });
     app.querySelectorAll('#m-cutoff, #m-due, #pc-day').forEach(function(inp){
@@ -3170,6 +3524,16 @@
       });
     });
 
+    app.querySelectorAll('input[id^="statement-input-"]').forEach(function(inp){
+      inp.addEventListener("change", function(){
+        var file = this.files && this.files[0];
+        this.value = "";
+        if(!file) return;
+        var cardId = this.id.replace("statement-input-","");
+        reconcileStatement(cardId, file);
+      });
+    });
+
     var backupInput = document.getElementById("backup-file-input");
     if(backupInput){
       backupInput.addEventListener("change", function(){
@@ -3206,12 +3570,33 @@
 
     // --- Swipe-to-reveal for expense/payment rows ---
     var ACTIONS_WIDTH = 104; // 2 buttons x 52px
+    var isTouchDevice = ("ontouchstart" in window) || (navigator.maxTouchPoints>0);
     app.querySelectorAll(".swipe-row").forEach(function(row){
       var content = row.querySelector(".swipe-content");
       if(!content) return;
       var startX = 0, startY = 0, currentX = 0, dragging = false, isHorizontal = null;
       var open = swipeOpenId === row.getAttribute("data-swipe-id");
       content.style.transform = open ? "translateX(-"+ACTIONS_WIDTH+"px)" : "translateX(0)";
+
+      /* En dispositivos sin pantalla táctil (computadora con mouse) no hay gesto de
+         swipe posible — sin este botón, editar/eliminar un gasto o pago individual
+         dentro de la tarjeta sería completamente inalcanzable ahí. */
+      if(!isTouchDevice){
+        content.style.cursor = "pointer";
+        content.addEventListener("click", function(e){
+          if(e.target.closest("[data-act]") && e.target.closest("[data-act]")!==content) return;
+          var rowId = row.getAttribute("data-swipe-id");
+          var isOpen = swipeOpenId === rowId;
+          if(swipeOpenId && swipeOpenId !== rowId){
+            var prevRow = app.querySelector('.swipe-row[data-swipe-id="'+swipeOpenId+'"] .swipe-content');
+            if(prevRow){ prevRow.style.transition = "transform .2s ease"; prevRow.style.transform = "translateX(0)"; }
+          }
+          content.style.transition = "transform .2s ease";
+          content.style.transform = isOpen ? "translateX(0)" : "translateX(-"+ACTIONS_WIDTH+"px)";
+          swipeOpenId = isOpen ? null : rowId;
+        });
+        return; // no agregamos los listeners de touch en dispositivos sin touch
+      }
 
       content.addEventListener("touchstart", function(e){
         // Close any other open row
@@ -3294,6 +3679,12 @@
       else render();
     }else if(act==="set-font-size"){
       updateSettings(Object.assign({}, data.settings, {fontSize: el.getAttribute("data-size")}));
+    }else if(act==="set-accent-color"){
+      var newAccent = el.getAttribute("data-color");
+      applyAccentColor(newAccent);
+      updateSettings(Object.assign({}, data.settings, {accentColor: newAccent}));
+    }else if(act==="set-language"){
+      setLanguage(el.getAttribute("data-lang"));
     }else if(act==="enable-notifications"){
       if(typeof Notification === "undefined"){ render(); return; }
       if(Notification.permission === "granted"){
@@ -3508,8 +3899,6 @@
         document.body.removeChild(csvA);
         URL.revokeObjectURL(csvUrl);
       }catch(err){}
-    }else if(act==="open-api-key-modal"){
-      ui.apiKeyModal = true; render();
     }else if(act==="open-backup-modal"){
       ui.backupMessage = ""; ui.backupModal = true; render();
     }else if(act==="close-backup-modal"){
@@ -3666,6 +4055,13 @@
       var scid = el.getAttribute("data-id");
       var inp = document.getElementById("receipt-input-"+scid);
       if(inp) inp.click();
+    }else if(act==="reconcile-statement"){
+      var rcid = el.getAttribute("data-id");
+      var rinp = document.getElementById("statement-input-"+rcid);
+      if(rinp) rinp.click();
+    }else if(act==="close-reconcile-result" || act==="close-reconcile-result-bg"){
+      if(act==="close-reconcile-result-bg" && e.target!==el) return;
+      ui.reconcileResult = null; render();
     }else if(act==="save-api-key"){
       var keyInput = document.getElementById("api-key-input");
       var val = keyInput ? keyInput.value.trim() : "";
