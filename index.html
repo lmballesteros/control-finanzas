@@ -5,111 +5,123 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Control financiero</title>
 <link rel="manifest" href="manifest.json" />
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='36' fill='%230C121B'/%3E%3Ctext x='90' y='115' font-size='90' text-anchor='middle' fill='%232DD4BF' font-family='sans-serif'%3E$%3C/text%3E%3C/svg%3E" />
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='36' fill='%230F1720'/%3E%3Ctext x='90' y='115' font-size='90' text-anchor='middle' fill='%235EEAD4' font-family='sans-serif'%3E$%3C/text%3E%3C/svg%3E" />
-<meta name="theme-color" content="#0C121B" />
+<link rel="icon" type="image/png" href="icons/icon-192.png" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<meta name="theme-color" content="#000000" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Control" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" media="print" onload="this.media='all'" />
-<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" /></noscript>
 <style>
+  /* ====================================================================
+     Sistema de diseño — inspirado en Apple Wallet / Apple Card
+     Paleta: negro verdadero de fondo, materiales de vidrio esmerilado
+     (blur + transparencia) para cada superficie, tipografía nativa del
+     sistema (SF Pro en Apple, equivalentes en otras plataformas), colores
+     semánticos de iOS (verde/rojo/naranja/azul), esquinas muy redondeadas
+     y sombras suaves en vez de bordes duros.
+     Las tarjetas de crédito son el elemento distintivo: cada una se
+     dibuja como una tarjeta física con degradado único (generado a
+     partir de su nombre), como en Apple Wallet — el resto de la app usa
+     paneles de vidrio neutros para no competir con ese protagonismo.
+     ==================================================================== */
   :root{
-    --bg:#0C121B; --surface:#171F2A; --surface2:#232F3D; --surface3:#0C121B;
-    --text:#F1F5F4; --muted:#8B98A5; --mint:#2DD4BF; --coral:#F1667A; --amber:#F2B03D;
-    --disp:'Space Grotesk',sans-serif; --body:'Inter',sans-serif; --mono:'IBM Plex Mono',monospace;
+    --bg:#000000; --surface:rgba(30,30,32,.68); --surface2:rgba(255,255,255,.07); --surface3:rgba(255,255,255,.055);
+    --text:#F5F5F7; --muted:#98989D; --mint:#32D74B; --coral:#FF453A; --amber:#FF9F0A; --blue:#0A84FF;
+    --hairline:rgba(255,255,255,.09);
+    --disp:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',Roboto,sans-serif;
+    --body:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;
+    --mono:ui-monospace,'SF Mono','Menlo','Cascadia Code',monospace;
   }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--bg);color:var(--text);font-family:var(--body);-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased;}
   ::-webkit-scrollbar{width:6px;height:6px;}
   ::-webkit-scrollbar-thumb{background:var(--surface2);border-radius:3px;}
   h1,h2{letter-spacing:-0.01em;}
-  .wrap{max-width:480px;margin:0 auto;padding:32px 16px 80px;}
-  .eyebrow{color:var(--mint);font-size:11px;text-transform:uppercase;letter-spacing:.2em;margin-bottom:4px;}
-  h1{font-family:var(--disp);font-size:24px;font-weight:600;margin:0 0 24px;}
-  .stats{display:flex;gap:8px;margin-bottom:32px;overflow-x:auto;}
-  .stat{flex:1;min-width:110px;background:var(--surface);border-radius:14px;padding:16px;box-shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 3px 10px rgba(0,0,0,.22);}
-  .stat .lbl{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.15em;margin-bottom:4px;}
-  .stat .val{font-family:var(--mono);font-size:22px;font-weight:600;}
-  .alerts{background:#241A1D;border-left:3px solid var(--coral);border-radius:12px;padding:12px 16px;margin-bottom:24px;}
-  .alerts .title{color:var(--coral);font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:500;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+  .wrap{max-width:480px;margin:0 auto;padding:32px 16px 100px;}
+  .eyebrow{color:var(--blue);font-size:11px;text-transform:uppercase;letter-spacing:.14em;margin-bottom:4px;font-weight:600;}
+  h1{font-family:var(--disp);font-size:26px;font-weight:700;letter-spacing:-0.02em;margin:0 0 24px;}
+  .stats{display:flex;gap:10px;margin-bottom:32px;overflow-x:auto;}
+  .stat{flex:1;min-width:110px;background:var(--surface);backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);border:1px solid var(--hairline);border-radius:18px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35);}
+  .stat .lbl{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px;}
+  .stat .val{font-family:var(--mono);font-size:21px;font-weight:600;letter-spacing:-0.01em;}
+  .alerts{background:rgba(255,69,58,.12);border:1px solid rgba(255,69,58,.25);border-left:3px solid var(--coral);border-radius:16px;padding:12px 16px;margin-bottom:24px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
+  .alerts .title{color:var(--coral);font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
   .alerts .row{display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:14px;}
   .alerts .row .amt{font-family:var(--mono);font-size:12px;white-space:nowrap;}
   section{margin-bottom:32px;}
   .sec-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
-  .sec-title{display:flex;align-items:center;gap:8px;font-family:var(--disp);font-size:14px;font-weight:500;}
-  .add-btn{color:var(--mint);font-size:12px;font-weight:500;background:none;border:none;display:flex;align-items:center;gap:4px;padding:4px;font-family:var(--body);}
+  .sec-title{display:flex;align-items:center;gap:8px;font-family:var(--disp);font-size:15px;font-weight:600;letter-spacing:-0.01em;}
+  .add-btn{color:var(--blue);font-size:13px;font-weight:600;background:none;border:none;display:flex;align-items:center;gap:4px;padding:4px;font-family:var(--body);}
   .empty{color:var(--muted);font-size:12px;padding:2px 4px;}
-  .card{background:var(--surface);border-radius:16px;padding:16px;margin-bottom:10px;box-shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 3px 10px rgba(0,0,0,.22);}
-  button{transition:opacity .15s ease, background-color .15s ease, transform .1s ease;}
-  button:active{transform:scale(.98);}
+  .card{background:var(--surface);backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);border:1px solid var(--hairline);border-radius:20px;padding:16px;margin-bottom:10px;box-shadow:0 10px 30px rgba(0,0,0,.35);}
+  button{transition:opacity .15s ease, background-color .15s ease, transform .1s ease;font-family:var(--body);}
+  button:active{transform:scale(.97);}
+  button:focus-visible, input:focus-visible, a:focus-visible{outline:2px solid var(--blue);outline-offset:2px;}
   .card-top{display:flex;justify-content:space-between;gap:10px;}
   .card-main{flex:1;text-align:left;background:none;border:none;color:inherit;padding:0;font-family:inherit;cursor:pointer;}
-  .name{font-family:var(--disp);font-weight:500;font-size:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-  .tag{background:var(--surface3);color:var(--muted);font-size:10px;padding:2px 6px;border-radius:20px;}
+  .name{font-family:var(--disp);font-weight:600;font-size:15px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;letter-spacing:-0.01em;}
+  .tag{background:var(--surface3);color:var(--muted);font-size:10px;padding:2px 7px;border-radius:20px;}
   .amount-line{display:flex;align-items:baseline;gap:8px;margin-top:4px;flex-wrap:wrap;}
-  .amount-main{font-family:var(--mono);font-size:18px;}
+  .amount-main{font-family:var(--mono);font-size:19px;font-weight:600;}
   .amount-sub{font-family:var(--mono);font-size:12px;color:var(--muted);}
   .amount-msi{font-family:var(--mono);font-size:12px;color:var(--amber);}
   .badges{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;}
-  .badge{font-size:11px;padding:2px 6px;border-radius:20px;border:1px solid;display:flex;align-items:center;gap:4px;}
+  .badge{font-size:11px;padding:2px 7px;border-radius:20px;border:1px solid;display:flex;align-items:center;gap:4px;}
   .badge-muted{color:var(--muted);font-size:11px;}
   .icon-btn{background:none;border:none;color:var(--muted);padding:6px;cursor:pointer;}
   .bar{background:var(--surface3);height:6px;border-radius:6px;margin-top:12px;overflow:hidden;}
   .bar-fill{height:100%;border-radius:6px;transition:width .2s;}
   .chips{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding-top:12px;}
-  .chip{background:var(--surface2);border:none;font-family:var(--mono);font-size:12px;padding:6px 10px;border-radius:20px;cursor:pointer;}
+  .chip{background:var(--surface2);border:1px solid var(--hairline);font-family:var(--mono);font-size:12px;padding:6px 10px;border-radius:20px;cursor:pointer;}
   .chip.neg{color:var(--coral);}
   .chip.pos{color:var(--mint);}
   .chip-custom{display:flex;align-items:center;gap:4px;margin-left:auto;}
-  .chip-custom input{width:64px;background:var(--surface3);color:var(--text);font-family:var(--mono);font-size:12px;padding:6px 8px;border-radius:8px;border:1px solid transparent;outline:none;}
-  .subsection{margin-top:12px;padding-top:12px;border-top:1px solid var(--surface2);}
+  .chip-custom input{width:64px;background:var(--surface3);color:var(--text);font-family:var(--mono);font-size:12px;padding:6px 8px;border-radius:8px;border:1px solid var(--hairline);outline:none;}
+  .subsection{margin-top:12px;padding-top:12px;border-top:1px solid var(--hairline);}
   .subsection-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
-  .subsection-label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;}
-  .mini-add{color:var(--mint);font-size:11px;background:none;border:none;display:flex;align-items:center;gap:4px;}
-  .mini-card{background:var(--surface3);border-radius:10px;padding:10px;margin-bottom:8px;}
+  .subsection-label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;}
+  .mini-add{color:var(--blue);font-size:11px;background:none;border:none;display:flex;align-items:center;gap:4px;font-weight:600;}
+  .mini-card{background:var(--surface3);border:1px solid var(--hairline);border-radius:14px;padding:10px;margin-bottom:8px;}
   .mini-row{display:flex;justify-content:space-between;align-items:center;gap:8px;}
-  .swipe-row{position:relative;overflow:hidden;border-radius:8px;margin-bottom:6px;touch-action:pan-y;}
+  .swipe-row{position:relative;overflow:hidden;border-radius:12px;margin-bottom:6px;touch-action:pan-y;}
   .swipe-actions{position:absolute;top:0;right:0;bottom:0;display:flex;}
-  .swipe-actions button{width:52px;border:none;color:var(--bg);font-size:15px;display:flex;align-items:center;justify-content:center;}
+  .swipe-actions button{width:52px;border:none;color:#fff;font-size:15px;display:flex;align-items:center;justify-content:center;}
   .swipe-content{position:relative;background:var(--surface);will-change:transform;}
   .mini-desc{font-size:12px;}
   .mini-sub{color:var(--muted);font-family:var(--mono);font-size:11px;margin-top:2px;}
   .mini-actions{display:flex;align-items:center;gap:6px;}
-  .mark-btn{background:var(--surface2);color:var(--mint);font-size:10px;padding:4px 8px;border-radius:20px;border:none;white-space:nowrap;}
+  .mark-btn{background:var(--surface2);color:var(--blue);font-size:10px;padding:4px 8px;border-radius:20px;border:1px solid var(--hairline);white-space:nowrap;font-weight:600;}
   .pay-date{color:var(--muted);font-size:11px;}
-  .pay-amt{color:var(--mint);font-family:var(--mono);font-size:12px;}
-  .form-box{background:var(--surface3);border-radius:10px;padding:10px;margin-top:8px;}
+  .pay-amt{color:var(--mint);font-family:var(--mono);font-size:12px;font-weight:600;}
+  .form-box{background:var(--surface3);border:1px solid var(--hairline);border-radius:14px;padding:10px;margin-top:8px;}
   .form-row{display:flex;gap:8px;margin-bottom:8px;}
-  .form-box input{width:100%;background:var(--surface2);color:var(--text);font-size:12px;padding:8px 10px;border-radius:8px;border:1px solid transparent;outline:none;font-family:inherit;}
-  .form-box input:focus{border-color:var(--mint);}
+  .form-box input{width:100%;background:var(--surface2);color:var(--text);font-size:12px;padding:8px 10px;border-radius:10px;border:1px solid var(--hairline);outline:none;font-family:inherit;}
+  .form-box input:focus{border-color:var(--blue);}
   .form-actions{display:flex;gap:8px;}
-  .btn-cancel{flex:1;background:none;border:none;color:var(--muted);font-size:12px;padding:6px;}
-  .btn-save{flex:1;background:var(--mint);color:var(--bg);border:none;border-radius:8px;font-size:12px;padding:8px;font-weight:600;}
+  .btn-cancel{flex:1;background:none;border:none;color:var(--muted);font-size:13px;padding:6px;font-weight:500;}
+  .btn-save{flex:1;background:var(--blue);color:#fff;border:none;border-radius:12px;font-size:13px;padding:9px;font-weight:600;}
   .btn-save:disabled{background:var(--surface2);color:var(--muted);}
-  .bank-box{background:var(--surface);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 3px 10px rgba(0,0,0,.22);}
-  .bank-title{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;}
+  .bank-box{background:var(--surface);backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);border:1px solid var(--hairline);border-radius:20px;padding:16px;margin-bottom:12px;box-shadow:0 10px 30px rgba(0,0,0,.35);}
+  .bank-title{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:12px;}
   .bank-row{margin-bottom:10px;}
   .bank-row-top{display:flex;justify-content:space-between;margin-bottom:4px;font-size:14px;}
-  .bank-row-amt{font-family:var(--mono);color:var(--mint);}
-  .chart-box{background:var(--surface);border-radius:16px;padding:16px;box-shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 3px 10px rgba(0,0,0,.22);}
+  .bank-row-amt{font-family:var(--mono);color:var(--mint);font-weight:600;}
+  .chart-box{background:var(--surface);backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);border:1px solid var(--hairline);border-radius:20px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35);}
   .chart-empty{color:var(--muted);font-size:12px;}
   .legend{display:flex;gap:16px;margin-bottom:8px;font-size:11px;}
   .legend span{display:flex;align-items:center;gap:5px;}
   .dot{width:8px;height:8px;border-radius:50%;}
-  .modal-overlay{position:fixed;inset:0;background:rgba(15,23,32,.72);z-index:50;display:flex;align-items:flex-end;justify-content:center;padding:16px;}
-  .modal{background:var(--surface);border-radius:20px;padding:20px;width:100%;max-width:380px;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:50;display:flex;align-items:flex-end;justify-content:center;padding:16px;}
+  .modal{background:rgba(38,38,40,.86);backdrop-filter:blur(30px) saturate(160%);-webkit-backdrop-filter:blur(30px) saturate(160%);border:1px solid var(--hairline);border-radius:24px;padding:20px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.5);}
   .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
-  .modal-head h3{font-family:var(--disp);font-size:16px;font-weight:500;margin:0;}
+  .modal-head h3{font-family:var(--disp);font-size:17px;font-weight:600;letter-spacing:-0.01em;margin:0;}
   .modal-head button{background:none;border:none;color:var(--muted);}
-  .modal input{width:100%;background:var(--surface3);color:var(--text);font-size:14px;padding:10px 12px;border-radius:10px;border:1px solid transparent;outline:none;margin-bottom:10px;font-family:inherit;}
-  .modal input:focus{border-color:var(--mint);}
+  .modal input{width:100%;background:var(--surface3);color:var(--text);font-size:15px;padding:11px 13px;border-radius:12px;border:1px solid var(--hairline);outline:none;margin-bottom:10px;font-family:inherit;}
+  .modal input:focus{border-color:var(--blue);}
   .modal-2col{display:flex;gap:10px;}
   .modal-2col > div{flex:1;}
-  .field-label{color:var(--muted);font-size:11px;display:block;margin-bottom:4px;}
-  .modal-save{width:100%;background:var(--mint);color:var(--bg);border:none;border-radius:10px;padding:10px;font-size:14px;font-weight:600;margin-top:6px;}
+  .field-label{color:var(--muted);font-size:11px;display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;}
+  .modal-save{width:100%;background:var(--blue);color:#fff;border:none;border-radius:14px;padding:12px;font-size:15px;font-weight:600;margin-top:6px;}
   .modal-save:disabled{background:var(--surface2);color:var(--muted);}
   .loading{display:flex;align-items:center;justify-content:center;min-height:100vh;color:var(--muted);font-family:var(--mono);font-size:13px;}
   svg text{font-family:var(--mono);}
@@ -169,6 +181,7 @@
     if(!parsed.categories) parsed.categories = DEFAULT_CATEGORIES.slice();
     if(!parsed.dismissedSubscriptions) parsed.dismissedSubscriptions = [];
     if(!parsed.confirmedSubscriptions) parsed.confirmedSubscriptions = [];
+    if(!parsed.celebratedGoalIds) parsed.celebratedGoalIds = [];
     parsed.budget = Object.assign({}, DEFAULT_BUDGET, parsed.budget||{});
     parsed.settings = Object.assign({}, DEFAULT_SETTINGS, parsed.settings||{});
     parsed.cards.forEach(function(c){
@@ -188,7 +201,7 @@
         if(parsed) return parsed;
       }
     }catch(e){}
-    return { __v:DATA_VERSION, cards: [], savings: [], history: [], personalCredits: [], categories: DEFAULT_CATEGORIES.slice(), budget: Object.assign({}, DEFAULT_BUDGET), settings: Object.assign({}, DEFAULT_SETTINGS) };
+    return { __v:DATA_VERSION, cards: [], savings: [], history: [], personalCredits: [], categories: DEFAULT_CATEGORIES.slice(), budget: Object.assign({}, DEFAULT_BUDGET), settings: Object.assign({}, DEFAULT_SETTINGS), dismissedSubscriptions:[], confirmedSubscriptions:[], celebratedGoalIds:[] };
   }
   function saveData(){
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }catch(e){}
@@ -200,8 +213,9 @@
              expenseForm:null, expenseEditId:null, deferredForm:null, deferredEditId:null, modal:null,
              apiKeyModal:false, backupModal:false, backupMessage:"", scanningCard:null, scanError:"", expenseDraft:null,
              personalCreditForm:null, tab:"resumen", analysisQuery:"", donutSelected:null, toast:null,
-             movQuery:"", movCategory:"", movCard:"", extraPayment:0, movCardPicker:false, deferredInstallPrompt:null, reassignCategory:null, updateAvailable:false, devModeModal:false,
-             cloudModal:false, cloudMode:"login", cloudError:"", cloudBusy:false, cloudUser:null, cloudStatus:"signed-out", cloudConflict:null, authChecked:false };
+             movQuery:"", movCategory:"", movCard:"", extraPayment:0, movCardPicker:false, deferredInstallPrompt:null, reassignCategory:null, updateAvailable:false, devModeModal:false, renamingCategory:null,
+             cloudModal:false, cloudMode:"login", cloudError:"", cloudBusy:false, cloudUser:null, cloudStatus:"signed-out", cloudConflict:null, authChecked:false,
+             deleteAccountModal:false, deleteAccountPassword:"", deleteAccountError:"", deleteAccountBusy:false, cloudResetSent:false };
   var API_KEY_STORAGE = "anthropic-api-key";
   var LAST_BACKUP_KEY = "last-backup-date";
   var DEV_MODE_STORAGE = "receipt-dev-mode-enabled";
@@ -334,8 +348,20 @@
   function withHistory(next){
     var totalDebt = next.cards.reduce(function(s,c){ return s + Math.max(0, (c.balance||0) + cardMsiTotal(c) + cardDeferredTotal(c) - (c.extraCredit||0)); },0) + totalPersonalCreditsDebt(next.personalCredits||[]);
     var totalSavings = next.savings.reduce(function(s,sv){ return s + (sv.current||0); },0);
-    var history = (next.history||[]).concat([{date:new Date().toISOString(), totalDebt:totalDebt, totalSavings:totalSavings}]).slice(-500);
-    next.history = history;
+    var now = new Date();
+    var todayKey = now.toISOString().slice(0,10);
+    var history = (next.history||[]).slice();
+    var lastEntry = history[history.length-1];
+    var lastKey = lastEntry ? new Date(lastEntry.date).toISOString().slice(0,10) : null;
+    if(lastKey===todayKey){
+      // ya guardamos un punto hoy: lo actualizamos en vez de sumar otro,
+      // para que 500 puntos de historial alcancen para más de un año de uso activo,
+      // en lugar de agotarse en unas semanas con varios cambios al día.
+      history[history.length-1] = {date:now.toISOString(), totalDebt:totalDebt, totalSavings:totalSavings};
+    }else{
+      history.push({date:now.toISOString(), totalDebt:totalDebt, totalSavings:totalSavings});
+    }
+    next.history = history.slice(-500);
     return next;
   }
   function persist(next){ data = next; saveData(); render(); cloudScheduleSync(); }
@@ -370,6 +396,7 @@
 
   /* Aplica datos recibidos de la nube al estado local, sin volver a reenviarlos (evita bucles). */
   var LAST_SYNC_KEY_PREFIX = "cloud-last-synced-";
+  var LOCAL_DATA_OWNER_KEY = "local-data-owner-uid";
   function getLastSyncedMarker(uid){
     try{ return localStorage.getItem(LAST_SYNC_KEY_PREFIX+uid); }catch(e){ return null; }
   }
@@ -438,7 +465,39 @@
     cloudSyncTimer = setTimeout(cloudPushNow, 1500);
   }
 
+  /* Si la persona cierra la pestaña o cambia de app justo después de un cambio,
+     no queremos que ese cambio se quede esperando el temporizador de 1.5s sin
+     subir nunca a la nube — lo empujamos de inmediato en cuanto la página deja
+     de estar visible (funciona igual al minimizar la app instalada). */
+  document.addEventListener("visibilitychange", function(){
+    if(document.visibilityState==="hidden" && cloudSyncTimer){
+      clearTimeout(cloudSyncTimer);
+      cloudSyncTimer = null;
+      cloudPushNow();
+    }
+  });
+
+  /* Evita que los datos financieros de una cuenta se mezclen con los de otra en el mismo
+     dispositivo (por ejemplo, una computadora o celular compartido entre dos personas).
+     Si la cuenta que inicia sesión no es la misma que dejó los datos guardados localmente
+     la última vez, borramos lo local ANTES de conciliar con la nube — así nunca se sube,
+     compara, ni mezcla accidentalmente información de la cuenta anterior. */
+  function ensureLocalDataBelongsTo(uid){
+    var owner = null;
+    try{ owner = localStorage.getItem(LOCAL_DATA_OWNER_KEY); }catch(e){}
+    if(owner && owner !== uid){
+      data = { __v:DATA_VERSION, cards: [], savings: [], history: [], personalCredits: [], categories: DEFAULT_CATEGORIES.slice(), budget: Object.assign({}, DEFAULT_BUDGET), settings: Object.assign({}, DEFAULT_SETTINGS), dismissedSubscriptions:[], confirmedSubscriptions:[], celebratedGoalIds:[] };
+      saveData();
+      // la clave de API (modo desarrollador) también es de una persona específica —
+      // no debe heredarla la siguiente cuenta que use este mismo dispositivo.
+      setApiKey("");
+      setDevModeEnabled(false);
+    }
+    try{ localStorage.setItem(LOCAL_DATA_OWNER_KEY, uid); }catch(e){}
+  }
+
   function cloudResolveInitialSync(uid){
+    ensureLocalDataBelongsTo(uid);
     cloudDocRef(uid).get().then(function(snap){
       var remote = snap.exists ? (snap.data() && snap.data().payload) : null;
       var remoteUpdatedAt = snap.exists ? (snap.data() && snap.data().updatedAt) : null;
@@ -487,6 +546,21 @@
       render();
     });
   }
+  function cloudSendPasswordReset(email){
+    if(!fbAuth) return;
+    if(!email){ ui.cloudError = "Escribe tu correo arriba primero, luego toca este enlace de nuevo."; render(); return; }
+    ui.cloudBusy = true; ui.cloudError = ""; render();
+    fbAuth.sendPasswordResetEmail(email).then(function(){
+      ui.cloudBusy = false;
+      ui.cloudError = "";
+      ui.cloudResetSent = true;
+      render();
+    }).catch(function(err){
+      ui.cloudBusy = false;
+      ui.cloudError = cloudTranslateError(err);
+      render();
+    });
+  }
   function cloudSignOutUser(){
     cloudStopListening();
     if(fbAuth) fbAuth.signOut();
@@ -494,6 +568,39 @@
     ui.cloudStatus = "signed-out";
     ui.cloudModal = false;
     render();
+  }
+
+  /* Borra la cuenta por completo: el documento en Firestore, la cuenta de autenticación,
+     y los datos locales de este dispositivo. Es irreversible — por eso pedimos la
+     contraseña de nuevo (Firebase lo exige para operaciones sensibles) y una confirmación
+     explícita antes de llegar aquí. */
+  function cloudDeleteAccountForever(password){
+    if(!fbAuth || !fbAuth.currentUser) return;
+    ui.deleteAccountBusy = true; ui.deleteAccountError = ""; render();
+    var user = fbAuth.currentUser;
+    var uid = user.uid;
+    var credential = firebase.auth.EmailAuthProvider.credential(user.email, password);
+    user.reauthenticateWithCredential(credential).then(function(){
+      return cloudDocRef(uid).delete().catch(function(){ /* si ya no existe, no pasa nada */ });
+    }).then(function(){
+      return user.delete();
+    }).then(function(){
+      cloudStopListening();
+      try{ localStorage.removeItem(LAST_SYNC_KEY_PREFIX+uid); }catch(e){}
+      try{ localStorage.removeItem(LOCAL_DATA_OWNER_KEY); }catch(e){}
+      data = { __v:DATA_VERSION, cards: [], savings: [], history: [], personalCredits: [], categories: DEFAULT_CATEGORIES.slice(), budget: Object.assign({}, DEFAULT_BUDGET), settings: Object.assign({}, DEFAULT_SETTINGS), dismissedSubscriptions:[], confirmedSubscriptions:[], celebratedGoalIds:[] };
+      saveData();
+      ui.deleteAccountModal = false;
+      ui.deleteAccountBusy = false;
+      ui.deleteAccountPassword = "";
+      ui.cloudUser = null;
+      ui.cloudStatus = "signed-out";
+      render();
+    }).catch(function(err){
+      ui.deleteAccountBusy = false;
+      ui.deleteAccountError = cloudTranslateError(err);
+      render();
+    });
   }
   function cloudTranslateError(err){
     var code = err && err.code || "";
@@ -503,6 +610,8 @@
     if(code.indexOf("wrong-password")!==-1 || code.indexOf("invalid-credential")!==-1) return "Correo o contraseña incorrectos.";
     if(code.indexOf("user-not-found")!==-1) return "No existe una cuenta con ese correo.";
     if(code.indexOf("network-request-failed")!==-1) return "No hay conexión a internet en este momento.";
+    if(code.indexOf("too-many-requests")!==-1) return "Demasiados intentos seguidos. Espera unos minutos e inténtalo de nuevo.";
+    if(code.indexOf("requires-recent-login")!==-1) return "Por seguridad, cierra sesión y vuelve a entrar antes de hacer esto.";
     return "No se pudo completar la operación. Intenta de nuevo.";
   }
 
@@ -690,7 +799,35 @@
     return (list||[]).reduce(function(s,c){ return s+personalRemaining(c); },0);
   }
 
-  var DONUT_COLORS = ["#2DD4BF","#F1667A","#F2B03D","#8B98A5","#60A5FA","#F472B6","#A78BFA"];
+  var DONUT_COLORS = ["#0A84FF","#FF453A","#FF9F0A","#98989D","#64D2FF","#FF375F","#5E5CE6"];
+
+  /* Asigna siempre el mismo color a la misma categoría (basado en su nombre, no en su
+     posición al ordenar por gasto) — así "Comida" se ve igual mes con mes, en vez de
+     cambiar de color según qué tanto se gastó ese periodo en particular. */
+  function colorForCategory(name){
+    var hash = 0;
+    for(var i=0;i<name.length;i++){ hash = (hash*31 + name.charCodeAt(i)) & 0xffffffff; }
+    var idx = Math.abs(hash) % DONUT_COLORS.length;
+    return DONUT_COLORS[idx];
+  }
+
+  /* Paleta de degradados estilo Apple Card/Wallet — cada tarjeta guardada obtiene
+     siempre el mismo degradado (basado en su nombre), como si fuera su color físico. */
+  var CARD_GRADIENTS = [
+    ["#3A3A3C","#1C1C1E"],
+    ["#0A84FF","#003D80"],
+    ["#5E5CE6","#241F6B"],
+    ["#32D74B","#0B4318"],
+    ["#FF9F0A","#7A3D00"],
+    ["#FF453A","#6E0E09"],
+    ["#64D2FF","#014A6E"],
+    ["#BF5AF2","#3D1259"]
+  ];
+  function gradientForCard(name){
+    var hash = 0;
+    for(var i=0;i<name.length;i++){ hash = (hash*31 + name.charCodeAt(i)) & 0xffffffff; }
+    return CARD_GRADIENTS[Math.abs(hash) % CARD_GRADIENTS.length];
+  }
 
   function utilizationLevel(pct){
     if(pct>=70) return {label:"Alta", color:"var(--coral)"};
@@ -999,12 +1136,21 @@
   function buildMovementsCSV(dataObj){
     var body = [];
     dataObj.cards.forEach(function(c){
-      (c.expenses||[]).forEach(function(e){ body.push([c.name, "Gasto", e.description, e.amount, e.date]); });
-      (c.payments||[]).forEach(function(p){ body.push([c.name, "Pago", "", p.amount, p.date]); });
+      (c.expenses||[]).forEach(function(e){ body.push([c.name, "Gasto", e.description, e.category||"Otros", e.amount, e.date]); });
+      (c.payments||[]).forEach(function(p){ body.push([c.name, "Pago", "", "", p.amount, p.date]); });
     });
-    body.sort(function(a,b){ return new Date(b[4]) - new Date(a[4]); });
-    var rows = [["Tarjeta","Tipo","Descripción","Monto","Fecha"]].concat(body.map(function(r){
-      return [r[0], r[1], r[2], r[3], new Date(r[4]).toLocaleDateString("es-MX")];
+    body.sort(function(a,b){ return new Date(b[5]) - new Date(a[5]); });
+    var rows = [["Tarjeta","Tipo","Descripción","Categoría","Monto","Fecha"]].concat(body.map(function(r){
+      return [r[0], r[1], r[2], r[3], r[4], new Date(r[5]).toLocaleDateString("es-MX")];
+    }));
+    return rows.map(function(r){
+      return r.map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(",");
+    }).join("\n");
+  }
+
+  function buildFilteredMovementsCSV(results){
+    var rows = [["Tarjeta","Descripción","Categoría","Monto","Fecha"]].concat(results.map(function(r){
+      return [r.cardName, r.description, r.category||"Otros", r.amount, new Date(r.date).toLocaleDateString("es-MX")];
     }));
     return rows.map(function(r){
       return r.map(function(v){ return '"'+String(v).replace(/"/g,'""')+'"'; }).join(",");
@@ -1352,6 +1498,25 @@
     }
     if(!ui.cloudUser){
       app.innerHTML = renderLoginGate();
+      var gateForm = document.getElementById("gate-form");
+      if(gateForm){
+        gateForm.addEventListener("submit", function(e){
+          e.preventDefault();
+          var submitBtn = gateForm.querySelector('button[type="submit"]');
+          if(!submitBtn || submitBtn.disabled) return;
+          var act = submitBtn.getAttribute("data-act");
+          var gEmail = document.getElementById("gate-email-input").value.trim();
+          var gPass = document.getElementById("gate-password-input").value;
+          if(!gEmail || !gPass){ ui.cloudError = "Escribe tu correo y contraseña."; render(); return; }
+          if(act==="gate-do-signup"){
+            var gPassConfirm = document.getElementById("gate-password-confirm-input");
+            if(gPassConfirm && gPass !== gPassConfirm.value){ ui.cloudError = "Las contraseñas no coinciden."; render(); return; }
+            cloudSignUp(gEmail, gPass);
+          }else{
+            cloudSignIn(gEmail, gPass);
+          }
+        });
+      }
       return;
     }
     var totalDebt = data.cards.reduce(function(s,c){ return s + Math.max(0, (c.balance||0) + cardMsiTotal(c) + cardDeferredTotal(c) - (c.extraCredit||0)); },0) + totalPersonalCreditsDebt(data.personalCredits);
@@ -1417,8 +1582,9 @@
     html += renderBackupModal();
     html += renderMovCardPicker();
     html += renderReassignCategoryModal();
-    html += renderCloudModal();
+
     html += renderCloudConflictModal();
+    html += renderDeleteAccountModal();
 
     var appEl = document.getElementById("app");
     appEl.innerHTML = html;
@@ -1435,15 +1601,16 @@
       {id:"analisis", label:"Análisis", icon:"🔍"},
       {id:"config", label:"Ajustes", icon:"⚙"}
     ];
-    var html = '<div style="position:fixed;bottom:0;left:0;right:0;background:#151F29;border-top:1px solid var(--surface2);display:flex;justify-content:space-around;padding:8px 2px;z-index:40;">';
+    var html = '<div style="position:fixed;bottom:0;left:0;right:0;padding:0 8px 8px;z-index:40;">'+
+      '<div style="background:rgba(28,28,30,.78);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:1px solid var(--hairline);border-radius:22px;display:flex;justify-content:space-around;padding:6px 2px;box-shadow:0 -8px 30px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);">';
     items.forEach(function(it){
       var active = ui.tab === it.id;
-      html += '<button data-act="set-tab" data-tab="'+it.id+'" style="background:'+(active?"rgba(94,234,212,0.12)":"transparent")+';border:none;border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 8px;">'+
-        '<span style="font-size:16px;filter:'+(active?"none":"grayscale(0.4) opacity(0.7)")+';">'+it.icon+'</span>'+
-        '<span style="font-size:10px;color:'+(active?"var(--mint)":"var(--muted)")+';font-weight:'+(active?"600":"400")+';">'+it.label+'</span>'+
+      html += '<button data-act="set-tab" data-tab="'+it.id+'" style="background:'+(active?"rgba(10,132,255,0.16)":"transparent")+';border:none;border-radius:14px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 8px;">'+
+        '<span style="font-size:16px;filter:'+(active?"none":"grayscale(0.4) opacity(0.65)")+';">'+it.icon+'</span>'+
+        '<span style="font-size:10px;color:'+(active?"var(--blue)":"var(--muted)")+';font-weight:'+(active?"700":"500")+';">'+it.label+'</span>'+
         '</button>';
     });
-    html += '</div>';
+    html += '</div></div>';
     return html;
   }
 
@@ -1475,7 +1642,7 @@
     }
     html += '<div style="display:flex;flex-direction:column;gap:10px;margin-top:4px;">';
     cur.byCat.forEach(function(c, i){
-      var color = DONUT_COLORS[i%DONUT_COLORS.length];
+      var color = colorForCategory(c.category);
       html += '<div>'+
         '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">'+
         '<span style="color:var(--text);">'+esc(c.category)+'</span>'+
@@ -1641,21 +1808,36 @@
     var isSignup = ui.cloudMode === "signup";
     var html = '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;">';
     html += '<div style="width:100%;max-width:360px;">';
+    if(ui.updateAvailable){
+      html += '<div style="background:var(--surface3);border:1px solid var(--mint);border-radius:12px;padding:12px 14px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:10px;">'+
+        '<span style="color:var(--text);font-size:12px;">✨ Hay una nueva versión de la app lista.</span>'+
+        '<button type="button" class="modal-save" style="width:auto;margin:0;padding:8px 14px;" data-act="reload-app">Actualizar</button>'+
+        '</div>';
+    }
     html += '<div style="text-align:center;margin-bottom:28px;">'+
       '<div style="background:rgba(94,234,212,0.12);width:56px;height:56px;border-radius:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:24px;">💼</div>'+
       '<h1 style="margin:0 0 4px;font-family:var(--disp);font-size:20px;">Control financiero</h1>'+
       '<p style="color:var(--muted);font-size:12px;margin:0;">Controla tus tarjetas, deudas, gastos y ahorro en un solo lugar.</p>'+
       '</div>';
 
-    html += '<div class="card">';
+    html += '<form class="card" id="gate-form">';
     html += '<h3 style="font-family:var(--disp);font-size:15px;font-weight:500;margin:0 0 14px;">'+(isSignup?"Crea tu cuenta":"Inicia sesión")+'</h3>';
-    html += '<input type="email" id="gate-email-input" placeholder="tu@correo.com" autocomplete="email" />';
-    html += '<input type="password" id="gate-password-input" placeholder="Contraseña (mín. 6 caracteres)" autocomplete="'+(isSignup?"new-password":"current-password")+'" />';
+    html += '<input type="email" id="gate-email-input" placeholder="tu@correo.com" aria-label="Correo electrónico" autocomplete="email" autofocus />';
+    html += '<input type="password" id="gate-password-input" placeholder="Contraseña (mín. 6 caracteres)" aria-label="Contraseña" autocomplete="'+(isSignup?"new-password":"current-password")+'" />';
+    if(isSignup){
+      html += '<input type="password" id="gate-password-confirm-input" placeholder="Confirma tu contraseña" aria-label="Confirmar contraseña" autocomplete="new-password" />';
+    }
+    if(ui.cloudResetSent){
+      html += '<p style="color:var(--mint);font-size:12px;margin:0 0 10px;">Te enviamos un correo con instrucciones para restablecer tu contraseña.</p>';
+    }
     if(ui.cloudError) html += '<p style="color:var(--coral);font-size:12px;margin:0 0 10px;">'+esc(ui.cloudError)+'</p>';
     if(!fbAuth) html += '<p style="color:var(--amber);font-size:12px;margin:0 0 10px;">No se pudo conectar con el servicio de cuentas. Revisa tu conexión a internet e intenta de nuevo.</p>';
-    html += '<button class="modal-save" data-act="'+(isSignup?"gate-do-signup":"gate-do-login")+'" '+(ui.cloudBusy?"disabled":"")+'>'+(ui.cloudBusy?"Un momento…":(isSignup?"Crear cuenta":"Iniciar sesión"))+'</button>';
-    html += '<button class="modal-save" style="background:none;color:var(--muted);margin-top:6px;" data-act="gate-toggle-mode">'+(isSignup?"¿Ya tienes cuenta? Inicia sesión":"¿No tienes cuenta? Créala aquí")+'</button>';
-    html += '</div>';
+    html += '<button type="submit" class="modal-save" data-act="'+(isSignup?"gate-do-signup":"gate-do-login")+'" '+(ui.cloudBusy?"disabled":"")+'>'+(ui.cloudBusy?"Un momento…":(isSignup?"Crear cuenta":"Iniciar sesión"))+'</button>';
+    html += '<button type="button" class="modal-save" style="background:none;color:var(--muted);margin-top:6px;" data-act="gate-toggle-mode">'+(isSignup?"¿Ya tienes cuenta? Inicia sesión":"¿No tienes cuenta? Créala aquí")+'</button>';
+    if(!isSignup){
+      html += '<button type="button" class="modal-save" style="background:none;color:var(--muted);margin-top:2px;font-size:11px;" data-act="gate-forgot-password">¿Olvidaste tu contraseña?</button>';
+    }
+    html += '</form>';
 
     html += '<p style="color:var(--muted);font-size:10px;text-align:center;margin-top:16px;line-height:1.5;">Tus datos financieros se guardan protegidos con tu contraseña, y se sincronizan entre tus dispositivos cuando inicias sesión con la misma cuenta.</p>';
     html += '</div></div>';
@@ -1663,45 +1845,37 @@
   }
 
   function renderCloudSyncSection(){
+    /* Esta sección solo se muestra dentro de Ajustes, y Ajustes solo es alcanzable
+       después de iniciar sesión (la app la exige desde la pantalla de acceso).
+       Por eso aquí siempre hay una cuenta activa — no hace falta un estado "sin sesión". */
     var html = '<div class="bank-box" style="margin-bottom:0;">';
     html += '<div class="bank-title">☁ Sincronización en la nube</div>';
-
-    if(!fbAuth){
-      html += '<p style="color:var(--amber);font-size:12px;line-height:1.5;margin:0;">No se pudo cargar el servicio de sincronización (revisa tu conexión a internet). La app sigue funcionando normalmente en modo local.</p>';
-      html += '</div>';
-      return html;
-    }
-
-    if(ui.cloudUser){
-      var statusMap = {
-        synced: {icon:"🟢", label:"Sincronizado"},
-        syncing: {icon:"🔵", label:"Sincronizando…"},
-        pending: {icon:"🟡", label:"Cambios pendientes de subir"},
-        error: {icon:"🔴", label:"No se pudo sincronizar (revisa tu conexión)"}
-      };
-      var st = statusMap[ui.cloudStatus] || statusMap.synced;
-      html += '<p style="color:var(--text);font-size:13px;margin:0 0 4px;">'+esc(ui.cloudUser.email)+'</p>';
-      html += '<p style="color:var(--muted);font-size:11px;margin:0 0 12px;">'+st.icon+' '+st.label+'</p>';
-      html += '<button class="modal-save" style="background:var(--surface2);color:var(--coral);" data-act="cloud-logout">Cerrar sesión</button>';
-    }else{
-      html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px;">Inicia sesión para que tus datos se sincronicen automáticamente entre tus dispositivos. Si no inicias sesión, la app sigue funcionando 100% local, como hasta ahora.</p>';
-      html += '<button class="modal-save" data-act="open-cloud-modal">Iniciar sesión / crear cuenta</button>';
-    }
+    var statusMap = {
+      synced: {icon:"🟢", label:"Sincronizado"},
+      syncing: {icon:"🔵", label:"Sincronizando…"},
+      pending: {icon:"🟡", label:"Cambios pendientes de subir"},
+      error: {icon:"🔴", label:"No se pudo sincronizar (revisa tu conexión)"}
+    };
+    var st = statusMap[ui.cloudStatus] || statusMap.synced;
+    html += '<p style="color:var(--text);font-size:13px;margin:0 0 4px;">'+esc(ui.cloudUser.email)+'</p>';
+    html += '<p style="color:var(--muted);font-size:11px;margin:0 0 12px;">'+st.icon+' '+st.label+'</p>';
+    html += '<button class="modal-save" style="background:var(--surface2);color:var(--coral);" data-act="cloud-logout">Cerrar sesión</button>';
+    html += '<button class="modal-save" style="background:none;color:var(--muted);margin-top:8px;font-size:11px;" data-act="open-delete-account-modal">Eliminar mi cuenta y todos mis datos</button>';
     html += '</div>';
     return html;
   }
 
-  function renderCloudModal(){
-    if(!ui.cloudModal) return "";
-    var isSignup = ui.cloudMode === "signup";
-    var html = '<div class="modal-overlay" data-act="close-cloud-modal-bg"><div class="modal" data-stop="1">';
-    html += '<div class="modal-head"><h3>'+(isSignup?"Crear cuenta":"Iniciar sesión")+'</h3><button data-act="close-cloud-modal">✕</button></div>';
-    html += '<input type="email" id="cloud-email-input" placeholder="tu@correo.com" autocomplete="email" />';
-    html += '<input type="password" id="cloud-password-input" placeholder="Contraseña (mín. 6 caracteres)" autocomplete="'+(isSignup?"new-password":"current-password")+'" />';
-    if(ui.cloudError) html += '<p style="color:var(--coral);font-size:12px;margin:0 0 10px;">'+esc(ui.cloudError)+'</p>';
-    html += '<button class="modal-save" data-act="'+(isSignup?"cloud-do-signup":"cloud-do-login")+'" '+(ui.cloudBusy?"disabled":"")+'>'+(ui.cloudBusy?"Un momento…":(isSignup?"Crear cuenta":"Iniciar sesión"))+'</button>';
-    html += '<button class="modal-save" style="background:none;color:var(--muted);margin-top:6px;" data-act="cloud-toggle-mode">'+(isSignup?"¿Ya tienes cuenta? Inicia sesión":"¿No tienes cuenta? Créala aquí")+'</button>';
-    html += '<p style="color:var(--muted);font-size:10px;margin-top:10px;">Tus datos financieros viajarán a un servidor externo (Firebase) para poder sincronizarse entre dispositivos. Si prefieres que nada salga de este dispositivo, no inicies sesión.</p>';
+
+  function renderDeleteAccountModal(){
+    if(!ui.deleteAccountModal) return "";
+    var html = '<div class="modal-overlay" data-act="close-delete-account-modal-bg"><div class="modal" data-stop="1">';
+    html += '<div class="modal-head"><h3>⚠ Eliminar cuenta</h3><button data-act="close-delete-account-modal">✕</button></div>';
+    html += '<p style="color:var(--coral);font-size:12px;line-height:1.6;margin:0 0 12px;">Esto borra tu cuenta, todos tus datos en la nube, y los de este dispositivo. <strong>No se puede deshacer.</strong> Si tienes información que quieras conservar, descarga un respaldo antes de continuar (Ajustes → Respaldo de datos).</p>';
+    html += '<span class="field-label">Confirma tu contraseña para continuar</span>';
+    html += '<input type="password" id="delete-account-password-input" placeholder="Tu contraseña" autocomplete="current-password" />';
+    if(ui.deleteAccountError) html += '<p style="color:var(--coral);font-size:12px;margin:0 0 10px;">'+esc(ui.deleteAccountError)+'</p>';
+    html += '<button class="modal-save" style="background:var(--coral);color:#1a0505;" data-act="confirm-delete-account" '+(ui.deleteAccountBusy?"disabled":"")+'>'+(ui.deleteAccountBusy?"Eliminando…":"Eliminar cuenta permanentemente")+'</button>';
+    html += '<button class="modal-save" style="background:var(--surface2);color:var(--text);margin-top:8px;" data-act="close-delete-account-modal">Cancelar</button>';
     html += '</div></div>';
     return html;
   }
@@ -1766,10 +1940,25 @@
 
     html += '<div class="bank-box" style="margin-bottom:0;">';
     html += '<div class="bank-title">Categorías de gastos</div>';
-    html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">';
+    html += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">';
     (data.categories||DEFAULT_CATEGORIES).forEach(function(cat){
-      html += '<span class="tag" style="display:flex;align-items:center;gap:6px;padding:4px 8px;">'+esc(cat)+
-        '<button data-act="remove-category" data-cat="'+esc(cat)+'" style="background:none;border:none;color:var(--coral);font-size:11px;padding:0;">✕</button></span>';
+      var usageCount = categoryUsageCount(data.cards, cat);
+      if(ui.renamingCategory===cat){
+        html += '<div style="display:flex;align-items:center;gap:6px;background:var(--surface3);border-radius:8px;padding:6px 8px;">'+
+          '<input type="text" id="rename-category-input" value="'+esc(cat)+'" style="flex:1;margin:0;padding:6px 8px;font-size:12px;" />'+
+          '<button data-act="confirm-rename-category" data-cat="'+esc(cat)+'" style="background:none;border:none;color:var(--mint);font-size:14px;padding:0 4px;">✓</button>'+
+          '<button data-act="cancel-rename-category" style="background:none;border:none;color:var(--muted);font-size:12px;padding:0 4px;">✕</button>'+
+          '</div>';
+      }else{
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--surface3);border-radius:8px;padding:6px 10px;">'+
+          '<span style="color:var(--text);font-size:12px;display:flex;align-items:center;gap:6px;">'+
+          '<span style="width:8px;height:8px;border-radius:50%;background:'+colorForCategory(cat)+';flex-shrink:0;"></span>'+
+          esc(cat)+'<span style="color:var(--muted);font-size:10px;">'+(usageCount>0 ? '· '+usageCount+' movimiento'+(usageCount===1?"":"s") : '· sin usar')+'</span></span>'+
+          '<span style="display:flex;gap:10px;flex-shrink:0;">'+
+          '<button data-act="start-rename-category" data-cat="'+esc(cat)+'" style="background:none;border:none;color:var(--muted);font-size:12px;padding:0;">✎</button>'+
+          '<button data-act="remove-category" data-cat="'+esc(cat)+'" style="background:none;border:none;color:var(--coral);font-size:12px;padding:0;">✕</button>'+
+          '</span></div>';
+      }
     });
     html += '</div>';
     html += '<div class="form-row" style="margin-bottom:0;">'+
@@ -1828,13 +2017,13 @@
 
     html += '<div class="bank-box" style="margin-bottom:0;">';
     html += '<div class="bank-title">Privacidad</div>';
-    html += '<p style="color:var(--muted);font-size:12px;line-height:1.6;margin:0 0 8px;">Los datos financieros se almacenan localmente en este dispositivo, salvo funciones que requieran servicios externos.</p>';
+    html += '<p style="color:var(--muted);font-size:12px;line-height:1.6;margin:0 0 8px;">Necesitas una cuenta para usar la app, y tus datos financieros se guardan tanto en este dispositivo como en un servidor (Firebase), protegidos con tu contraseña, para poder sincronizarse entre tus dispositivos.</p>';
     html += '<ul style="color:var(--muted);font-size:11px;line-height:1.7;margin:0;padding-left:16px;">'+
       '<li>No usamos analíticas ni rastreo de comportamiento.</li>'+
       '<li>No compartimos tu información con terceros.</li>'+
       '<li>El escaneo de recibos con IA envía la foto a un servicio de IA solo si activas esa función.</li>'+
-      '<li>Si inicias sesión para sincronizar entre dispositivos, tus datos se guardan también en un servidor (Firebase), protegido con tu contraseña. Si nunca inicias sesión, nada sale de este dispositivo.</li>'+
-      '<li>Borrar el navegador o la app sin haber exportado un respaldo (o sin haber iniciado sesión) elimina tus datos de forma permanente.</li>'+
+      '<li>Si usas la app en un dispositivo compartido, cierra sesión al terminar — al iniciar sesión con otra cuenta, la app siempre muestra solo los datos de esa cuenta, nunca los de la anterior.</li>'+
+      '<li>Borrar el navegador o la app sin haber exportado un respaldo elimina tus datos de este dispositivo, pero la copia en la nube se conserva mientras no elimines tu cuenta.</li>'+
       '</ul>';
     html += '</div>';
 
@@ -1859,7 +2048,7 @@
     html += '<div class="bank-box" style="margin-bottom:0;">';
     html += '<div class="bank-title">Acerca de</div>';
     html += '<p style="color:var(--text);font-size:13px;font-weight:500;margin:0 0 2px;">Control financiero</p>';
-    html += '<p style="color:var(--muted);font-size:11px;margin:0 0 10px;">Versión 2.2</p>';
+    html += '<p style="color:var(--muted);font-size:11px;margin:0 0 10px;">Versión 3.0</p>';
     html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 10px;">Una herramienta sencilla para controlar tus gastos, tarjetas, deudas y ahorro en un solo lugar.</p>';
     html += '<p style="color:var(--muted);font-size:11px;line-height:1.5;margin:0;">🔒 Tus datos se almacenan localmente en este dispositivo (no se sincronizan en la nube).</p>';
     html += '</div>';
@@ -1953,6 +2142,16 @@
       }
     }
     if(s.alertGoals){
+      var reachedGoals = data.savings.filter(function(sv){
+        return sv.goal>0 && sv.current>=sv.goal && (data.celebratedGoalIds||[]).indexOf(sv.id)===-1;
+      });
+      if(reachedGoals.length){
+        var reachedRows = reachedGoals.map(function(sv){
+          return '<div class="row" style="align-items:center;"><span>🎉 '+esc(sv.name)+'</span>'+
+            '<button data-act="dismiss-goal-celebration" data-id="'+sv.id+'" style="background:none;border:none;color:var(--mint);font-size:11px;padding:0;">✓ Genial</button></div>';
+        }).join("");
+        out += '<div class="alerts" style="background:#0F2A22;border-left-color:var(--mint);margin-top:'+(out?"8px":"0")+';"><div class="title" style="color:var(--mint);">🟢 ¡Meta de ahorro alcanzada!</div>'+reachedRows+'</div>';
+      }
       var delayedGoals = data.savings.filter(function(sv){
         if(!sv.targetDate) return false;
         var target = new Date(sv.targetDate); target.setHours(0,0,0,0);
@@ -2296,7 +2495,7 @@
           '</div></div>';
       });
       html += '</div>';
-      html += '<button class="modal-save" style="background:var(--surface2);color:var(--text);margin-top:10px;" data-act="export-csv">⬇ Exportar a CSV</button>';
+      html += '<button class="modal-save" style="background:var(--surface2);color:var(--text);margin-top:10px;" data-act="export-csv" data-scope="filtered">⬇ Exportar estos '+results.length+' movimiento'+(results.length===1?"":"s")+' a CSV</button>';
     }
 
     html += '</section>';
@@ -2332,12 +2531,16 @@
     var html = '<div class="card" data-card="'+item.id+'">';
     html += '<div class="card-top">';
     html += '<button class="card-main" data-act="toggle-card" data-id="'+item.id+'">';
-    html += '<div class="name">'+esc(item.name)+'</div>';
-    html += '<div class="amount-line"><span class="amount-main">'+fmt(item.balance)+'</span><span class="amount-sub">/ '+fmt(item.limit)+'</span>';
-    if(msiOwed>0) html += '<span class="amount-msi">+ '+fmt(msiOwed)+' MSI</span>';
-    if(deferredOwed>0) html += '<span style="color:var(--coral);font-family:var(--mono);font-size:12px;">+ '+fmt(deferredOwed)+' diferido</span>';
+    var grad = gradientForCard(item.name);
+    html += '<div style="background:linear-gradient(135deg,'+grad[0]+','+grad[1]+');border-radius:16px;padding:14px 16px;margin-bottom:2px;position:relative;overflow:hidden;">';
+    html += '<div style="position:absolute;top:14px;right:16px;width:26px;height:19px;border-radius:5px;background:rgba(255,255,255,.28);"></div>';
+    html += '<div class="name" style="color:#fff;">'+esc(item.name)+'</div>';
+    html += '<div class="amount-line"><span class="amount-main" style="color:#fff;">'+fmt(item.balance)+'</span><span class="amount-sub" style="color:rgba(255,255,255,.65);">/ '+fmt(item.limit)+'</span>';
+    if(msiOwed>0) html += '<span class="amount-msi" style="color:#FFD866;">+ '+fmt(msiOwed)+' MSI</span>';
+    if(deferredOwed>0) html += '<span style="color:#FF8A80;font-family:var(--mono);font-size:12px;">+ '+fmt(deferredOwed)+' diferido</span>';
     html += '</div>';
-    if(available!==null) html += '<div style="color:var(--muted);font-family:var(--mono);font-size:11px;margin-top:2px;">Disponible: '+fmt(available)+'</div>';
+    if(available!==null) html += '<div style="color:rgba(255,255,255,.65);font-family:var(--mono);font-size:11px;margin-top:2px;">Disponible: '+fmt(available)+' · '+Math.round(pct)+'% usado</div>';
+    html += '</div>';
     if(dueLabel || item.cutoffDay || lastPayment){
       html += '<div class="badges">';
       if(dueLabel) html += '<span class="badge" style="color:'+dueColor+';border-color:'+dueColor+'">⏰ '+dueLabel+'</span>';
@@ -2877,6 +3080,20 @@
       inp.addEventListener("input", function(){ this.value = clampDay(this.value); });
     });
 
+    var newCatEl = document.getElementById("new-category-input");
+    if(newCatEl) newCatEl.addEventListener("keydown", function(e){
+      if(e.key==="Enter"){ e.preventDefault(); onClick({ target: document.querySelector('[data-act="add-category"]') }); }
+    });
+    var renameCatEl = document.getElementById("rename-category-input");
+    if(renameCatEl){
+      renameCatEl.addEventListener("keydown", function(e){
+        if(e.key==="Enter"){ e.preventDefault(); onClick({ target: document.querySelector('[data-act="confirm-rename-category"]') }); }
+        else if(e.key==="Escape"){ e.preventDefault(); onClick({ target: document.querySelector('[data-act="cancel-rename-category"]') }); }
+      });
+      renameCatEl.focus();
+      renameCatEl.setSelectionRange(renameCatEl.value.length, renameCatEl.value.length);
+    }
+
     // Live preview for MSI cuota (updates only the preview div, never re-renders — keeps focus)
     if(ui.msiForm){
       var mTotalEl = document.getElementById("msi-total-"+ui.msiForm);
@@ -3098,24 +3315,55 @@
     }else if(act==="add-category"){
       var newCatInput = document.getElementById("new-category-input");
       var newCat = newCatInput ? newCatInput.value.trim() : "";
-      if(newCat && (data.categories||[]).indexOf(newCat)===-1){
-        persist(Object.assign({}, data, {categories: (data.categories||DEFAULT_CATEGORIES.slice()).concat([newCat])}));
+      var existingCats = data.categories||DEFAULT_CATEGORIES.slice();
+      var alreadyExists = existingCats.some(function(c){ return c.toLowerCase()===newCat.toLowerCase(); });
+      if(newCat && !alreadyExists){
+        persist(Object.assign({}, data, {categories: existingCats.concat([newCat])}));
+        if(newCatInput) newCatInput.value = "";
       }else{
+        if(newCat && alreadyExists) alert("Ya existe una categoría con ese nombre.");
         render();
       }
     }else if(act==="remove-category"){
       var catToRemove = el.getAttribute("data-cat");
       var usageCount = categoryUsageCount(data.cards, catToRemove);
       var remainingCats = (data.categories||DEFAULT_CATEGORIES.slice()).filter(function(c){return c!==catToRemove;});
-      if(usageCount>0){
-        if(!remainingCats.length){
-          alert("No puedes eliminar tu única categoría.");
-        }else{
-          ui.reassignCategory = { from: catToRemove, count: usageCount, to: remainingCats[0] };
-          render();
-        }
+      if(!remainingCats.length){
+        alert("No puedes eliminar tu única categoría.");
+      }else if(usageCount>0){
+        ui.reassignCategory = { from: catToRemove, count: usageCount, to: remainingCats[0] };
+        render();
       }else{
         persist(Object.assign({}, data, {categories: remainingCats}));
+      }
+    }else if(act==="start-rename-category"){
+      ui.renamingCategory = el.getAttribute("data-cat");
+      render();
+    }else if(act==="cancel-rename-category"){
+      ui.renamingCategory = null;
+      render();
+    }else if(act==="confirm-rename-category"){
+      var oldName = el.getAttribute("data-cat");
+      var renameInput = document.getElementById("rename-category-input");
+      var newName = renameInput ? renameInput.value.trim() : "";
+      var existingCatsForRename = data.categories||DEFAULT_CATEGORIES.slice();
+      var clashesWithOther = existingCatsForRename.some(function(c){ return c!==oldName && c.toLowerCase()===newName.toLowerCase(); });
+      if(!newName){
+        ui.renamingCategory = null; render();
+      }else if(clashesWithOther){
+        alert("Ya existe una categoría con ese nombre.");
+      }else if(newName===oldName){
+        ui.renamingCategory = null; render();
+      }else{
+        var renamedCats = existingCatsForRename.map(function(c){ return c===oldName ? newName : c; });
+        var renamedCards = data.cards.map(function(c){
+          var expenses = (c.expenses||[]).map(function(e){
+            return (e.category||"Otros")===oldName ? Object.assign({}, e, {category:newName}) : e;
+          });
+          return Object.assign({}, c, {expenses:expenses});
+        });
+        ui.renamingCategory = null;
+        persist(Object.assign({}, data, {categories:renamedCats, cards:renamedCards}));
       }
     }else if(act==="close-reassign-category" || act==="close-reassign-category-bg"){
       if(act==="close-reassign-category-bg" && e.target!==el) return;
@@ -3138,6 +3386,11 @@
       var dismissedList = (data.dismissedSubscriptions||[]).slice();
       if(dismissedList.indexOf(discKey)===-1) dismissedList.push(discKey);
       persist(Object.assign({}, data, {dismissedSubscriptions: dismissedList}));
+    }else if(act==="dismiss-goal-celebration"){
+      var celebratedId = el.getAttribute("data-id");
+      var celebratedList = (data.celebratedGoalIds||[]).slice();
+      if(celebratedList.indexOf(celebratedId)===-1) celebratedList.push(celebratedId);
+      persist(Object.assign({}, data, {celebratedGoalIds: celebratedList}));
     }else if(act==="reload-app"){
       if("serviceWorker" in navigator){
         navigator.serviceWorker.getRegistration().then(function(reg){
@@ -3153,36 +3406,31 @@
         ui.deferredInstallPrompt.prompt();
         ui.deferredInstallPrompt.userChoice.then(function(){ ui.deferredInstallPrompt = null; render(); });
       }
-    }else if(act==="open-cloud-modal"){
-      ui.cloudModal = true; ui.cloudMode = "login"; ui.cloudError = ""; render();
-    }else if(act==="close-cloud-modal"){
-      ui.cloudModal = false; render();
-    }else if(act==="close-cloud-modal-bg"){
-      if(e.target===el){ ui.cloudModal = false; render(); }
-    }else if(act==="cloud-toggle-mode"){
-      ui.cloudMode = ui.cloudMode==="signup" ? "login" : "signup";
-      ui.cloudError = "";
-      render();
-    }else if(act==="cloud-do-signup" || act==="cloud-do-login"){
-      var cEmail = document.getElementById("cloud-email-input").value.trim();
-      var cPass = document.getElementById("cloud-password-input").value;
-      if(!cEmail || !cPass){ ui.cloudError = "Escribe tu correo y contraseña."; render(); }
-      else if(act==="cloud-do-signup"){ cloudSignUp(cEmail, cPass); }
-      else{ cloudSignIn(cEmail, cPass); }
     }else if(act==="gate-toggle-mode"){
       ui.cloudMode = ui.cloudMode==="signup" ? "login" : "signup";
       ui.cloudError = "";
+      ui.cloudResetSent = false;
       render();
     }else if(act==="gate-do-signup" || act==="gate-do-login"){
-      var gEmail = document.getElementById("gate-email-input").value.trim();
-      var gPass = document.getElementById("gate-password-input").value;
-      if(!gEmail || !gPass){ ui.cloudError = "Escribe tu correo y contraseña."; render(); }
-      else if(act==="gate-do-signup"){ cloudSignUp(gEmail, gPass); }
-      else{ cloudSignIn(gEmail, gPass); }
+      /* la lógica real vive en el listener "submit" del formulario (ver renderLoginGate),
+         para que un solo camino maneje tanto Enter como el clic del botón sin duplicar el envío */
+    }else if(act==="gate-forgot-password"){
+      var gForgotEmail = document.getElementById("gate-email-input").value.trim();
+      cloudSendPasswordReset(gForgotEmail);
     }else if(act==="cloud-logout"){
       if(confirm("¿Cerrar sesión? Tus datos se quedan guardados en la nube y en este dispositivo, solo dejarán de sincronizarse.")){
         cloudSignOutUser();
       }
+    }else if(act==="open-delete-account-modal"){
+      ui.deleteAccountModal = true; ui.deleteAccountError = ""; ui.deleteAccountPassword = ""; render();
+    }else if(act==="close-delete-account-modal"){
+      ui.deleteAccountModal = false; render();
+    }else if(act==="close-delete-account-modal-bg"){
+      if(e.target===el){ ui.deleteAccountModal = false; render(); }
+    }else if(act==="confirm-delete-account"){
+      var delPass = document.getElementById("delete-account-password-input").value;
+      if(!delPass){ ui.deleteAccountError = "Escribe tu contraseña para confirmar."; render(); }
+      else{ cloudDeleteAccountForever(delPass); }
     }else if(act==="cloud-conflict-use-remote"){
       cloudApplyRemoteData(ui.cloudConflict.remote, ui.cloudConflict.remoteMarker);
       ui.cloudConflict = null;
@@ -3239,7 +3487,14 @@
       updateBudget({ salary:bSalary, pctGastos:bGastos, pctDiversion:bDiversion, pctAhorro:bAhorro, configured:true });
     }else if(act==="export-csv"){
       try{
-        var csv = buildMovementsCSV(data);
+        var scope = el.getAttribute("data-scope");
+        var csv;
+        if(scope==="filtered"){
+          var filteredResults = filterMovements(data.cards, { query: ui.movQuery, category: ui.movCategory, cardId: ui.movCard });
+          csv = buildFilteredMovementsCSV(filteredResults);
+        }else{
+          csv = buildMovementsCSV(data);
+        }
         var csvBlob = new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8;"});
         var csvUrl = URL.createObjectURL(csvBlob);
         var csvA = document.createElement("a");
