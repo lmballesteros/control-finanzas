@@ -268,7 +268,7 @@
              expenseForm:null, expenseEditId:null, deferredForm:null, deferredEditId:null, modal:null,
              apiKeyModal:false, backupModal:false, backupMessage:"", scanningCard:null, scanError:"", expenseDraft:null,
              reconcileBusy:false, reconcileError:"", reconcileResult:null, reconcileTarget:null, reconcileManualForm:null, showPastCycles:null,
-             openSubsections:{},
+             openSubsections:{}, adjustDeferredTarget:null,
              personalCreditForm:null, tab:"resumen", analysisQuery:"", donutSelected:null, toast:null,
              movQuery:"", movCategory:"", movCard:"", extraPayment:0, movCardPicker:false, deferredInstallPrompt:null, reassignCategory:null, updateAvailable:false, devModeModal:false, renamingCategory:null,
              cloudModal:false, cloudMode:"login", cloudError:"", cloudBusy:false, cloudUser:null, cloudStatus:"signed-out", cloudConflict:null, authChecked:false,
@@ -373,7 +373,12 @@
       count++;
       pago = clampedDate(pago.getFullYear(), pago.getMonth()+1, dueDay);
     }
-    return count;
+    // La ÚLTIMA cuota nunca se marca sola solo porque "ya pasó la fecha" — eso
+    // silenciosamente la quitaba de tu saldo/utilización antes de que confirmaras
+    // que el banco realmente te la cobró. El resto de las cuotas sí se siguen
+    // detectando automáticamente por fecha; solo la final requiere que la marques
+    // a mano con "Marcar cuota".
+    return Math.min(count, plan.months-1);
   }
   function msiNextPago(plan, cutoffDay, dueDay){
     if(!cutoffDay || !dueDay || !plan.date) return null;
@@ -826,15 +831,47 @@
     }
     return rows;
   }
+  /* Igual que buildAmortization, pero respeta ajustes manuales por mes (cuando el
+     banco recalculó una cuota y el monto real ya no coincide con la tabla teórica).
+     A partir del mes ajustado, el resto de la tabla se recalcula usando el saldo
+     que quedó después de ese ajuste — así los meses siguientes no arrastran un
+     número equivocado. */
+  function buildAmortizationAdjusted(principal, months, annualRatePct, overrides){
+    if(!overrides || !Object.keys(overrides).length) return buildAmortization(principal, months, annualRatePct);
+    var i = annualRatePct/100/12;
+    var payment = i===0 ? principal/months : (principal*i)/(1-Math.pow(1+i,-months));
+    var balance = principal;
+    var rows = [];
+    for(var m=1; m<=months; m++){
+      var ov = overrides[m];
+      var interest, capital, iva, total;
+      if(ov && ov.total>0){
+        interest = balance*i;
+        iva = interest*IVA_RATE;
+        capital = Math.max(0, ov.total-interest-iva);
+        if(capital>balance) capital = balance;
+        total = ov.total;
+      }else{
+        interest = balance*i;
+        capital = payment-interest;
+        if(m===months || capital>balance) capital = balance;
+        iva = interest*IVA_RATE;
+        total = capital+interest+iva;
+      }
+      balance = Math.max(0, balance-capital);
+      rows.push({month:m, interest:interest, capital:capital, iva:iva, total:total, balanceAfter:balance, adjusted:!!(ov&&ov.total>0)});
+    }
+    return rows;
+  }
   function deferredRemaining(plan, cutoffDay, dueDay){
     var paid = msiEffectivePaid(plan, cutoffDay, dueDay);
-    var rows = buildAmortization(plan.principal, plan.months, plan.annualRate);
+    var rows = buildAmortizationAdjusted(plan.principal, plan.months, plan.annualRate, plan.overrides);
     return paid<=0 ? plan.principal : rows[Math.min(paid,plan.months)-1].balanceAfter;
   }
   function deferredNextPayment(plan, cutoffDay, dueDay){
     var paid = msiEffectivePaid(plan, cutoffDay, dueDay);
     if(paid >= plan.months) return null;
-    var rows = buildAmortization(plan.principal, plan.months, plan.annualRate);
+    var rows = buildAmortizationAdjusted(plan.principal, plan.months, plan.annualRate, plan.overrides);
     return rows[paid];
   }
   function cardDeferredTotal(card){
@@ -971,7 +1008,7 @@
         var rem = deferredRemaining(p, c.cutoffDay, c.dueDay);
         if(rem>0.5){
           var paidD = msiEffectivePaid(p, c.cutoffDay, c.dueDay);
-          var rowsD = buildAmortization(p.principal, p.months, p.annualRate);
+          var rowsD = buildAmortizationAdjusted(p.principal, p.months, p.annualRate, p.overrides);
           var rowD = rowsD.length ? rowsD[Math.min(paidD, p.months-1)] : null;
           items.push({label:c.name+" · "+p.description, type:"diferido", rate:p.annualRate, remaining:rem,
             monthlyPayment: rowD ? rowD.total : 0, amortPayment: rowD ? (rowD.capital+rowD.interest) : 0, isEstimated:false});
@@ -3318,11 +3355,13 @@
       var nextRow = deferredNextPayment(plan, item.cutoffDay, item.dueDay);
       var nextPago = msiNextPago(plan, item.cutoffDay, item.dueDay);
       var donePct = Math.min(100, (paid/plan.months)*100);
+      var adjustKey = item.id+"-"+plan.id;
+      var adjusting = ui.adjustDeferredTarget===adjustKey;
       html += '<div class="mini-card"><div class="mini-row">'+
         '<div><div class="mini-desc">'+esc(plan.description)+'</div>'+
         '<div class="mini-sub">'+plan.annualRate+'% anual · '+paid+'/'+plan.months+' meses'+
         (done ? ' · pagado' : ' · restan '+fmtMasked(remaining))+'</div>'+
-        (!done && nextRow ? '<div style="color:var(--coral);font-size:11px;margin-top:2px;">próxima cuota: '+fmtMasked(nextRow.total)+' ('+fmtMasked(nextRow.capital)+' capital + '+fmtMasked(nextRow.interest)+' interés + '+fmtMasked(nextRow.iva)+' IVA)'+(nextPago?' · '+dateLabel(nextPago):'')+'</div>' : '')+
+        (!done && nextRow ? '<div style="color:var(--coral);font-size:11px;margin-top:2px;">próxima cuota: '+fmtMasked(nextRow.total)+' ('+fmtMasked(nextRow.capital)+' capital + '+fmtMasked(nextRow.interest)+' interés + '+fmtMasked(nextRow.iva)+' IVA)'+(nextRow.adjusted?' · ajustada a mano':'')+(nextPago?' · '+dateLabel(nextPago):'')+'</div>' : '')+
         '</div>'+
         '<div class="mini-actions">'+
         '<button class="icon-btn" style="padding:2px;" data-act="edit-deferred" data-card="'+item.id+'" data-plan="'+plan.id+'">✎</button>'+
@@ -3332,8 +3371,21 @@
         '<div class="bar" style="height:4px;margin-top:0;flex:1;"><div class="bar-fill" style="width:'+donePct+'%;background:'+(done?"var(--mint)":"var(--coral)")+'"></div></div>'+
         (paid>0 ? '<button class="mark-btn" style="color:var(--muted);" data-act="unmark-deferred" data-card="'+item.id+'" data-plan="'+plan.id+'">Desmarcar</button>' : '')+
         (!done ? '<button class="mark-btn" data-act="mark-deferred" data-card="'+item.id+'" data-plan="'+plan.id+'">Marcar cuota</button>' : '')+
-        '</div>'+
         '</div>';
+      if(!done){
+        if(adjusting){
+          html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--hairline);">'+
+            '<span class="field-label">Monto real que te cobró el banco esta cuota (mes '+(paid+1)+' de '+plan.months+')</span>'+
+            '<input type="text" inputmode="decimal" id="adjust-deferred-input-'+adjustKey+'" placeholder="ej. '+Math.round(nextRow?nextRow.total:0)+'" style="margin-bottom:8px;" />'+
+            '<div class="form-actions">'+
+            '<button class="btn-cancel" data-act="toggle-adjust-deferred" data-card="'+item.id+'" data-plan="'+plan.id+'">Cancelar</button>'+
+            '<button class="btn-save" data-act="submit-adjust-deferred" data-card="'+item.id+'" data-plan="'+plan.id+'" data-month="'+(paid+1)+'">Guardar</button>'+
+            '</div></div>';
+        }else{
+          html += '<button class="mini-add" style="color:var(--muted);margin-top:8px;" data-act="toggle-adjust-deferred" data-card="'+item.id+'" data-plan="'+plan.id+'">✎ ajustar esta cuota</button>';
+        }
+      }
+      html += '</div>';
     });
     if(ui.deferredForm === item.id){
       var today = new Date().toISOString().slice(0,10);
@@ -3614,6 +3666,17 @@
       });
       renameCatEl.focus();
       renameCatEl.setSelectionRange(renameCatEl.value.length, renameCatEl.value.length);
+    }
+
+    if(ui.adjustDeferredTarget){
+      var adjInput = document.getElementById("adjust-deferred-input-"+ui.adjustDeferredTarget);
+      if(adjInput){
+        adjInput.addEventListener("keydown", function(e){
+          if(e.key==="Enter"){ e.preventDefault(); onClick({ target: document.querySelector('[data-act="submit-adjust-deferred"]') }); }
+          else if(e.key==="Escape"){ e.preventDefault(); onClick({ target: document.querySelector('[data-act="toggle-adjust-deferred"]') }); }
+        });
+        adjInput.focus();
+      }
     }
 
     // Live preview for MSI cuota (updates only the preview div, never re-renders — keeps focus)
@@ -4205,6 +4268,27 @@
         }
         ui.deferredForm = null; ui.deferredEditId = null;
         updateCardDeferred(dfcid, diferidos);
+      }
+    }else if(act==="toggle-adjust-deferred"){
+      var tacid = el.getAttribute("data-card"), tapid = el.getAttribute("data-plan");
+      var key = tacid+"-"+tapid;
+      ui.adjustDeferredTarget = ui.adjustDeferredTarget===key ? null : key;
+      render();
+    }else if(act==="submit-adjust-deferred"){
+      var sacid = el.getAttribute("data-card"), sapid = el.getAttribute("data-plan");
+      var monthNum = parseInt(el.getAttribute("data-month"),10);
+      var inputEl = document.getElementById("adjust-deferred-input-"+sacid+"-"+sapid);
+      var newTotal = inputEl ? parseFloat(inputEl.value) : NaN;
+      if(newTotal>0){
+        var sacard = data.cards.find(function(c){return c.id===sacid;});
+        var saList = (sacard.diferidos||[]).map(function(p){
+          if(p.id!==sapid) return p;
+          var newOverrides = Object.assign({}, p.overrides||{});
+          newOverrides[monthNum] = {total:newTotal};
+          return Object.assign({}, p, {overrides:newOverrides});
+        });
+        ui.adjustDeferredTarget = null;
+        updateCardDeferred(sacid, saList);
       }
     }else if(act==="mark-deferred"){
       var mdcid = el.getAttribute("data-card"), mdpid = el.getAttribute("data-plan");
