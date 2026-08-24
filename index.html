@@ -1809,7 +1809,6 @@
         stat("Neto", net, net>=0?"var(--mint)":"var(--coral)", "⚖") +
         '</div>';
       html += renderHealthScore(totalDebt, totalSavings);
-      html += '<section style="margin-bottom:32px;">'+renderBudgetPanel(totalDebt)+'</section>';
       html += renderChartSection();
     }else if(ui.tab === "movimientos"){
       html += renderMovimientosSection();
@@ -1984,6 +1983,8 @@
 
   function renderAnalysisSection(){
     var html = '<div style="display:flex;flex-direction:column;gap:24px;">';
+    var totalDebt = data.cards.reduce(function(s,c){ return s + Math.max(0, (c.balance||0) + cardMsiTotal(c) + cardDeferredTotal(c) - (c.extraCredit||0)); },0) + totalPersonalCreditsDebt(data.personalCredits);
+    html += renderBudgetSection(totalDebt);
     var utilCards = data.cards.filter(function(c){ return c.limit>0; });
     var highUtil = utilCards.filter(function(c){ return cardUtilizationPct(c)>=70; })
       .sort(function(a,b){ return cardUtilizationPct(b)-cardUtilizationPct(a); });
@@ -2582,6 +2583,47 @@
     html += '<div style="color:var(--muted);font-size:10px;margin-top:10px;line-height:1.5;">Calculado con '+h.factorsEvaluated+' de 5 factores posibles, usando solo lo que registraste en la app (saldos, tasas, presupuesto). Los umbrales y penalizaciones son criterios propios de esta app, no estándares bancarios ni una calificación crediticia real.</div>';
     html += '</div>'; /* cierra .card */
     html += '</section>';
+    return html;
+  }
+
+  function renderBudgetSection(totalDebt){
+    var html = '<section>';
+    html += '<div class="sec-title" style="margin-bottom:8px;">🎯 Presupuesto</div>';
+    html += '<div style="color:var(--muted);font-size:11px;line-height:1.5;margin-bottom:12px;">Basado en la regla 50/30/20: una guía general (no una fórmula exacta) que divide tu sueldo en necesidades, gustos, y ahorro/deudas. Ajusta los porcentajes a lo que tenga sentido para ti.</div>';
+    html += renderBudgetPanel(totalDebt);
+    html += renderBudgetHistory();
+    html += '</section>';
+    return html;
+  }
+
+  function renderBudgetHistory(){
+    var b = data.budget;
+    if(!b.configured || !(b.salary>0)) return "";
+    var presupuestoMensual = b.salary*4.33*b.pctGastos/100;
+    if(presupuestoMensual<=0) return "";
+    var now = new Date();
+    var months = [];
+    for(var i=2;i>=0;i--){
+      var d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+      var total = data.cards.reduce(function(s,c){ return s+monthTotal(c.expenses||[], d.getFullYear(), d.getMonth()); },0);
+      months.push({label:d.toLocaleDateString("es-MX",{month:"short",year:"2-digit"}), total:total, isCurrent:i===0});
+    }
+    if(!months.some(function(m){ return m.total>0; })) return "";
+    var html = '<div class="bank-box" style="margin-top:12px;">';
+    html += '<div class="bank-title">Presupuesto de gastos vs. lo real (últimos 3 meses)</div>';
+    months.forEach(function(m){
+      var pct = Math.min(150, (m.total/presupuestoMensual)*100);
+      var over = m.total > presupuestoMensual;
+      var color = over ? "var(--coral)" : "var(--mint)";
+      html += '<div style="margin-bottom:10px;">'+
+        '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">'+
+        '<span style="color:var(--text);">'+m.label+(m.isCurrent?" (actual)":"")+'</span>'+
+        '<span style="font-family:var(--mono);color:'+color+';">'+fmt(m.total)+' / '+fmt(presupuestoMensual)+'</span></div>'+
+        '<div class="bar"><div class="bar-fill" style="width:'+Math.min(100,pct)+'%;background:'+color+';"></div></div>'+
+        '</div>';
+    });
+    html += '<div style="color:var(--muted);font-size:10px;margin-top:4px;">Calculado con tu presupuesto de Gastos actual ('+fmt(presupuestoMensual)+'/mes) aplicado hacia atrás — si cambiaste el % recientemente, los meses pasados no reflejan el % que tenías entonces.</div>';
+    html += '</div>';
     return html;
   }
 
