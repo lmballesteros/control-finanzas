@@ -267,7 +267,8 @@
   var ui = { openCard:null, openSaving:null, msiForm:null, msiEditId:null, paymentForm:null, paymentEditId:null,
              expenseForm:null, expenseEditId:null, deferredForm:null, deferredEditId:null, modal:null,
              apiKeyModal:false, backupModal:false, backupMessage:"", scanningCard:null, scanError:"", expenseDraft:null,
-             reconcileBusy:false, reconcileError:"", reconcileResult:null, reconcileTarget:null, reconcileManualForm:null,
+             reconcileBusy:false, reconcileError:"", reconcileResult:null, reconcileTarget:null, reconcileManualForm:null, showPastCycles:null,
+             openSubsections:{},
              personalCreditForm:null, tab:"resumen", analysisQuery:"", donutSelected:null, toast:null,
              movQuery:"", movCategory:"", movCard:"", extraPayment:0, movCardPicker:false, deferredInstallPrompt:null, reassignCategory:null, updateAvailable:false, devModeModal:false, renamingCategory:null,
              cloudModal:false, cloudMode:"login", cloudError:"", cloudBusy:false, cloudUser:null, cloudStatus:"signed-out", cloudConflict:null, authChecked:false,
@@ -2885,7 +2886,11 @@
     var extraFacts = [];
     if(msiOwed>0) extraFacts.push({label:"MSI pendiente", value:fmt(msiOwed), color:"var(--amber)"});
     if(deferredOwed>0) extraFacts.push({label:"Diferido", value:fmt(deferredOwed), color:"var(--coral)"});
-    if(item.extraCredit>0) extraFacts.push({label:"Crédito a favor", value:fmt(item.extraCredit), color:"var(--mint)"});
+    // Crédito a favor "restante": lo guardado internamente se resta contra el saldo, MSI y
+    // diferidos vigentes — mostrar el número crudo hacía parecer que el crédito "nunca se
+    // quitaba" aunque ya se hubiera consumido con gastos nuevos.
+    var remainingCredit = Math.max(0, (item.extraCredit||0) - item.balance - msiOwed - deferredOwed);
+    if(remainingCredit>0) extraFacts.push({label:"Crédito a favor", value:fmt(remainingCredit), color:"var(--mint)"});
     if(lastPayment) extraFacts.push({label:"Último pago", value:fmt(lastPayment.amount)+" · "+dateLabel(lastPayment.date), color:"var(--text)"});
     if(extraFacts.length){
       html += '<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;">';
@@ -2933,18 +2938,34 @@
     return html;
   }
 
+  function isSubsectionOpen(cardId, key){ return !!ui.openSubsections[cardId+"-"+key]; }
+  function renderSubsectionToggle(cardId, key, label, summary){
+    var open = isSubsectionOpen(cardId, key);
+    return '<button class="subsection-toggle" data-act="toggle-subsection" data-card="'+cardId+'" data-key="'+key+'" style="width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;padding:0;text-align:left;">'+
+      '<span class="subsection-label">'+label+'</span>'+
+      '<span style="display:flex;align-items:center;gap:6px;">'+
+      (summary?'<span style="color:var(--muted);font-size:11px;">'+summary+'</span>':'')+
+      '<span style="color:var(--muted);font-size:11px;transform:rotate('+(open?"180deg":"0deg")+');transition:transform .15s;">▾</span>'+
+      '</span></button>';
+  }
+
   function renderExpensesSection(item){
     var schedule = paymentSchedule(item);
     var expenses = item.expenses || [];
     var scanning = ui.scanningCard === item.id;
-    var html = '<div class="subsection"><div class="subsection-head"><span class="subsection-label">Gastos</span>';
-    html += '<div style="display:flex;align-items:center;gap:10px;">';
+    var open = isSubsectionOpen(item.id, "expenses");
+    var thisMonthNow = new Date();
+    var thisMonthTotalSummary = monthTotal(expenses, thisMonthNow.getFullYear(), thisMonthNow.getMonth());
+    var html = '<div class="subsection">';
+    html += renderSubsectionToggle(item.id, "expenses", "Gastos", expenses.length+" · "+fmt(thisMonthTotalSummary)+" este mes");
+    if(!open){ html += '</div>'; return html; }
+    html += '<div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:8px;margin-bottom:4px;">';
     html += '<input type="file" accept="image/*,.pdf,application/pdf" id="receipt-input-'+item.id+'" style="display:none;" />';
     html += '<button class="mini-add" style="color:var(--amber);" data-act="scan-receipt" data-id="'+item.id+'" '+(scanning?"disabled":"")+'>📷 '+(scanning?"leyendo…":"escanear recibo")+'</button>';
     if(ui.expenseForm !== item.id){
       html += '<button class="mini-add" data-act="show-expense-form" data-id="'+item.id+'">+ registrar gasto</button>';
     }
-    html += '</div></div>';
+    html += '</div>';
 
     if(ui.expenseForm === item.id && ui.scanError){
       html += '<div style="color:var(--coral);font-size:11px;margin-bottom:8px;">'+esc(ui.scanError)+'</div>';
@@ -2995,15 +3016,27 @@
       html += '<div style="color:var(--coral);font-size:11px;margin-bottom:8px;">'+esc(ui.reconcileError)+'</div>';
     }
 
-    schedule.cycles.forEach(function(g){
+    var showPastCycles = ui.showPastCycles===item.id;
+    var upcomingCycles = schedule.cycles.filter(function(g){ return daysUntil(g.pago)>=0; });
+    var pastCycles = schedule.cycles.filter(function(g){ return daysUntil(g.pago)<0; });
+    function renderCycleCard(g){
       var dl = daysUntil(g.pago);
       var color = dl<=3 ? "var(--coral)" : dl<=10 ? "var(--amber)" : "var(--mint)";
-      html += '<div class="mini-card"><div class="mini-row">'+
+      return '<div class="mini-card"><div class="mini-row">'+
         '<span style="font-size:12px;">Corte '+dateLabel(g.corte)+' · '+g.count+' gasto'+(g.count===1?"":"s")+'</span>'+
         '<span style="font-family:var(--mono);font-size:12px;">'+fmt(g.total)+'</span></div>'+
         '<div style="color:'+color+';font-size:11px;margin-top:4px;">Paga antes del '+dateLabel(g.pago)+' · '+(dl<=0?"vence hoy":"faltan "+dl+" día"+(dl===1?"":"s"))+'</div>'+
         '</div>';
-    });
+    }
+    upcomingCycles.forEach(function(g){ html += renderCycleCard(g); });
+    if(pastCycles.length){
+      if(showPastCycles){
+        pastCycles.forEach(function(g){ html += renderCycleCard(g); });
+        html += '<button class="mini-add" style="color:var(--muted);margin-bottom:8px;" data-act="toggle-past-cycles" data-id="'+item.id+'">Ocultar cortes anteriores</button>';
+      }else{
+        html += '<button class="mini-add" style="color:var(--muted);margin-bottom:8px;" data-act="toggle-past-cycles" data-id="'+item.id+'">Ver '+pastCycles.length+' corte'+(pastCycles.length===1?"":"s")+' anterior'+(pastCycles.length===1?"":"es")+'</button>';
+      }
+    }
     if(schedule.unassigned.count>0){
       html += '<div class="empty" style="margin-bottom:8px;">'+schedule.unassigned.count+' gasto'+(schedule.unassigned.count===1?"":"s")+' sin ciclo asignado ('+fmt(schedule.unassigned.total)+')</div>';
     }
@@ -3076,11 +3109,13 @@
   }
 
   function renderPaymentsSection(item, payments){
-    var html = '<div class="subsection"><div class="subsection-head"><span class="subsection-label">Pagos</span>';
+    var open = isSubsectionOpen(item.id, "payments");
+    var html = '<div class="subsection">';
+    html += renderSubsectionToggle(item.id, "payments", "Pagos", payments.length+" registrado"+(payments.length===1?"":"s"));
+    if(!open){ html += '</div>'; return html; }
     if(ui.paymentForm !== item.id){
-      html += '<button class="mini-add" data-act="show-payment-form" data-id="'+item.id+'">+ registrar pago</button>';
+      html += '<div style="display:flex;justify-content:flex-end;margin-top:8px;margin-bottom:4px;"><button class="mini-add" data-act="show-payment-form" data-id="'+item.id+'">+ registrar pago</button></div>';
     }
-    html += '</div>';
     if(!payments.length && ui.paymentForm!==item.id){
       html += '<div class="empty">Aún no registras pagos de esta tarjeta.</div>';
     }
@@ -3127,11 +3162,13 @@
 
   function renderMsiSection(item){
     var plans = item.msi || [];
-    var html = '<div class="subsection"><div class="subsection-head"><span class="subsection-label">Meses sin intereses</span>';
+    var open = isSubsectionOpen(item.id, "msi");
+    var html = '<div class="subsection">';
+    html += renderSubsectionToggle(item.id, "msi", "Meses sin intereses", plans.length+" plan"+(plans.length===1?"":"es"));
+    if(!open){ html += '</div>'; return html; }
     if(ui.msiForm !== item.id){
-      html += '<button class="mini-add" data-act="show-msi-form" data-id="'+item.id+'">+ agregar</button>';
+      html += '<div style="display:flex;justify-content:flex-end;margin-top:8px;margin-bottom:4px;"><button class="mini-add" data-act="show-msi-form" data-id="'+item.id+'">+ agregar</button></div>';
     }
-    html += '</div>';
     if(!plans.length && ui.msiForm!==item.id){
       html += '<div class="empty">Sin compras a meses activas.</div>';
     }
@@ -3182,11 +3219,13 @@
 
   function renderDeferredSection(item){
     var plans = item.diferidos || [];
-    var html = '<div class="subsection"><div class="subsection-head"><span class="subsection-label">Pagos diferidos (con interés)</span>';
+    var open = isSubsectionOpen(item.id, "diferidos");
+    var html = '<div class="subsection">';
+    html += renderSubsectionToggle(item.id, "diferidos", "Pagos diferidos (con interés)", plans.length+" activo"+(plans.length===1?"":"s"));
+    if(!open){ html += '</div>'; return html; }
     if(ui.deferredForm !== item.id){
-      html += '<button class="mini-add" data-act="show-deferred-form" data-id="'+item.id+'">+ agregar</button>';
+      html += '<div style="display:flex;justify-content:flex-end;margin-top:8px;margin-bottom:4px;"><button class="mini-add" data-act="show-deferred-form" data-id="'+item.id+'">+ agregar</button></div>';
     }
-    html += '</div>';
     if(!plans.length && ui.deferredForm!==item.id){
       html += '<div class="empty">Sin pagos diferidos activos.</div>';
     }
@@ -4087,6 +4126,14 @@
       var rcid = el.getAttribute("data-id");
       var rinp = document.getElementById("statement-input-"+rcid);
       if(rinp) rinp.click();
+    }else if(act==="toggle-subsection"){
+      var scKey = el.getAttribute("data-card")+"-"+el.getAttribute("data-key");
+      ui.openSubsections[scKey] = !ui.openSubsections[scKey];
+      render();
+    }else if(act==="toggle-past-cycles"){
+      var tpid = el.getAttribute("data-id");
+      ui.showPastCycles = ui.showPastCycles===tpid ? null : tpid;
+      render();
     }else if(act==="toggle-reconcile-manual"){
       var tmid = el.getAttribute("data-id");
       ui.reconcileManualForm = ui.reconcileManualForm===tmid ? null : tmid;
