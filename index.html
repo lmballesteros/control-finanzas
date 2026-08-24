@@ -272,7 +272,8 @@
              personalCreditForm:null, tab:"resumen", analysisQuery:"", donutSelected:null, toast:null,
              movQuery:"", movCategory:"", movCard:"", extraPayment:0, movCardPicker:false, deferredInstallPrompt:null, reassignCategory:null, updateAvailable:false, devModeModal:false, renamingCategory:null,
              cloudModal:false, cloudMode:"login", cloudError:"", cloudBusy:false, cloudUser:null, cloudStatus:"signed-out", cloudConflict:null, authChecked:false,
-             deleteAccountModal:false, deleteAccountPassword:"", deleteAccountError:"", deleteAccountBusy:false, cloudResetSent:false };
+             deleteAccountModal:false, deleteAccountPassword:"", deleteAccountError:"", deleteAccountBusy:false, cloudResetSent:false,
+             hideBalances:getHideBalances() };
   var API_KEY_STORAGE = "anthropic-api-key";
   var LAST_BACKUP_KEY = "last-backup-date";
   var DEV_MODE_STORAGE = "receipt-dev-mode-enabled";
@@ -308,6 +309,19 @@
   function fmt(n){
     n = Math.round((n||0)*100)/100;
     return "$" + n.toLocaleString("es-MX",{minimumFractionDigits:0});
+  }
+  /* Ocultar saldos: preferencia de dispositivo (no se sincroniza en la nube — cada
+     dispositivo puede tener su propia preferencia, útil si prestas o muestras el
+     teléfono a alguien). fmtMasked() sustituye cualquier monto por puntos cuando
+     está activo, sin alterar los datos reales guardados. */
+  var HIDE_BALANCES_KEY = "hide-balances";
+  function getHideBalances(){ try{ return localStorage.getItem(HIDE_BALANCES_KEY)==="1"; }catch(e){ return false; } }
+  function setHideBalancesPref(on){ try{ localStorage.setItem(HIDE_BALANCES_KEY, on?"1":"0"); }catch(e){} }
+  function fmtMasked(n){ return ui.hideBalances ? "••••" : fmt(n); }
+  function renderHideBalancesToggle(){
+    return '<button data-act="toggle-hide-balances" style="display:flex;align-items:center;gap:6px;background:var(--surface3);border:1px solid var(--hairline);border-radius:20px;padding:6px 12px;margin-bottom:14px;color:var(--muted);font-size:11px;font-weight:600;">'+
+      (ui.hideBalances ? '🙈 Mostrar saldos' : '👁️ Ocultar saldos')+
+      '</button>';
   }
   function esc(s){
     return String(s==null?"":s).replace(/[&<>"']/g, function(c){
@@ -894,7 +908,10 @@
     ["#64D2FF","#014A6E"],
     ["#BF5AF2","#3D1259"]
   ];
-  function gradientForCard(name){
+  function gradientForCard(name, colorOverride){
+    // Si la persona eligió un color manualmente al crear/editar la tarjeta, ese
+    // siempre gana sobre la detección automática por nombre de banco.
+    if(colorOverride!=null && CARD_GRADIENTS[colorOverride]) return CARD_GRADIENTS[colorOverride];
     // Si el nombre de la tarjeta menciona un banco o tienda conocido en México,
     // usamos el color real de esa marca (sin reproducir su logotipo, solo el
     // color) para que se sienta como tu tarjeta física de verdad.
@@ -1074,8 +1091,8 @@
       monthlyDeficit = capacidad<0;
       var capPenalty = capacidad<0.1 ? Math.round(Math.min(30, (0.1-capacidad)*130)) : 0;
       score -= capPenalty;
-      if(monthlyDeficit) reasons.push({text:"Este mes gastaste más de lo que configuraste como tu sueldo ("+fmt(dataObj.budget.salary)+"/semana). Mientras tengas un déficit así, no calificamos tu salud financiera como \"Bien\", sin importar qué tan sanos estén los demás factores.", weight:Math.max(capPenalty,1)});
-      else if(capPenalty>0) reasons.push({text:"Tu capacidad de ahorro este mes es baja frente al sueldo mensual que tú configuraste en Presupuesto ("+fmt(dataObj.budget.salary)+"/semana). Si ese número ya no es correcto, actualízalo.", weight:capPenalty});
+      if(monthlyDeficit) reasons.push({text:"Este mes gastaste más de lo que configuraste como tu sueldo ("+fmtMasked(dataObj.budget.salary)+"/semana). Mientras tengas un déficit así, no calificamos tu salud financiera como \"Bien\", sin importar qué tan sanos estén los demás factores.", weight:Math.max(capPenalty,1)});
+      else if(capPenalty>0) reasons.push({text:"Tu capacidad de ahorro este mes es baja frente al sueldo mensual que tú configuraste en Presupuesto ("+fmtMasked(dataObj.budget.salary)+"/semana). Si ese número ya no es correcto, actualízalo.", weight:capPenalty});
     }else{
       factorsSkipped.push("capacidad de ahorro (no has configurado tu sueldo en Presupuesto)");
     }
@@ -1090,7 +1107,7 @@
       var ratio = totalSavings>0 ? totalDebt/totalSavings : (totalDebt>0?3:0);
       debtSavingsPenalty = Math.round(Math.min(35, Math.max(0, (ratio-1)*15)));
       score -= debtSavingsPenalty;
-      if(debtExceedsSavings) reasons.push({text:"Tu deuda total ("+fmt(totalDebt)+") es mayor que tu ahorro acumulado ("+fmt(totalSavings)+"). Mientras esto sea así, no calificamos tu salud financiera como \"Bien\", sin importar qué tan sanos estén los demás factores.", weight:Math.max(debtSavingsPenalty, 1)});
+      if(debtExceedsSavings) reasons.push({text:"Tu deuda total ("+fmtMasked(totalDebt)+") es mayor que tu ahorro acumulado ("+fmtMasked(totalSavings)+"). Mientras esto sea así, no calificamos tu salud financiera como \"Bien\", sin importar qué tan sanos estén los demás factores.", weight:Math.max(debtSavingsPenalty, 1)});
     }
 
     // 4) Pagos próximos vencidos o urgentes
@@ -1802,6 +1819,7 @@
     }
 
     if(ui.tab === "resumen"){
+      html += renderHideBalancesToggle();
       html += renderAlerts();
       html += '<div class="stats">'+
         stat("Deuda", totalDebt, "var(--coral)", "↓") +
@@ -2335,7 +2353,7 @@
     html += '<p style="color:var(--text);font-size:13px;font-weight:500;margin:0 0 2px;">Control financiero</p>';
     html += '<p style="color:var(--muted);font-size:11px;margin:0 0 10px;">Versión 3.0</p>';
     html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 10px;">Una herramienta sencilla para controlar tus gastos, tarjetas, deudas y ahorro en un solo lugar.</p>';
-    html += '<p style="color:var(--muted);font-size:11px;line-height:1.5;margin:0;">🔒 Tus datos se almacenan localmente en este dispositivo (no se sincronizan en la nube).</p>';
+    html += '<p style="color:var(--muted);font-size:11px;line-height:1.5;margin:0;">☁️ Tus datos se sincronizan de forma segura en la nube (Firebase) con tu cuenta, y también se guardan en caché en este dispositivo para que la app funcione sin conexión.</p>';
     html += '</div>';
 
     html += '</div>';
@@ -2349,7 +2367,7 @@
     var lastBackup = getLastBackupDate();
     var html = '<div class="modal-overlay" data-act="close-backup-modal-bg"><div class="modal" data-stop="1">';
     html += '<div class="modal-head"><h3>Respaldo de datos</h3><button data-act="close-backup-modal">✕</button></div>';
-    html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 6px;">Tus '+count+' tarjeta(s)/ahorro(s) se guardan en este navegador. Descarga un respaldo de vez en cuando por si cambias de teléfono, borras el navegador, o algo sale mal.</p>';
+    html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 6px;">Tus '+count+' tarjeta(s)/ahorro(s) se sincronizan con tu cuenta en la nube. Aun así, descarga un respaldo de vez en cuando como copia extra por si acaso.</p>';
     html += '<p style="color:'+(lastBackup?"var(--mint)":"var(--amber)")+';font-size:11px;margin:0 0 14px;">'+
       (lastBackup ? "Último respaldo: "+dateLabelFull(lastBackup) : "Todavía no has descargado ningún respaldo.")+'</p>';
     html += '<button class="modal-save" data-act="export-backup" style="margin-bottom:10px;">⬇ Descargar respaldo (.json)</button>';
@@ -2442,7 +2460,7 @@
       '<span class="lbl" style="margin-bottom:0;">'+label+'</span>'+
       (icon ? '<span style="font-size:12px;opacity:.85;">'+icon+'</span>' : '')+
       '</div>'+
-      '<div class="val" style="color:'+color+';">'+fmt(value)+'</div></div>';
+      '<div class="val" style="color:'+color+';">'+fmtMasked(value)+'</div></div>';
   }
 
   function emptyState(icon, title, subtitle){
@@ -2466,7 +2484,7 @@
       var presu0 = (data.budget.salary||0)*4.33*(data.budget.pctGastos/100);
       if(presu0>0 && gastoMes0>presu0){
         out += '<div class="alerts" style="background:rgba(255,69,58,.12);border:1px solid rgba(255,69,58,.25);border-left:3px solid var(--coral);"><div class="title">🔴 Presupuesto excedido</div>'+
-          '<div class="row"><span>Gastos del mes</span><span class="amt" style="color:var(--coral)">'+fmt(gastoMes0)+' / '+fmt(presu0)+'</span></div></div>';
+          '<div class="row"><span>Gastos del mes</span><span class="amt" style="color:var(--coral)">'+fmtMasked(gastoMes0)+' / '+fmtMasked(presu0)+'</span></div></div>';
       }
     }
     if(s.alertGoals){
@@ -2509,7 +2527,7 @@
         var lastD = histPoints[histPoints.length-1].Deuda;
         if(prevD>0 && lastD>prevD){
           out += '<div class="alerts" style="background:rgba(255,159,10,.12);border:1px solid rgba(255,159,10,.25);border-left:3px solid var(--amber);margin-top:'+(out?"8px":"0")+';"><div class="title" style="color:var(--amber);">🟡 Tu deuda total creció</div>'+
-            '<div class="row"><span>Vs. mes anterior</span><span class="amt" style="color:var(--amber)">'+fmt(prevD)+' → '+fmt(lastD)+'</span></div></div>';
+            '<div class="row"><span>Vs. mes anterior</span><span class="amt" style="color:var(--amber)">'+fmtMasked(prevD)+' → '+fmtMasked(lastD)+'</span></div></div>';
         }
       }
     }
@@ -2701,7 +2719,7 @@
   }
 
   function renderPersonalCreditsSection(){
-    var html = '<section style="margin-bottom:32px;"><div class="sec-head"><div class="sec-title">🏦 Créditos personales</div>';
+    var html = '<section style="margin-bottom:32px;">'+renderHideBalancesToggle()+'<div class="sec-head"><div class="sec-title">🏦 Créditos personales</div>';
     if(ui.personalCreditForm !== "new"){
       html += '<button class="add-btn" data-act="open-personal-credit-form" data-mode="new">+ agregar</button>';
     }
@@ -2736,11 +2754,11 @@
     html += '<div class="card-top">';
     html += '<div style="flex:1;">';
     html += '<div class="name">'+esc(credit.description)+'</div>';
-    html += '<div class="amount-line"><span class="amount-main">'+fmt(remaining)+'</span><span class="amount-sub">de '+fmt(credit.principal)+' · '+credit.annualRate+'% anual</span></div>';
+    html += '<div class="amount-line"><span class="amount-main">'+fmtMasked(remaining)+'</span><span class="amount-sub">de '+fmtMasked(credit.principal)+' · '+credit.annualRate+'% anual</span></div>';
     if(!done && nextRow && nextDate){
-      html += '<div style="color:'+dueColor+';font-size:11px;margin-top:4px;">Próxima cuota: '+fmt(nextRow.total)+' · '+dateLabel(nextDate)+
+      html += '<div style="color:'+dueColor+';font-size:11px;margin-top:4px;">Próxima cuota: '+fmtMasked(nextRow.total)+' · '+dateLabel(nextDate)+
         (dLeft!==null ? ' ('+(dLeft===0?"hoy":"en "+dLeft+" día"+(dLeft===1?"":"s"))+')' : '')+'</div>';
-      html += '<div style="color:var(--muted);font-size:11px;margin-top:2px;">'+fmt(nextRow.capital)+' capital + '+fmt(nextRow.interest)+' interés + '+fmt(nextRow.iva)+' IVA</div>';
+      html += '<div style="color:var(--muted);font-size:11px;margin-top:2px;">'+fmtMasked(nextRow.capital)+' capital + '+fmtMasked(nextRow.interest)+' interés + '+fmtMasked(nextRow.iva)+' IVA</div>';
     }
     if(done) html += '<div style="color:var(--mint);font-size:11px;margin-top:4px;">Liquidado ✓</div>';
     html += '</div>';
@@ -2872,7 +2890,7 @@
   }
 
   function renderCardsSection(){
-    var html = '<section><div class="sec-head"><div class="sec-title">💳 Tarjetas de crédito</div>'+
+    var html = '<section>'+renderHideBalancesToggle()+'<div class="sec-head"><div class="sec-title">💳 Tarjetas de crédito</div>'+
       '<button class="add-btn" data-act="open-modal" data-kind="card">+ agregar</button></div>';
     if(!data.cards.length){
       html += emptyState("💳", "Sin tarjetas todavía", 'Toca "agregar" para registrar tu primera tarjeta de crédito.');
@@ -2896,7 +2914,7 @@
     var payments = item.payments || [];
     var lastPayment = payments.length ? payments[payments.length-1] : null;
     var open = ui.openCard === item.id;
-    var grad = gradientForCard(item.name);
+    var grad = gradientForCard(item.name, item.colorOverride);
 
     var html = '<div class="card" data-card="'+item.id+'" style="padding:14px;">';
 
@@ -2925,8 +2943,8 @@
       '</div></div></div>';
     // linea inferior: saldo (numero principal, como iria el numero de tarjeta) + limite
     html += '<div style="position:relative;z-index:1;">'+
-      '<div style="color:#fff;font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-0.01em;">'+fmt(item.balance)+'</div>'+
-      '<div style="color:rgba(255,255,255,.7);font-family:var(--mono);font-size:11px;margin-top:2px;">de '+fmt(item.limit)+' límite</div>'+
+      '<div style="color:#fff;font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-0.01em;">'+fmtMasked(item.balance)+'</div>'+
+      '<div style="color:rgba(255,255,255,.7);font-family:var(--mono);font-size:11px;margin-top:2px;">de '+fmtMasked(item.limit)+' límite</div>'+
       '</div>';
     html += '</div>'; // fin cara de tarjeta
     html += '</button>';
@@ -2935,7 +2953,7 @@
     html += '<div style="display:grid;grid-template-columns:repeat('+(item.cutoffDay?3:2)+',1fr);gap:8px;margin-top:10px;">';
     html += '<div style="background:var(--surface3);border-radius:12px;padding:8px 10px;">'+
       '<div style="color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Disponible</div>'+
-      '<div style="color:var(--text);font-family:var(--mono);font-size:13px;font-weight:600;">'+(available!==null?fmt(available):"—")+'</div>'+
+      '<div style="color:var(--text);font-family:var(--mono);font-size:13px;font-weight:600;">'+(available!==null?fmtMasked(available):"—")+'</div>'+
       '</div>';
     html += '<div style="background:var(--surface3);border-radius:12px;padding:8px 10px;">'+
       '<div style="color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;">Uso</div>'+
@@ -2951,14 +2969,14 @@
 
     /* segunda fila de datos, solo si aplica: MSI/diferido/crédito a favor/último pago */
     var extraFacts = [];
-    if(msiOwed>0) extraFacts.push({label:"MSI pendiente", value:fmt(msiOwed), color:"var(--amber)"});
-    if(deferredOwed>0) extraFacts.push({label:"Diferido", value:fmt(deferredOwed), color:"var(--coral)"});
+    if(msiOwed>0) extraFacts.push({label:"MSI pendiente", value:fmtMasked(msiOwed), color:"var(--amber)"});
+    if(deferredOwed>0) extraFacts.push({label:"Diferido", value:fmtMasked(deferredOwed), color:"var(--coral)"});
     // Crédito a favor "restante": lo guardado internamente se resta contra el saldo, MSI y
     // diferidos vigentes — mostrar el número crudo hacía parecer que el crédito "nunca se
     // quitaba" aunque ya se hubiera consumido con gastos nuevos.
     var remainingCredit = Math.max(0, (item.extraCredit||0) - item.balance - msiOwed - deferredOwed);
-    if(remainingCredit>0) extraFacts.push({label:"Crédito a favor", value:fmt(remainingCredit), color:"var(--mint)"});
-    if(lastPayment) extraFacts.push({label:"Último pago", value:fmt(lastPayment.amount)+" · "+dateLabel(lastPayment.date), color:"var(--text)"});
+    if(remainingCredit>0) extraFacts.push({label:"Crédito a favor", value:fmtMasked(remainingCredit), color:"var(--mint)"});
+    if(lastPayment) extraFacts.push({label:"Último pago", value:fmtMasked(lastPayment.amount)+" · "+dateLabel(lastPayment.date), color:"var(--text)"});
     if(extraFacts.length){
       html += '<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;">';
       extraFacts.forEach(function(f){
@@ -2978,7 +2996,7 @@
       var dueTotal = dueInfo.amount;
       html += '<button data-act="toggle-card" data-id="'+item.id+'" style="width:100%;text-align:left;background:var(--surface3);border:none;border-left:3px solid '+dueColor+';border-radius:10px;padding:8px 10px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;">'+
         '<span style="color:var(--text);font-size:11px;">Cubrir antes del '+dateLabel(due)+'</span>'+
-        '<span style="font-family:var(--mono);color:'+dueColor+';font-size:13px;font-weight:600;white-space:nowrap;">'+fmt(dueTotal)+'</span>'+
+        '<span style="font-family:var(--mono);color:'+dueColor+';font-size:13px;font-weight:600;white-space:nowrap;">'+fmtMasked(dueTotal)+'</span>'+
         '</button>';
     }
 
@@ -2988,10 +3006,10 @@
       if(due && dueInfo.amount>0){
         html += '<div style="background:var(--surface3);border-radius:10px;padding:8px 10px;margin-top:8px;">'+
           '<div style="color:var(--muted);font-size:10px;">Consulta tu estado de cuenta para confirmar el pago para no generar intereses — la app no conoce el saldo oficial del banco.</div>'+
-          (msiDue>0 ? '<div style="color:var(--amber);font-size:11px;margin-top:4px;">incluye '+fmt(msiDue)+' de cuotas MSI</div>' : '')+
-          (defDue>0 ? '<div style="color:var(--coral);font-size:11px;margin-top:4px;">incluye '+fmt(defDue)+' de pagos diferidos (con interés + IVA)</div>' : '')+
-          (dueInfo.credit>0 ? '<div style="color:var(--mint);font-size:11px;margin-top:4px;">se restó '+fmt(dueInfo.credit)+' de crédito a favor</div>' : '')+
-          (futureCycleTotal>0 ? '<div style="color:var(--muted);font-size:11px;margin-top:4px;">'+fmt(futureCycleTotal)+' en compras recientes no entran aquí — se facturan en el próximo corte</div>' : '')+
+          (msiDue>0 ? '<div style="color:var(--amber);font-size:11px;margin-top:4px;">incluye '+fmtMasked(msiDue)+' de cuotas MSI</div>' : '')+
+          (defDue>0 ? '<div style="color:var(--coral);font-size:11px;margin-top:4px;">incluye '+fmtMasked(defDue)+' de pagos diferidos (con interés + IVA)</div>' : '')+
+          (dueInfo.credit>0 ? '<div style="color:var(--mint);font-size:11px;margin-top:4px;">se restó '+fmtMasked(dueInfo.credit)+' de crédito a favor</div>' : '')+
+          (futureCycleTotal>0 ? '<div style="color:var(--muted);font-size:11px;margin-top:4px;">'+fmtMasked(futureCycleTotal)+' en compras recientes no entran aquí — se facturan en el próximo corte</div>' : '')+
           '<div style="color:var(--muted);font-size:11px;margin-top:4px;">'+(dLeft===0?"vence hoy":"faltan "+dLeft+" día"+(dLeft===1?"":"s"))+' desde el corte del día '+item.cutoffDay+'</div>'+
           '</div>';
       }
@@ -3023,7 +3041,7 @@
     var thisMonthNow = new Date();
     var thisMonthTotalSummary = monthTotal(expenses, thisMonthNow.getFullYear(), thisMonthNow.getMonth());
     var html = '<div class="subsection">';
-    html += renderSubsectionToggle(item.id, "expenses", "Gastos", expenses.length+" · "+fmt(thisMonthTotalSummary)+" este mes");
+    html += renderSubsectionToggle(item.id, "expenses", "Gastos", expenses.length+" · "+fmtMasked(thisMonthTotalSummary)+" este mes");
     if(!open){ html += '</div>'; return html; }
     html += '<div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:8px;margin-bottom:4px;">';
     html += '<input type="file" accept="image/*,.pdf,application/pdf" id="receipt-input-'+item.id+'" style="display:none;" />';
@@ -3049,7 +3067,7 @@
       var diff = thisTotal-prevTotal;
       var pctChange = prevTotal>0 ? Math.round((diff/prevTotal)*100) : null;
       html += '<div style="background:var(--surface3);border-radius:10px;padding:8px 10px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">'+
-        '<span style="color:var(--muted);font-size:11px;">Este mes: <span style="color:var(--text);font-family:var(--mono);">'+fmt(thisTotal)+'</span> · mes anterior: '+fmt(prevTotal)+'</span>'+
+        '<span style="color:var(--muted);font-size:11px;">Este mes: <span style="color:var(--text);font-family:var(--mono);">'+fmtMasked(thisTotal)+'</span> · mes anterior: '+fmtMasked(prevTotal)+'</span>'+
         (pctChange!==null ? '<span style="color:'+(diff>0?"var(--coral)":"var(--mint)")+';font-size:11px;white-space:nowrap;">'+(diff>0?"▲":diff<0?"▼":"—")+' '+Math.abs(pctChange)+'%</span>' : '')+
         '</div>';
     }
@@ -3093,7 +3111,7 @@
         '</div>'+
         '<div class="swipe-content mini-row" style="padding:2px 0;">'+
         '<span class="pay-date" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:65%;">'+esc(e.description)+' · '+dateLabel(e.date)+'</span>'+
-        '<span style="font-family:var(--mono);font-size:12px;">'+fmt(e.amount)+'</span>'+
+        '<span style="font-family:var(--mono);font-size:12px;">'+fmtMasked(e.amount)+'</span>'+
         '</div></div>';
     }
     function renderCycleCard(g){
@@ -3101,7 +3119,7 @@
       var color = dl<=3 ? "var(--coral)" : dl<=10 ? "var(--amber)" : "var(--mint)";
       var out = '<div class="mini-card"><div class="mini-row">'+
         '<span style="font-size:12px;">Corte '+dateLabel(g.corte)+' · '+g.count+' gasto'+(g.count===1?"":"s")+'</span>'+
-        '<span style="font-family:var(--mono);font-size:12px;">'+fmt(g.total)+'</span></div>'+
+        '<span style="font-family:var(--mono);font-size:12px;">'+fmtMasked(g.total)+'</span></div>'+
         '<div style="color:'+color+';font-size:11px;margin-top:4px;margin-bottom:8px;">Paga antes del '+dateLabel(g.pago)+' · '+(dl<=0?"vence hoy":"faltan "+dl+" día"+(dl===1?"":"s"))+'</div>';
       out += g.expenses.map(renderExpenseRow).join("");
       out += '</div>';
@@ -3117,7 +3135,7 @@
       }
     }
     if(schedule.unassigned.count>0){
-      html += '<div class="mini-card"><div class="empty" style="margin-bottom:8px;">'+schedule.unassigned.count+' gasto'+(schedule.unassigned.count===1?"":"s")+' sin ciclo asignado ('+fmt(schedule.unassigned.total)+') — agrega el día de corte y de pago para ordenarlos</div>';
+      html += '<div class="mini-card"><div class="empty" style="margin-bottom:8px;">'+schedule.unassigned.count+' gasto'+(schedule.unassigned.count===1?"":"s")+' sin ciclo asignado ('+fmtMasked(schedule.unassigned.total)+') — agrega el día de corte y de pago para ordenarlos</div>';
       html += schedule.unassigned.expenses.map(renderExpenseRow).join("");
       html += '</div>';
     }
@@ -3164,11 +3182,9 @@
   }
 
   function renderChips(id, kind){
-    var negs = CHIPS.map(function(c){ return '<button class="chip neg" data-act="adjust" data-kind="'+kind+'" data-id="'+id+'" data-delta="-'+c+'">−'+c+'</button>'; }).join("");
-    var poss = CHIPS.map(function(c){ return '<button class="chip pos" data-act="adjust" data-kind="'+kind+'" data-id="'+id+'" data-delta="'+c+'">+'+c+'</button>'; }).join("");
-    return '<div class="chips">'+negs+poss+
-      '<div class="chip-custom">'+
-      '<input type="text" inputmode="decimal" placeholder="monto" id="custom-'+kind+'-'+id+'" />'+
+    return '<div class="chips">'+
+      '<div class="chip-custom" style="margin-left:0;">'+
+      '<input type="text" inputmode="decimal" placeholder="monto" id="custom-'+kind+'-'+id+'" style="flex:1;" />'+
       '<button class="icon-btn" style="color:var(--coral)" data-act="custom-adjust" data-kind="'+kind+'" data-id="'+id+'" data-sign="-1">−</button>'+
       '<button class="icon-btn" style="color:var(--mint)" data-act="custom-adjust" data-kind="'+kind+'" data-id="'+id+'" data-sign="1">+</button>'+
       '</div></div>';
@@ -3195,7 +3211,7 @@
           '</div>'+
           '<div class="swipe-content mini-row" style="padding:2px 0;">'+
           '<span class="pay-date">'+dateLabelFull(p.date)+'</span>'+
-          '<span class="pay-amt">'+fmt(p.amount)+'</span>'+
+          '<span class="pay-amt">'+fmtMasked(p.amount)+'</span>'+
           '</div></div>';
       });
     }
@@ -3246,8 +3262,8 @@
       var nextPago = msiNextPago(plan, item.cutoffDay, item.dueDay);
       html += '<div class="mini-card"><div class="mini-row">'+
         '<div><div class="mini-desc">'+esc(plan.description)+'</div>'+
-        '<div class="mini-sub">'+fmt(monthly)+'/mes · '+paid+'/'+plan.months+' meses'+
-        (done ? ' · pagado' : ' · restan '+fmt(msiRemaining(plan,item.cutoffDay,item.dueDay)))+'</div>'+
+        '<div class="mini-sub">'+fmtMasked(monthly)+'/mes · '+paid+'/'+plan.months+' meses'+
+        (done ? ' · pagado' : ' · restan '+fmtMasked(msiRemaining(plan,item.cutoffDay,item.dueDay)))+'</div>'+
         (!done && nextPago ? '<div style="color:var(--amber);font-size:11px;margin-top:2px;">próxima cuota: '+dateLabel(nextPago)+'</div>' : '')+
         '</div>'+
         '<div class="mini-actions">'+
@@ -3305,8 +3321,8 @@
       html += '<div class="mini-card"><div class="mini-row">'+
         '<div><div class="mini-desc">'+esc(plan.description)+'</div>'+
         '<div class="mini-sub">'+plan.annualRate+'% anual · '+paid+'/'+plan.months+' meses'+
-        (done ? ' · pagado' : ' · restan '+fmt(remaining))+'</div>'+
-        (!done && nextRow ? '<div style="color:var(--coral);font-size:11px;margin-top:2px;">próxima cuota: '+fmt(nextRow.total)+' ('+fmt(nextRow.capital)+' capital + '+fmt(nextRow.interest)+' interés + '+fmt(nextRow.iva)+' IVA)'+(nextPago?' · '+dateLabel(nextPago):'')+'</div>' : '')+
+        (done ? ' · pagado' : ' · restan '+fmtMasked(remaining))+'</div>'+
+        (!done && nextRow ? '<div style="color:var(--coral);font-size:11px;margin-top:2px;">próxima cuota: '+fmtMasked(nextRow.total)+' ('+fmtMasked(nextRow.capital)+' capital + '+fmtMasked(nextRow.interest)+' interés + '+fmtMasked(nextRow.iva)+' IVA)'+(nextPago?' · '+dateLabel(nextPago):'')+'</div>' : '')+
         '</div>'+
         '<div class="mini-actions">'+
         '<button class="icon-btn" style="padding:2px;" data-act="edit-deferred" data-card="'+item.id+'" data-plan="'+plan.id+'">✎</button>'+
@@ -3345,7 +3361,7 @@
   }
 
   function renderSavingsSection(){
-    var html = '<section><div class="sec-head"><div class="sec-title">🐷 Ahorros</div>'+
+    var html = '<section>'+renderHideBalancesToggle()+'<div class="sec-head"><div class="sec-title">🐷 Ahorros</div>'+
       '<button class="add-btn" data-act="open-modal" data-kind="saving">+ agregar</button></div>';
     html += renderBankBreakdown();
     if(!data.savings.length){
@@ -3368,7 +3384,7 @@
     var html = '<div class="bank-box"><div class="bank-title">Desglose por banco</div>';
     rows.forEach(function(r){
       var pct = total>0 ? (r[1]/total)*100 : 0;
-      html += '<div class="bank-row"><div class="bank-row-top"><span>'+esc(r[0])+'</span><span class="bank-row-amt">'+fmt(r[1])+'</span></div>'+
+      html += '<div class="bank-row"><div class="bank-row-top"><span>'+esc(r[0])+'</span><span class="bank-row-amt">'+fmtMasked(r[1])+'</span></div>'+
         '<div class="bar"><div class="bar-fill" style="width:'+pct+'%;background:var(--mint)"></div></div></div>';
     });
     html += '</div>';
@@ -3388,18 +3404,18 @@
       var monthlyNeeded = overdue ? remaining : remaining/Math.max(1, monthsLeft);
       var tLabel = target.toLocaleDateString("es-MX",{day:"numeric",month:"short",year:"numeric"});
       if(overdue){
-        suggestion = '<div style="color:var(--coral);font-size:11px;margin-top:6px;">Meta vencida el '+dateLabel(target)+' · te faltan '+fmt(remaining)+'</div>';
+        suggestion = '<div style="color:var(--coral);font-size:11px;margin-top:6px;">Meta vencida el '+dateLabel(target)+' · te faltan '+fmtMasked(remaining)+'</div>';
       }else if(item.monthlyContribution && item.monthlyContribution>0){
         var monthsAtCurrentRate = Math.ceil(remaining/item.monthlyContribution);
         if(monthsAtCurrentRate > monthsLeft){
           var estCompletion = clampedDate(today.getFullYear(), today.getMonth()+monthsAtCurrentRate, today.getDate());
           var monthsLate = monthsAtCurrentRate - monthsLeft;
-          suggestion = '<div style="color:var(--amber);font-size:11px;margin-top:6px;line-height:1.4;">Con tu aportación actual de '+fmt(item.monthlyContribution)+'/mes, alcanzarías esta meta aproximadamente '+monthsLate+' mes'+(monthsLate===1?"":"es")+' después de la fecha objetivo (≈ '+dateLabel(estCompletion)+'). Necesitarías '+fmt(monthlyNeeded)+'/mes para llegar a tiempo.</div>';
+          suggestion = '<div style="color:var(--amber);font-size:11px;margin-top:6px;line-height:1.4;">Con tu aportación actual de '+fmtMasked(item.monthlyContribution)+'/mes, alcanzarías esta meta aproximadamente '+monthsLate+' mes'+(monthsLate===1?"":"es")+' después de la fecha objetivo (≈ '+dateLabel(estCompletion)+'). Necesitarías '+fmtMasked(monthlyNeeded)+'/mes para llegar a tiempo.</div>';
         }else{
-          suggestion = '<div style="color:var(--mint);font-size:11px;margin-top:6px;">Vas bien: con '+fmt(item.monthlyContribution)+'/mes llegarías antes del '+tLabel+'. El mínimo para llegar a tiempo es '+fmt(monthlyNeeded)+'/mes.</div>';
+          suggestion = '<div style="color:var(--mint);font-size:11px;margin-top:6px;">Vas bien: con '+fmtMasked(item.monthlyContribution)+'/mes llegarías antes del '+tLabel+'. El mínimo para llegar a tiempo es '+fmtMasked(monthlyNeeded)+'/mes.</div>';
         }
       }else{
-        suggestion = '<div style="color:var(--mint);font-size:11px;margin-top:6px;">Ahorra '+fmt(monthlyNeeded)+'/mes para llegar el '+tLabel+'</div>';
+        suggestion = '<div style="color:var(--mint);font-size:11px;margin-top:6px;">Ahorra '+fmtMasked(monthlyNeeded)+'/mes para llegar el '+tLabel+'</div>';
       }
     }
     var html = '<div class="card"><div class="card-top">';
@@ -3407,8 +3423,8 @@
     html += '<div class="name">'+esc(item.name);
     if(item.bank) html += '<span class="tag">'+esc(item.bank)+'</span>';
     html += '</div>';
-    html += '<div class="amount-line"><span class="amount-main" style="color:var(--mint)">'+fmt(item.current)+'</span>'+
-      '<span class="amount-sub">/ '+fmt(item.goal)+' · '+Math.round(pct)+'%</span></div>';
+    html += '<div class="amount-line"><span class="amount-main" style="color:var(--mint)">'+fmtMasked(item.current)+'</span>'+
+      '<span class="amount-sub">/ '+fmtMasked(item.goal)+' · '+Math.round(pct)+'%</span></div>';
     html += suggestion;
     html += '</button>';
     html += '<div style="display:flex;gap:2px;">'+
@@ -3536,6 +3552,22 @@
         '</div>';
       html += '<span class="field-label">Tasa de interés anual del saldo (opcional, %)</span><input type="text" inputmode="decimal" id="m-revolving-rate" placeholder="ej. 45 (para el orden de prioridad de pago)" value="'+(initial&&initial.revolvingRate?initial.revolvingRate:"")+'" style="margin-bottom:10px;" />';
       html += '<span class="field-label">Pago mínimo real de tu estado de cuenta (opcional)</span><input type="text" inputmode="decimal" id="m-min-payment" placeholder="Si lo dejas vacío, estimamos 5% del saldo" value="'+(initial&&initial.minPayment?initial.minPayment:"")+'" style="margin-bottom:10px;" />';
+      html += '<span class="field-label">Color de la tarjeta</span>';
+      html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">';
+      var selectedColorIdx = ui.modal.colorOverride;
+      var autoActive = selectedColorIdx==null;
+      var autoGrad = gradientForCard((initial && initial.name) || "?", null);
+      html += '<button type="button" data-act="pick-card-color" data-color-index="" title="Automático (según el nombre)" style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,'+autoGrad[0]+','+autoGrad[1]+');border:'+(autoActive?"3px solid var(--text)":"3px solid transparent")+';box-shadow:0 2px 8px rgba(0,0,0,.3);position:relative;display:flex;align-items:center;justify-content:center;">'+
+        '<span style="color:#fff;font-size:13px;">✨</span>'+
+        (autoActive ? '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;background:rgba(0,0,0,.25);border-radius:50%;">✓</span>' : '')+
+        '</button>';
+      CARD_GRADIENTS.forEach(function(grad, idx){
+        var isActive = selectedColorIdx===idx;
+        html += '<button type="button" data-act="pick-card-color" data-color-index="'+idx+'" style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,'+grad[0]+','+grad[1]+');border:'+(isActive?"3px solid var(--text)":"3px solid transparent")+';box-shadow:0 2px 8px rgba(0,0,0,.3);position:relative;">'+
+          (isActive ? '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;">✓</span>' : '')+
+          '</button>';
+      });
+      html += '</div>';
     }
     html += '<button class="modal-save" data-act="save-modal" data-kind="'+kind+'" data-existing-id="'+(initial?initial.id:"")+'">Guardar</button>';
     html += '</div></div>';
@@ -3777,7 +3809,15 @@
     var act = el.getAttribute("data-act");
 
     if(act==="open-modal"){
-      ui.modal = { kind: el.getAttribute("data-kind"), data:null };
+      ui.modal = { kind: el.getAttribute("data-kind"), data:null, colorOverride:null };
+      render();
+    }else if(act==="toggle-hide-balances"){
+      ui.hideBalances = !ui.hideBalances;
+      setHideBalancesPref(ui.hideBalances);
+      render();
+    }else if(act==="pick-card-color"){
+      var pickedIdx = el.getAttribute("data-color-index");
+      ui.modal.colorOverride = pickedIdx==="" ? null : parseInt(pickedIdx,10);
       render();
     }else if(act==="set-tab"){
       ui.tab = el.getAttribute("data-tab");
@@ -4066,7 +4106,7 @@
       if(e.target === el){ ui.modal = null; render(); }
     }else if(act==="edit-card"){
       var c = data.cards.find(function(x){return x.id===el.getAttribute("data-id");});
-      ui.modal = { kind:"card", data:c }; render();
+      ui.modal = { kind:"card", data:c, colorOverride: c.colorOverride!=null?c.colorOverride:null }; render();
     }else if(act==="edit-saving"){
       var s = data.savings.find(function(x){return x.id===el.getAttribute("data-id");});
       ui.modal = { kind:"saving", data:s }; render();
@@ -4324,6 +4364,7 @@
         item.dueDay = due ? parseInt(due,10) : null;
         item.revolvingRate = revRate ? parseFloat(revRate) : null;
         item.minPayment = minPay ? parseFloat(minPay) : null;
+        item.colorOverride = (ui.modal && ui.modal.colorOverride!=null) ? ui.modal.colorOverride : null;
         if(existingId){
           var old = data.cards.find(function(c){return c.id===existingId;});
           if(old){ item.msi = old.msi; item.payments = old.payments; item.expenses = old.expenses; item.diferidos = old.diferidos; item.extraCredit = old.extraCredit; }
