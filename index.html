@@ -895,8 +895,31 @@
     ["#BF5AF2","#3D1259"]
   ];
   function gradientForCard(name){
+    // Si el nombre de la tarjeta menciona un banco o tienda conocido en México,
+    // usamos el color real de esa marca (sin reproducir su logotipo, solo el
+    // color) para que se sienta como tu tarjeta física de verdad.
+    var lower = (name||"").toLowerCase();
+    var knownIssuers = [
+      { match:"nu(bank)?", gradient:["#9013D6","#5A0091"] },
+      { match:"bbva", gradient:["#1464F4","#072146"] },
+      { match:"liverpool", gradient:["#E6007E","#9E0057"] },
+      { match:"sears", gradient:["#C9A227","#7A5C0E"] },
+      { match:"klar", gradient:["#00B2A9","#00676A"] },
+      { match:"hey", gradient:["#1C1C1E","#000000"] },
+      { match:"banamex|citibanamex", gradient:["#004B87","#00263F"] },
+      { match:"santander", gradient:["#EC0000","#7A0000"] },
+      { match:"banorte", gradient:["#D22630","#7A0F14"] },
+      { match:"hsbc", gradient:["#DB0011","#7A0009"] },
+      { match:"scotiabank|scotia", gradient:["#EC111A","#7A0A0E"] },
+      { match:"invex", gradient:["#8C1D40","#4A0F22"] },
+      { match:"amex|american express", gradient:["#016FD0","#003D75"] }
+    ];
+    for(var i=0;i<knownIssuers.length;i++){
+      var re = new RegExp("\\b("+knownIssuers[i].match+")\\b", "i");
+      if(re.test(lower)) return knownIssuers[i].gradient;
+    }
     var hash = 0;
-    for(var i=0;i<name.length;i++){ hash = (hash*31 + name.charCodeAt(i)) & 0xffffffff; }
+    for(var k=0;k<name.length;k++){ hash = (hash*31 + name.charCodeAt(k)) & 0xffffffff; }
     return CARD_GRADIENTS[Math.abs(hash) % CARD_GRADIENTS.length];
   }
 
@@ -2853,7 +2876,7 @@
       '</div>';
     // chip, a media altura como en una tarjeta real
     html += '<div style="position:relative;z-index:1;">'+
-      '<div style="width:34px;height:26px;border-radius:6px;background:linear-gradient(160deg,#F4E2A8,#C9A227);display:flex;align-items:center;justify-content:center;">'+
+      '<div style="width:34px;height:26px;border-radius:6px;background:linear-gradient(160deg,#E4E6E9,#A9AFB8);display:flex;align-items:center;justify-content:center;">'+
       '<div style="width:24px;height:17px;border:1.2px solid rgba(0,0,0,.35);border-radius:3px;position:relative;">'+
       '<div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(0,0,0,.35);"></div>'+
       '<div style="position:absolute;top:50%;left:0;right:0;height:1px;background:rgba(0,0,0,.35);"></div>'+
