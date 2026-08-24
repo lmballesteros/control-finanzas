@@ -400,7 +400,11 @@
     if(!due) return 0;
     return (card.msi||[]).reduce(function(s,p){
       var next = msiNextPago(p, card.cutoffDay, card.dueDay);
-      return (next && next.getTime()===due.getTime()) ? s+msiMonthly(p) : s;
+      // Incluye la cuota si cae justo en este corte, O si ya se venció y nunca se
+      // confirmó como pagada (atrasada) — antes, una cuota atrasada desaparecía
+      // por completo de este resumen en cuanto pasaba su fecha, aunque siguiera
+      // pendiente.
+      return (next && next.getTime()<=due.getTime()) ? s+msiMonthly(p) : s;
     },0);
   }
   function dateLabel(d){ return new Date(d).toLocaleDateString("es-MX",{day:"numeric",month:"short"}); }
@@ -881,7 +885,9 @@
     if(!due) return 0;
     return (card.diferidos||[]).reduce(function(s,p){
       var next = msiNextPago(p, card.cutoffDay, card.dueDay);
-      if(!next || next.getTime()!==due.getTime()) return s;
+      // Igual que con MSI: incluye la cuota si ya se venció y nunca se confirmó,
+      // no solo si cae justo en este corte exacto.
+      if(!next || next.getTime()>due.getTime()) return s;
       var row = deferredNextPayment(p, card.cutoffDay, card.dueDay);
       return row ? s+row.total : s;
     },0);
@@ -3301,7 +3307,7 @@
         '<div><div class="mini-desc">'+esc(plan.description)+'</div>'+
         '<div class="mini-sub">'+fmtMasked(monthly)+'/mes · '+paid+'/'+plan.months+' meses'+
         (done ? ' · pagado' : ' · restan '+fmtMasked(msiRemaining(plan,item.cutoffDay,item.dueDay)))+'</div>'+
-        (!done && nextPago ? '<div style="color:var(--amber);font-size:11px;margin-top:2px;">próxima cuota: '+dateLabel(nextPago)+'</div>' : '')+
+        (!done && nextPago ? '<div style="color:'+(daysUntil(nextPago)<0?"var(--coral)":"var(--amber)")+';font-size:11px;margin-top:2px;">próxima cuota: '+dateLabel(nextPago)+(daysUntil(nextPago)<0?' (atrasada)':'')+'</div>' : '')+
         '</div>'+
         '<div class="mini-actions">'+
         '<button class="icon-btn" style="padding:2px;" data-act="edit-msi" data-card="'+item.id+'" data-plan="'+plan.id+'">✎</button>'+
@@ -3361,7 +3367,7 @@
         '<div><div class="mini-desc">'+esc(plan.description)+'</div>'+
         '<div class="mini-sub">'+plan.annualRate+'% anual · '+paid+'/'+plan.months+' meses'+
         (done ? ' · pagado' : ' · restan '+fmtMasked(remaining))+'</div>'+
-        (!done && nextRow ? '<div style="color:var(--coral);font-size:11px;margin-top:2px;">próxima cuota: '+fmtMasked(nextRow.total)+' ('+fmtMasked(nextRow.capital)+' capital + '+fmtMasked(nextRow.interest)+' interés + '+fmtMasked(nextRow.iva)+' IVA)'+(nextRow.adjusted?' · ajustada a mano':'')+(nextPago?' · '+dateLabel(nextPago):'')+'</div>' : '')+
+        (!done && nextRow ? '<div style="color:var(--coral);font-size:11px;margin-top:2px;">próxima cuota: '+fmtMasked(nextRow.total)+' ('+fmtMasked(nextRow.capital)+' capital + '+fmtMasked(nextRow.interest)+' interés + '+fmtMasked(nextRow.iva)+' IVA)'+(nextRow.adjusted?' · ajustada a mano':'')+(nextPago?' · '+dateLabel(nextPago)+(daysUntil(nextPago)<0?' (atrasada)':''):'')+'</div>' : '')+
         '</div>'+
         '<div class="mini-actions">'+
         '<button class="icon-btn" style="padding:2px;" data-act="edit-deferred" data-card="'+item.id+'" data-plan="'+plan.id+'">✎</button>'+
