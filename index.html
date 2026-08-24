@@ -267,7 +267,7 @@
   var ui = { openCard:null, openSaving:null, msiForm:null, msiEditId:null, paymentForm:null, paymentEditId:null,
              expenseForm:null, expenseEditId:null, deferredForm:null, deferredEditId:null, modal:null,
              apiKeyModal:false, backupModal:false, backupMessage:"", scanningCard:null, scanError:"", expenseDraft:null,
-             reconcileBusy:false, reconcileError:"", reconcileResult:null, reconcileTarget:null,
+             reconcileBusy:false, reconcileError:"", reconcileResult:null, reconcileTarget:null, reconcileManualForm:null,
              personalCreditForm:null, tab:"resumen", analysisQuery:"", donutSelected:null, toast:null,
              movQuery:"", movCategory:"", movCard:"", extraPayment:0, movCardPicker:false, deferredInstallPrompt:null, reassignCategory:null, updateAvailable:false, devModeModal:false, renamingCategory:null,
              cloudModal:false, cloudMode:"login", cloudError:"", cloudBusy:false, cloudUser:null, cloudStatus:"signed-out", cloudConflict:null, authChecked:false,
@@ -2968,11 +2968,29 @@
     }
 
     var reconciling = ui.reconcileBusy && ui.reconcileTarget === item.id;
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface3);border-radius:10px;padding:8px 10px;margin-bottom:8px;">'+
+    var manualForm = ui.reconcileManualForm === item.id;
+    html += '<div style="background:var(--surface3);border-radius:10px;padding:8px 10px;margin-bottom:8px;">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;">'+
       '<span style="color:var(--muted);font-size:11px;">📄 ¿Coincide con tu estado de cuenta?</span>'+
+      '<div style="display:flex;gap:10px;">'+
       '<input type="file" accept="image/*,.pdf,application/pdf" id="statement-input-'+item.id+'" style="display:none;" />'+
-      '<button class="mini-add" style="color:var(--blue);" data-act="reconcile-statement" data-id="'+item.id+'" '+(reconciling?"disabled":"")+'>'+(reconciling?"comparando…":"conciliar")+'</button>'+
-      '</div>';
+      '<button class="mini-add" style="color:var(--muted);" data-act="toggle-reconcile-manual" data-id="'+item.id+'">✍️ a mano</button>'+
+      '<button class="mini-add" style="color:var(--blue);" data-act="reconcile-statement" data-id="'+item.id+'" '+(reconciling?"disabled":"")+'>'+(reconciling?"comparando…":"📷 con foto")+'</button>'+
+      '</div></div>';
+    if(manualForm){
+      html += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--hairline);">'+
+        '<span class="field-label">Saldo al corte (de tu estado de cuenta)</span>'+
+        '<input type="text" inputmode="decimal" id="manual-balance-'+item.id+'" placeholder="ej. 5200" style="margin-bottom:8px;" />'+
+        '<span class="field-label">Pago para no generar intereses</span>'+
+        '<input type="text" inputmode="decimal" id="manual-noint-'+item.id+'" placeholder="ej. 5200" style="margin-bottom:8px;" />'+
+        '<span class="field-label">Pago mínimo (opcional)</span>'+
+        '<input type="text" inputmode="decimal" id="manual-minpay-'+item.id+'" placeholder="ej. 520" style="margin-bottom:8px;" />'+
+        '<div class="form-actions">'+
+        '<button class="btn-cancel" data-act="toggle-reconcile-manual" data-id="'+item.id+'">Cancelar</button>'+
+        '<button class="btn-save" data-act="submit-reconcile-manual" data-id="'+item.id+'">Comparar</button>'+
+        '</div></div>';
+    }
+    html += '</div>';
     if(!reconciling && ui.reconcileTarget===item.id && ui.reconcileError){
       html += '<div style="color:var(--coral);font-size:11px;margin-bottom:8px;">'+esc(ui.reconcileError)+'</div>';
     }
@@ -4069,6 +4087,36 @@
       var rcid = el.getAttribute("data-id");
       var rinp = document.getElementById("statement-input-"+rcid);
       if(rinp) rinp.click();
+    }else if(act==="toggle-reconcile-manual"){
+      var tmid = el.getAttribute("data-id");
+      ui.reconcileManualForm = ui.reconcileManualForm===tmid ? null : tmid;
+      ui.reconcileError = "";
+      render();
+    }else if(act==="submit-reconcile-manual"){
+      var smid = el.getAttribute("data-id");
+      var balanceEl = document.getElementById("manual-balance-"+smid);
+      var noIntEl = document.getElementById("manual-noint-"+smid);
+      var minPayEl = document.getElementById("manual-minpay-"+smid);
+      var manualBalance = balanceEl && balanceEl.value ? parseFloat(balanceEl.value) : null;
+      var manualNoInt = noIntEl && noIntEl.value ? parseFloat(noIntEl.value) : null;
+      var manualMinPay = minPayEl && minPayEl.value ? parseFloat(minPayEl.value) : null;
+      if(manualBalance==null && manualNoInt==null){
+        ui.reconcileError = "Escribe al menos el saldo al corte o el pago para no generar intereses.";
+        ui.reconcileTarget = smid;
+        render();
+      }else{
+        var mCard = data.cards.find(function(c){ return c.id===smid; });
+        var mAppDue = cardAmountDueNow(mCard);
+        ui.reconcileResult = {
+          cardId: smid,
+          statement: { cutoffDate:null, dueDate:null, statementBalance:manualBalance, noInterestPayment:manualNoInt, minimumPayment:manualMinPay },
+          appBalance: cardUsedTotal(mCard),
+          appAmountDue: mAppDue.amount
+        };
+        ui.reconcileManualForm = null;
+        ui.reconcileError = "";
+        render();
+      }
     }else if(act==="close-reconcile-result" || act==="close-reconcile-result-bg"){
       if(act==="close-reconcile-result-bg" && e.target!==el) return;
       ui.reconcileResult = null; render();
