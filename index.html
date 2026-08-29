@@ -3086,8 +3086,13 @@
       '<div style="position:absolute;top:50%;left:0;right:0;height:1px;background:rgba(0,0,0,.35);"></div>'+
       '</div></div></div>';
     // linea inferior: saldo (numero principal, como iria el numero de tarjeta) + limite
+    // linea inferior: saldo total (numero principal) + limite — el saldo total incluye
+    // saldo normal + MSI pendiente + diferidos pendientes - crédito a favor, para que
+    // coincida con "saldo al corte + movimientos después del corte - pagos" tal como
+    // lo verías en tu estado de cuenta real (antes solo mostraba el saldo "normal",
+    // dejando fuera MSI y diferidos, lo cual no cuadraba con el total real).
     html += '<div style="position:relative;z-index:1;">'+
-      '<div style="color:#fff;font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-0.01em;">'+fmtMasked(item.balance)+'</div>'+
+      '<div style="color:#fff;font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-0.01em;">'+fmtMasked(usedTotal)+'</div>'+
       '<div style="color:rgba(255,255,255,.7);font-family:var(--mono);font-size:11px;margin-top:2px;">de '+fmtMasked(item.limit)+' límite</div>'+
       '</div>';
     html += '</div>'; // fin cara de tarjeta
