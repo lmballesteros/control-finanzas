@@ -268,7 +268,7 @@
              expenseForm:null, expenseEditId:null, deferredForm:null, deferredEditId:null, modal:null,
              apiKeyModal:false, backupModal:false, backupMessage:"", scanningCard:null, scanError:"", expenseDraft:null,
              reconcileBusy:false, reconcileError:"", reconcileResult:null, reconcileTarget:null, reconcileManualForm:null, showPastCycles:null,
-             openSubsections:{}, adjustDeferredTarget:null,
+             openSubsections:{}, adjustDeferredTarget:null, editCreditTarget:null,
              personalCreditForm:null, tab:"resumen", analysisQuery:"", donutSelected:null, toast:null,
              movQuery:"", movCategory:"", movCard:"", extraPayment:0, movCardPicker:false, deferredInstallPrompt:null, reassignCategory:null, updateAvailable:false, devModeModal:false, renamingCategory:null,
              cloudModal:false, cloudMode:"login", cloudError:"", cloudBusy:false, cloudUser:null, cloudStatus:"signed-out", cloudConflict:null, authChecked:false,
@@ -753,15 +753,20 @@
   }
   function cardAmountDueNow(card){
     var due = nextDueDate(card.dueDay);
-    if(!due) return {due:null, amount:0, futureCycleTotal:0, amountDueNow:0};
+    var credit = card.extraCredit || 0;
+    // Deuda total de la tarjeta (saldo + MSI + diferidos pendientes) sin importar si
+    // tiene día de pago configurado. Antes, sin día de pago, esta función regresaba
+    // "nada pendiente" de inmediato — ocultando tarjetas con MSI/saldo real de las
+    // alertas y mandándolas al fondo del orden.
+    var totalOwed = Math.max(0, card.balance + cardMsiTotal(card) + cardDeferredTotal(card) - credit);
+    if(!due) return {due:null, amount:0, futureCycleTotal:0, amountDueNow:0, totalOwed:totalOwed, needsDueDay: totalOwed>0};
     var schedule = paymentSchedule(card);
     var futureCycleTotal = schedule.cycles.filter(function(g){ return g.pago.getTime() > due.getTime(); }).reduce(function(s,g){ return s+g.total; },0);
     var amountDueNow = Math.max(0, card.balance - futureCycleTotal);
     var msiDue = msiDueThisPeriod(card, due);
     var defDue = deferredDueThisPeriod(card, due);
     var rawTotal = amountDueNow+msiDue+defDue;
-    var credit = card.extraCredit || 0;
-    return {due:due, amount: Math.max(0, rawTotal-credit), futureCycleTotal:futureCycleTotal, amountDueNow:amountDueNow, rawTotal:rawTotal, credit:credit};
+    return {due:due, amount: Math.max(0, rawTotal-credit), futureCycleTotal:futureCycleTotal, amountDueNow:amountDueNow, rawTotal:rawTotal, credit:credit, totalOwed:totalOwed, needsDueDay:false};
   }
 
   function sortCardsByDue(cards){
@@ -770,10 +775,17 @@
       var db = cardAmountDueNow(b);
       var aPending = da.due && da.amount > 0;
       var bPending = db.due && db.amount > 0;
+      // 1) Tarjetas con fecha de pago conocida y algo pendiente: la más próxima primero.
+      if(aPending && bPending) return da.due - db.due;
       if(aPending && !bPending) return -1;
       if(!aPending && bPending) return 1;
-      if(!aPending && !bPending) return 0;
-      return da.due - db.due;
+      // 2) Ninguna tiene fecha de pago pendiente conocida: si alguna tiene deuda real
+      // pero le falta configurar el día de corte/pago, no debe perderse al fondo —
+      // la ordenamos primero (de mayor a menor deuda) para que salte a la vista.
+      if(da.needsDueDay && !db.needsDueDay) return -1;
+      if(!da.needsDueDay && db.needsDueDay) return 1;
+      if(da.needsDueDay && db.needsDueDay) return db.totalOwed - da.totalOwed;
+      return 0;
     });
   }
 
@@ -1616,40 +1628,94 @@
   }
   function computePaymentEffect(card, amount, due, rawTotal){
     var balanceApplied = Math.min(amount, card.balance);
-    var leftoverBanked = amount - balanceApplied;
+    var leftover = +(amount - balanceApplied).toFixed(2);
     var existingCredit = card.extraCredit || 0;
-    var coversEverything = due && rawTotal > 0 && (amount + existingCredit) >= rawTotal - 0.01;
     var msi = card.msi || [];
     var diferidos = card.diferidos || [];
-    var extraCredit = existingCredit + leftoverBanked;
+    var adjustments = []; // para poder revertir exactamente si se edita/borra el pago
+    var coversEverything = due && rawTotal > 0 && (amount + existingCredit) >= rawTotal - 0.01;
+    var extraCredit;
     if(coversEverything){
       msi = msi.map(function(p){
         var next = msiNextPago(p, card.cutoffDay, card.dueDay);
-        if(next && next.getTime()===due.getTime()){
+        if(next && next.getTime()<=due.getTime()){
           var paid = msiEffectivePaid(p, card.cutoffDay, card.dueDay);
-          return Object.assign({}, p, {paidMonths: Math.min(p.months, paid+1)});
+          var newPaid = Math.min(p.months, paid+1);
+          adjustments.push({kind:"msi", planId:p.id, from:p.paidMonths, to:newPaid});
+          return Object.assign({}, p, {paidMonths: newPaid});
         }
         return p;
       });
       diferidos = diferidos.map(function(p){
         var next = msiNextPago(p, card.cutoffDay, card.dueDay);
-        if(next && next.getTime()===due.getTime()){
+        if(next && next.getTime()<=due.getTime()){
           var paid2 = msiEffectivePaid(p, card.cutoffDay, card.dueDay);
-          return Object.assign({}, p, {paidMonths: Math.min(p.months, paid2+1)});
+          var newPaid2 = Math.min(p.months, paid2+1);
+          adjustments.push({kind:"diferido", planId:p.id, from:p.paidMonths, to:newPaid2});
+          return Object.assign({}, p, {paidMonths: newPaid2});
         }
         return p;
       });
       var nonBalancePortion = Math.max(0, rawTotal - balanceApplied);
-      extraCredit = Math.max(0, extraCredit - nonBalancePortion);
+      extraCredit = Math.max(0, existingCredit + leftover - nonBalancePortion);
+    }else{
+      // No sabemos (o el pago no alcanza para) cubrir exactamente "este corte" con
+      // precisión de fecha. Antes, en este caso, CUALQUIER excedente sobre el saldo
+      // se guardaba automáticamente como "crédito a favor" — lo cual generaba
+      // créditos fantasma cuando en realidad ese excedente correspondía a una cuota
+      // de MSI o diferido que la persona sí pagó (típicamente porque la tarjeta aún
+      // no tenía día de corte/pago configurado). En vez de eso, ese excedente se va
+      // abonando a las cuotas MÁS PRÓXIMAS de cada plan pendiente, una por una,
+      // mientras alcance para cubrirlas completas — y solo lo que sobre después de
+      // eso se guarda como crédito real.
+      msi = msi.map(function(p){
+        var paidCount = msiEffectivePaid(p, card.cutoffDay, card.dueDay);
+        var monthly = msiMonthly(p);
+        var startPaid = paidCount;
+        while(paidCount < p.months && monthly>0 && leftover >= monthly - 0.01){
+          leftover = +(leftover - monthly).toFixed(2);
+          paidCount++;
+        }
+        if(paidCount===startPaid) return p;
+        adjustments.push({kind:"msi", planId:p.id, from:p.paidMonths, to:paidCount});
+        return Object.assign({}, p, {paidMonths: paidCount});
+      });
+      diferidos = diferidos.map(function(p){
+        var paidCount2 = msiEffectivePaid(p, card.cutoffDay, card.dueDay);
+        var startPaid2 = paidCount2;
+        while(paidCount2 < p.months){
+          var row = buildAmortizationAdjusted(p.principal, p.months, p.annualRate, p.overrides)[paidCount2];
+          if(!row || leftover < row.total - 0.01) break;
+          leftover = +(leftover - row.total).toFixed(2);
+          paidCount2++;
+        }
+        if(paidCount2===startPaid2) return p;
+        adjustments.push({kind:"diferido", planId:p.id, from:p.paidMonths, to:paidCount2});
+        return Object.assign({}, p, {paidMonths: paidCount2});
+      });
+      extraCredit = existingCredit + leftover;
     }
     return {
       balanceApplied: balanceApplied,
-      creditAdded: leftoverBanked,
+      creditAdded: extraCredit-existingCredit,
       msi: msi,
       diferidos: diferidos,
+      adjustments: adjustments,
       extraCredit: extraCredit,
       newBalance: Math.max(0, +(card.balance-balanceApplied).toFixed(2))
     };
+  }
+  function reverseAdjustments(card, adjustments){
+    if(!adjustments || !adjustments.length) return card;
+    var msi = (card.msi||[]).map(function(p){
+      var adj = adjustments.find(function(a){ return a.kind==="msi" && a.planId===p.id; });
+      return adj ? Object.assign({}, p, {paidMonths: adj.from}) : p;
+    });
+    var diferidos = (card.diferidos||[]).map(function(p){
+      var adj = adjustments.find(function(a){ return a.kind==="diferido" && a.planId===p.id; });
+      return adj ? Object.assign({}, p, {paidMonths: adj.from}) : p;
+    });
+    return Object.assign({}, card, {msi:msi, diferidos:diferidos});
   }
 
   function registerPayment(cardId, amount, dateStr){
@@ -1661,7 +1727,7 @@
     var effect = computePaymentEffect(cardBefore, amount, info.due, info.rawTotal);
     var cards = data.cards.map(function(c){
       if(c.id!==cardId) return c;
-      var payments = (c.payments||[]).concat([{id:uid(), date:iso, amount:amount, balanceApplied:effect.balanceApplied, creditAdded:effect.creditAdded}])
+      var payments = (c.payments||[]).concat([{id:uid(), date:iso, amount:amount, balanceApplied:effect.balanceApplied, creditAdded:effect.creditAdded, adjustments:effect.adjustments}])
         .sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
       return Object.assign({}, c, {balance: effect.newBalance, payments:payments, msi:effect.msi, diferidos:effect.diferidos, extraCredit:effect.extraCredit});
     });
@@ -1677,16 +1743,16 @@
     if(!oldPayment) return;
     var oldBalanceApplied = oldPayment.balanceApplied != null ? oldPayment.balanceApplied : oldPayment.amount;
     var oldCreditAdded = oldPayment.creditAdded || 0;
-    var reversedCard = Object.assign({}, cardBefore, {
+    var reversedCard = reverseAdjustments(Object.assign({}, cardBefore, {
       balance: +(cardBefore.balance + oldBalanceApplied).toFixed(2),
       extraCredit: Math.max(0, (cardBefore.extraCredit||0) - oldCreditAdded)
-    });
+    }), oldPayment.adjustments);
     var info = cardAmountDueNow(reversedCard);
     var effect = computePaymentEffect(reversedCard, amount, info.due, info.rawTotal);
     var cards = data.cards.map(function(c){
       if(c.id!==cardId) return c;
       var payments = (c.payments||[]).map(function(p){
-        return p.id===paymentId ? Object.assign({},p,{amount:amount, date:iso, balanceApplied:effect.balanceApplied, creditAdded:effect.creditAdded}) : p;
+        return p.id===paymentId ? Object.assign({},p,{amount:amount, date:iso, balanceApplied:effect.balanceApplied, creditAdded:effect.creditAdded, adjustments:effect.adjustments}) : p;
       }).sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
       return Object.assign({}, c, {balance: effect.newBalance, payments:payments, msi:effect.msi, diferidos:effect.diferidos, extraCredit:effect.extraCredit});
     });
@@ -1712,7 +1778,8 @@
       if(!p) return Object.assign({}, c, {payments:payments});
       var balanceApplied = p.balanceApplied != null ? p.balanceApplied : p.amount;
       var creditAdded = p.creditAdded || 0;
-      return Object.assign({}, c, {
+      var reversedC = reverseAdjustments(c, p.adjustments);
+      return Object.assign({}, reversedC, {
         balance: +(c.balance + balanceApplied).toFixed(2),
         extraCredit: Math.max(0, (c.extraCredit||0) - creditAdded),
         payments: payments
@@ -1726,6 +1793,18 @@
     }
   }
   /* Restaura EXACTAMENTE el objeto de pago original (mismo id y campos) tras "Deshacer". */
+  function reapplyAdjustments(card, adjustments){
+    if(!adjustments || !adjustments.length) return card;
+    var msi = (card.msi||[]).map(function(p){
+      var adj = adjustments.find(function(a){ return a.kind==="msi" && a.planId===p.id; });
+      return adj ? Object.assign({}, p, {paidMonths: adj.to}) : p;
+    });
+    var diferidos = (card.diferidos||[]).map(function(p){
+      var adj = adjustments.find(function(a){ return a.kind==="diferido" && a.planId===p.id; });
+      return adj ? Object.assign({}, p, {paidMonths: adj.to}) : p;
+    });
+    return Object.assign({}, card, {msi:msi, diferidos:diferidos});
+  }
   function restorePayment(cardId, paymentObj){
     if(!paymentObj) return;
     var balanceApplied = paymentObj.balanceApplied != null ? paymentObj.balanceApplied : paymentObj.amount;
@@ -1734,7 +1813,8 @@
       if(c.id!==cardId) return c;
       if((c.payments||[]).some(function(p){ return p.id===paymentObj.id; })) return c; // ya existe, evita duplicados
       var payments = (c.payments||[]).concat([paymentObj]);
-      return Object.assign({}, c, {
+      var reappliedC = reapplyAdjustments(c, paymentObj.adjustments);
+      return Object.assign({}, reappliedC, {
         balance: Math.max(0, +(c.balance-balanceApplied).toFixed(2)),
         extraCredit: (c.extraCredit||0) + creditAdded,
         payments: payments
@@ -2519,7 +2599,16 @@
     var alerts = s.alertPayments ? upcomingDuePayments(data.cards) : [];
     var loanAlerts = s.alertPayments ? upcomingPersonalCreditPayments(data.personalCredits) : [];
     var cutoffs = s.alertCutoffs ? upcomingCutoffs(data.cards) : [];
+    var needsSetup = s.alertPayments ? data.cards.filter(function(c){ return cardAmountDueNow(c).needsDueDay; }) : [];
     var out = "";
+
+    if(needsSetup.length){
+      var setupRows = needsSetup.map(function(c){
+        return '<div class="row"><span>'+esc(c.name)+'</span><span class="amt" style="color:var(--amber)">'+fmtMasked(cardAmountDueNow(c).totalOwed)+' pendiente</span></div>';
+      }).join("");
+      out += '<div class="alerts" style="background:rgba(255,159,10,.12);border:1px solid rgba(255,159,10,.25);border-left:3px solid var(--amber);"><div class="title" style="color:var(--amber);">🟡 Configura el día de corte y de pago</div>'+setupRows+
+        '<div style="color:var(--muted);font-size:11px;margin-top:6px;">Estas tarjetas tienen saldo, MSI o diferidos pendientes, pero sin día de corte/pago no podemos avisarte a tiempo ni ordenarlas por urgencia. Edítalas desde Tarjetas.</div></div>';
+    }
 
     if(s.alertBudget && data.budget.configured){
       var now0 = new Date();
@@ -3018,14 +3107,24 @@
     // diferidos vigentes — mostrar el número crudo hacía parecer que el crédito "nunca se
     // quitaba" aunque ya se hubiera consumido con gastos nuevos.
     var remainingCredit = Math.max(0, (item.extraCredit||0) - item.balance - msiOwed - deferredOwed);
-    if(remainingCredit>0) extraFacts.push({label:"Crédito a favor", value:fmtMasked(remainingCredit), color:"var(--mint)"});
+    if(remainingCredit>0) extraFacts.push({label:"Crédito a favor", value:fmtMasked(remainingCredit), color:"var(--mint)", editable:true, cardId:item.id});
     if(lastPayment) extraFacts.push({label:"Último pago", value:fmtMasked(lastPayment.amount)+" · "+dateLabel(lastPayment.date), color:"var(--text)"});
     if(extraFacts.length){
       html += '<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;">';
       extraFacts.forEach(function(f){
-        html += '<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:0 2px;">'+
-          '<span style="color:var(--muted);">'+f.label+'</span>'+
-          '<span style="color:'+f.color+';font-family:var(--mono);">'+f.value+'</span></div>';
+        if(f.editable && ui.editCreditTarget===f.cardId){
+          html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:11px;padding:0 2px;">'+
+            '<span style="color:var(--muted);">'+f.label+'</span>'+
+            '<span style="display:flex;align-items:center;gap:4px;">'+
+            '<input type="text" inputmode="decimal" id="edit-credit-input-'+f.cardId+'" value="'+Math.round(item.extraCredit||0)+'" style="width:80px;padding:4px 6px;font-size:11px;" />'+
+            '<button class="icon-btn" style="color:var(--mint);padding:2px;" data-act="save-credit-edit" data-id="'+f.cardId+'">✓</button>'+
+            '<button class="icon-btn" style="color:var(--muted);padding:2px;" data-act="cancel-credit-edit">✕</button>'+
+            '</span></div>';
+        }else{
+          html += '<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:0 2px;">'+
+            '<span style="color:var(--muted);">'+f.label+(f.editable?' <button class="icon-btn" style="padding:0 2px;font-size:10px;color:var(--muted);" data-act="start-credit-edit" data-id="'+f.cardId+'">✎</button>':'')+'</span>'+
+            '<span style="color:'+f.color+';font-family:var(--mono);">'+f.value+'</span></div>';
+        }
       });
       html += '</div>';
     }
@@ -3674,6 +3773,18 @@
       renameCatEl.setSelectionRange(renameCatEl.value.length, renameCatEl.value.length);
     }
 
+    if(ui.editCreditTarget){
+      var ecInput = document.getElementById("edit-credit-input-"+ui.editCreditTarget);
+      if(ecInput){
+        ecInput.addEventListener("keydown", function(e){
+          if(e.key==="Enter"){ e.preventDefault(); onClick({ target: document.querySelector('[data-act="save-credit-edit"]') }); }
+          else if(e.key==="Escape"){ e.preventDefault(); onClick({ target: document.querySelector('[data-act="cancel-credit-edit"]') }); }
+        });
+        ecInput.focus();
+        ecInput.select();
+      }
+    }
+
     if(ui.adjustDeferredTarget){
       var adjInput = document.getElementById("adjust-deferred-input-"+ui.adjustDeferredTarget);
       if(adjInput){
@@ -4274,6 +4385,24 @@
         }
         ui.deferredForm = null; ui.deferredEditId = null;
         updateCardDeferred(dfcid, diferidos);
+      }
+    }else if(act==="start-credit-edit"){
+      ui.editCreditTarget = el.getAttribute("data-id");
+      render();
+    }else if(act==="cancel-credit-edit"){
+      ui.editCreditTarget = null;
+      render();
+    }else if(act==="save-credit-edit"){
+      var eccid = el.getAttribute("data-id");
+      var eciInput = document.getElementById("edit-credit-input-"+eccid);
+      var newCreditVal = eciInput ? parseFloat(eciInput.value) : NaN;
+      if(!isNaN(newCreditVal) && newCreditVal>=0){
+        var cards = data.cards.map(function(c){
+          if(c.id!==eccid) return c;
+          return Object.assign({}, c, {extraCredit: newCreditVal});
+        });
+        ui.editCreditTarget = null;
+        persist(withHistory(Object.assign({}, data, {cards:cards})));
       }
     }else if(act==="toggle-adjust-deferred"){
       var tacid = el.getAttribute("data-card"), tapid = el.getAttribute("data-plan");
