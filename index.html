@@ -264,7 +264,7 @@
   var data = loadData();
   saveData(); /* persiste inmediatamente cualquier migración de datos antiguos */
   applyAccentColor(data.settings.accentColor);
-  var ui = { openCard:null, openSaving:null, msiForm:null, msiEditId:null, paymentForm:null, paymentEditId:null,
+  var ui = { openCard:null, openSaving:null, openBankGroup:null, msiForm:null, msiEditId:null, paymentForm:null, paymentEditId:null,
              expenseForm:null, expenseEditId:null, deferredForm:null, deferredEditId:null, modal:null,
              apiKeyModal:false, backupModal:false, backupMessage:"", scanningCard:null, scanError:"", expenseDraft:null,
              reconcileBusy:false, reconcileError:"", reconcileResult:null, reconcileTarget:null, reconcileManualForm:null, showPastCycles:null,
@@ -3539,37 +3539,74 @@
   function renderSavingsSection(){
     var html = '<section>'+renderHideBalancesToggle()+'<div class="sec-head"><div class="sec-title">🐷 Ahorros</div>'+
       '<button class="add-btn" data-act="open-modal" data-kind="saving">+ agregar</button></div>';
-    html += renderBankBreakdown();
     if(!data.savings.length){
       html += emptyState("🐷", "Sin metas de ahorro", "Crea una meta y sigue tu avance por banco, con fecha límite si quieres.");
+      html += '</section>';
+      return html;
     }
-    data.savings.forEach(function(s){ html += renderSaving(s); });
+    var totalSaved = data.savings.reduce(function(s,x){ return s+(x.current||0); },0);
+    html += '<div class="stats" style="margin-bottom:16px;">'+stat("Total ahorrado", totalSaved, "var(--mint)", "🐷")+'</div>';
+    html += renderSavingsTips();
+    html += renderBankGroups();
     html += '</section>';
     return html;
   }
 
-  function renderBankBreakdown(){
-    if(!data.savings.length) return "";
-    var byBank = {};
-    data.savings.forEach(function(s){
-      var key = (s.bank && s.bank.trim()) ? s.bank.trim() : "Sin banco";
-      byBank[key] = (byBank[key]||0) + (s.current||0);
-    });
-    var rows = Object.keys(byBank).map(function(k){ return [k, byBank[k]]; }).sort(function(a,b){ return b[1]-a[1]; });
-    var total = rows.reduce(function(s,r){ return s+r[1]; },0);
-    var html = '<div class="bank-box"><div class="bank-title">Desglose por banco</div>';
-    rows.forEach(function(r){
-      var pct = total>0 ? (r[1]/total)*100 : 0;
-      html += '<div class="bank-row"><div class="bank-row-top"><span>'+esc(r[0])+'</span><span class="bank-row-amt">'+fmtMasked(r[1])+'</span></div>'+
-        '<div class="bar"><div class="bar-fill" style="width:'+pct+'%;background:var(--mint)"></div></div></div>';
-    });
+  function renderSavingsTips(){
+    var html = '<div class="bank-box" style="margin-bottom:16px;">';
+    html += '<div class="bank-title">💡 ¿Cuánto podrías ahorrar?</div>';
+    html += '<div style="color:var(--muted);font-size:11px;margin-bottom:10px;">Escribe cuánto podrías apartar por semana y mira a dónde llegarías con el tiempo.</div>';
+    html += '<input type="text" inputmode="decimal" id="savings-tip-input" placeholder="ej. 300 por semana" style="margin-bottom:8px;" />';
+    html += '<div id="savings-tip-preview" style="display:none;"></div>';
+    html += '<div style="color:var(--muted);font-size:11px;line-height:1.5;margin-top:10px;border-top:1px solid var(--hairline);padding-top:10px;">'+
+      '• Automatiza una transferencia el mismo día que te pagan, antes de que el dinero se te vaya en otras cosas.<br>'+
+      '• Empieza con una meta pequeña y alcanzable — el hábito importa más que el monto al principio.<br>'+
+      '• Si tienes deuda con intereses altos, normalmente conviene priorizarla antes que el ahorro (revisa el plan en Análisis).'+
+      '</div>';
     html += '</div>';
     return html;
   }
 
-  function renderSaving(item){
+  function renderBankGroups(){
+    var byBank = {};
+    data.savings.forEach(function(s){
+      var key = (s.bank && s.bank.trim()) ? s.bank.trim() : "Sin banco";
+      if(!byBank[key]) byBank[key] = [];
+      byBank[key].push(s);
+    });
+    var totalAll = data.savings.reduce(function(s,x){ return s+(x.current||0); },0);
+    var banks = Object.keys(byBank).sort(function(a,b){
+      var totalA = byBank[a].reduce(function(s,x){ return s+(x.current||0); },0);
+      var totalB = byBank[b].reduce(function(s,x){ return s+(x.current||0); },0);
+      return totalB-totalA;
+    });
+    var html = "";
+    banks.forEach(function(bankName){ html += renderBankGroup(bankName, byBank[bankName], totalAll); });
+    return html;
+  }
+
+  function renderBankGroup(bankName, items, totalAll){
+    var bankTotal = items.reduce(function(s,x){ return s+(x.current||0); },0);
+    var pct = totalAll>0 ? (bankTotal/totalAll)*100 : 0;
+    var open = ui.openBankGroup === bankName;
+    var html = '<div class="card"><div class="card-top">';
+    html += '<button class="card-main" data-act="toggle-bank-group" data-bank="'+esc(bankName)+'">';
+    html += '<div class="name">'+esc(bankName)+' <span class="tag">'+items.length+' meta'+(items.length===1?"":"s")+'</span></div>';
+    html += '<div class="amount-line"><span class="amount-main" style="color:var(--mint)">'+fmtMasked(bankTotal)+'</span>'+
+      '<span class="amount-sub">'+Math.round(pct)+'% del total ahorrado</span></div>';
+    html += '</button></div>';
+    html += '<div class="bar"><div class="bar-fill" style="width:'+pct+'%;background:var(--mint)"></div></div>';
+    if(open){
+      html += '<div style="margin-top:10px;display:flex;flex-direction:column;gap:10px;">';
+      items.forEach(function(item){ html += renderSavingGoalNested(item); });
+      html += '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderSavingGoalNested(item){
     var pct = item.goal>0 ? Math.min(100, (item.current/item.goal)*100) : 0;
-    var open = ui.openSaving === item.id;
     var remaining = Math.max(0, item.goal-item.current);
     var suggestion = "";
     if(item.targetDate && remaining>0){
@@ -3594,24 +3631,21 @@
         suggestion = '<div style="color:var(--mint);font-size:11px;margin-top:6px;">Ahorra '+fmtMasked(monthlyNeeded)+'/mes para llegar el '+tLabel+'</div>';
       }
     }
-    var html = '<div class="card"><div class="card-top">';
-    html += '<button class="card-main" data-act="toggle-saving" data-id="'+item.id+'">';
-    html += '<div class="name">'+esc(item.name);
-    if(item.bank) html += '<span class="tag">'+esc(item.bank)+'</span>';
-    html += '</div>';
-    html += '<div class="amount-line"><span class="amount-main" style="color:var(--mint)">'+fmtMasked(item.current)+'</span>'+
-      '<span class="amount-sub">/ '+fmtMasked(item.goal)+' · '+Math.round(pct)+'%</span></div>';
-    html += suggestion;
-    html += '</button>';
-    html += '<div style="display:flex;gap:2px;">'+
-      '<button class="icon-btn" data-act="edit-saving" data-id="'+item.id+'">✎</button>'+
-      '<button class="icon-btn" data-act="delete-saving" data-id="'+item.id+'">🗑</button>'+
-      '</div></div>';
-    html += '<div class="bar"><div class="bar-fill" style="width:'+pct+'%;background:var(--mint)"></div></div>';
-    if(open) html += renderChips(item.id, "saving");
+    var html = '<div class="mini-card">';
+    html += '<div class="mini-row"><div style="flex:1;"><div class="mini-desc">'+esc(item.name)+'</div>'+
+      '<div class="mini-sub">'+fmtMasked(item.current)+' / '+fmtMasked(item.goal)+' · '+Math.round(pct)+'%</div>'+
+      suggestion+
+      '</div>'+
+      '<div class="mini-actions">'+
+      '<button class="icon-btn" style="padding:2px;" data-act="edit-saving" data-id="'+item.id+'">✎</button>'+
+      '<button class="icon-btn" style="padding:2px;" data-act="delete-saving" data-id="'+item.id+'">🗑</button>'+
+      '</div></div>'+
+      '<div class="bar" style="height:4px;margin-top:8px;margin-bottom:8px;"><div class="bar-fill" style="width:'+pct+'%;background:var(--mint)"></div></div>';
+    html += renderChips(item.id, "saving");
     html += '</div>';
     return html;
   }
+
 
   function renderChartSection(){
     var points = monthlyAggregate(data.history);
@@ -3813,6 +3847,27 @@
         });
         adjInput.focus();
       }
+    }
+
+    // Calculadora en vivo de "¿cuánto podrías ahorrar?" (no depende de ninguna meta
+    // en particular, solo ilustra proyecciones a partir de un monto semanal).
+    var savingsTipInput = document.getElementById("savings-tip-input");
+    var savingsTipPreview = document.getElementById("savings-tip-preview");
+    if(savingsTipInput && savingsTipPreview){
+      var updateSavingsTip = function(){
+        var w = parseFloat(savingsTipInput.value);
+        if(w>0){
+          savingsTipPreview.style.display = "block";
+          var periods = [ {label:"En 1 mes", weeks:4.33}, {label:"En 3 meses", weeks:13}, {label:"En 6 meses", weeks:26}, {label:"En 1 año", weeks:52} ];
+          savingsTipPreview.innerHTML = periods.map(function(p){
+            return '<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px;"><span style="color:var(--muted);">'+p.label+'</span><span style="font-family:var(--mono);color:var(--mint);font-weight:600;">'+fmt(w*p.weeks)+'</span></div>';
+          }).join("");
+        }else{
+          savingsTipPreview.style.display = "none";
+        }
+      };
+      savingsTipInput.addEventListener("input", updateSavingsTip);
+      updateSavingsTip();
     }
 
     // Live preview for MSI cuota (updates only the preview div, never re-renders — keeps focus)
@@ -4319,9 +4374,9 @@
       ui.msiForm = null; ui.msiEditId = null; ui.paymentForm = null; ui.paymentEditId = null;
       ui.expenseForm = null; ui.expenseEditId = null; ui.deferredForm = null; ui.deferredEditId = null;
       render();
-    }else if(act==="toggle-saving"){
-      var sid = el.getAttribute("data-id");
-      ui.openSaving = ui.openSaving===sid ? null : sid;
+    }else if(act==="toggle-bank-group"){
+      var bgName = el.getAttribute("data-bank");
+      ui.openBankGroup = ui.openBankGroup===bgName ? null : bgName;
       render();
     }else if(act==="adjust"){
       var delta = parseFloat(el.getAttribute("data-delta"));
