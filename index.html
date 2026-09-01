@@ -2454,7 +2454,30 @@
         '<span style="position:absolute;top:2px;left:'+(on?"18px":"2px")+';width:18px;height:18px;border-radius:50%;background:'+(on?"var(--bg)":"var(--muted)")+';transition:left .15s;"></span>'+
         '</button></div>';
     });
-    html += configSectionWrap("alertas", "Centro de alertas", alertsBody, activeAlertCount+"/"+alertToggles.length+" activas");
+
+    var notifSupported = typeof Notification !== "undefined";
+    var notifPermission = notifSupported ? Notification.permission : "unsupported";
+    var notifSummary;
+    alertsBody += '<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--hairline);">';
+    alertsBody += '<span class="field-label" style="margin-bottom:6px;">🔔 Notificaciones push</span>';
+    if(!notifSupported){
+      alertsBody += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0;">Tu navegador no soporta notificaciones.</p>';
+      notifSummary = "no disponibles";
+    }else if(notifPermission === "denied"){
+      alertsBody += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0;">Bloqueaste las notificaciones para este sitio. Actívalas desde los ajustes de tu navegador si cambias de opinión.</p>';
+      notifSummary = "bloqueadas";
+    }else{
+      alertsBody += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px;">Te avisa cuando falten 3 días o menos para un pago — solo cuando abres la app (no son notificaciones en segundo plano).</p>';
+      if(notifPermission === "granted" && data.settings.notificationsEnabled){
+        alertsBody += '<button class="modal-save" style="background:var(--surface2);color:var(--text);" data-act="disable-notifications">🔕 Desactivar notificaciones</button>';
+        notifSummary = "activadas";
+      }else{
+        alertsBody += '<button class="modal-save" data-act="enable-notifications">🔔 Activar notificaciones</button>';
+        notifSummary = "desactivadas";
+      }
+    }
+    alertsBody += '</div>';
+    html += configSectionWrap("alertas", "Centro de alertas", alertsBody, activeAlertCount+"/"+alertToggles.length+" · push "+notifSummary);
 
     var categories = data.categories||DEFAULT_CATEGORIES;
     var categoriesBody = '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">';
@@ -2483,28 +2506,6 @@
       '<button class="btn-save" style="max-width:90px;" data-act="add-category">Agregar</button>'+
       '</div>';
     html += configSectionWrap("categorias", "Categorías de gastos", categoriesBody, categories.length+" categorías");
-
-    var notifSupported = typeof Notification !== "undefined";
-    var notifPermission = notifSupported ? Notification.permission : "unsupported";
-    var notifBody = "";
-    var notifSummary;
-    if(!notifSupported){
-      notifBody += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0;">Tu navegador no soporta notificaciones.</p>';
-      notifSummary = "No disponible";
-    }else if(notifPermission === "denied"){
-      notifBody += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0;">Bloqueaste las notificaciones para este sitio. Actívalas desde los ajustes de tu navegador si cambias de opinión.</p>';
-      notifSummary = "Bloqueadas";
-    }else{
-      notifBody += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px;">Te avisa cuando falten 3 días o menos para un pago — solo cuando abres la app (no son notificaciones en segundo plano).</p>';
-      if(notifPermission === "granted" && data.settings.notificationsEnabled){
-        notifBody += '<button class="modal-save" style="background:var(--surface2);color:var(--text);" data-act="disable-notifications">🔕 Desactivar notificaciones</button>';
-        notifSummary = "Activadas";
-      }else{
-        notifBody += '<button class="modal-save" data-act="enable-notifications">🔔 Activar notificaciones</button>';
-        notifSummary = "Desactivadas";
-      }
-    }
-    html += configSectionWrap("notificaciones", "Notificaciones", notifBody, notifSummary);
 
     var backupBody = '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px;">Tus datos se sincronizan en la nube con tu cuenta. Aun así, descarga un respaldo de vez en cuando, o restaura uno si lo necesitas.</p>';
     backupBody += '<button class="modal-save" data-act="open-backup-modal" style="margin-bottom:0;">⬇ Respaldo (descargar / restaurar)</button>';
