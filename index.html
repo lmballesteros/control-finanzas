@@ -28,6 +28,7 @@
     --bg:#000000; --surface:rgba(30,30,32,.68); --surface2:rgba(255,255,255,.07); --surface3:rgba(255,255,255,.055);
     --text:#F5F5F7; --muted:#98989D; --mint:#32D74B; --coral:#FF453A; --amber:#FF9F0A; --blue:#0A84FF;
     --hairline:rgba(255,255,255,.09);
+    --modal-bg:rgba(38,38,40,.86);
     --disp:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',Roboto,sans-serif;
     --body:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;
     --mono:ui-monospace,'SF Mono','Menlo','Cascadia Code',monospace;
@@ -41,6 +42,7 @@
     --bg:#FFFFFF; --surface:rgba(255,255,255,.72); --surface2:rgba(0,0,0,.045); --surface3:rgba(0,0,0,.035);
     --text:#1C1C1E; --muted:#6E6E73; --mint:#34C759; --coral:#FF3B30; --amber:#FF9500; --blue:#007AFF;
     --hairline:rgba(0,0,0,.1);
+    --modal-bg:rgba(255,255,255,.88);
   }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--bg);color:var(--text);font-family:var(--body);-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased;}
@@ -122,7 +124,7 @@
   .legend span{display:flex;align-items:center;gap:5px;}
   .dot{width:8px;height:8px;border-radius:50%;}
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:50;display:flex;align-items:flex-end;justify-content:center;padding:16px;}
-  .modal{background:rgba(38,38,40,.86);backdrop-filter:blur(30px) saturate(160%);-webkit-backdrop-filter:blur(30px) saturate(160%);border:1px solid var(--hairline);border-radius:24px;padding:20px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.5);}
+  .modal{background:var(--modal-bg);backdrop-filter:blur(30px) saturate(160%);-webkit-backdrop-filter:blur(30px) saturate(160%);border:1px solid var(--hairline);border-radius:24px;padding:20px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.5);}
   .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
   .modal-head h3{font-family:var(--disp);font-size:17px;font-weight:600;letter-spacing:-0.01em;margin:0;}
   .modal-head button{background:none;border:none;color:var(--muted);}
@@ -287,7 +289,7 @@
              reconcileBusy:false, reconcileError:"", reconcileResult:null, reconcileTarget:null, reconcileManualForm:null, showPastCycles:null,
              openSubsections:{}, adjustDeferredTarget:null, editCreditTarget:null,
              personalCreditForm:null, tab:"resumen", analysisQuery:"", donutSelected:null, toast:null,
-             movQuery:"", movCategory:"", movCard:"", extraPayment:0, movCardPicker:false, deferredInstallPrompt:null, reassignCategory:null, updateAvailable:false, devModeModal:false, renamingCategory:null,
+             movQuery:"", movCategory:"", movCard:"", movMonth:"", extraPayment:0, movCardPicker:false, deferredInstallPrompt:null, reassignCategory:null, updateAvailable:false, devModeModal:false, renamingCategory:null,
              cloudModal:false, cloudMode:"login", cloudError:"", cloudBusy:false, cloudUser:null, cloudStatus:"signed-out", cloudConflict:null, authChecked:false,
              deleteAccountModal:false, deleteAccountPassword:"", deleteAccountError:"", deleteAccountBusy:false, cloudResetSent:false,
              checkingUpdate:false, updateCheckResult:null,
@@ -1134,10 +1136,27 @@
       (c.expenses||[]).forEach(function(e){
         if(q && e.description.toLowerCase().indexOf(q)===-1) return;
         if(opts.category && (e.category||"Otros")!==opts.category) return;
+        if(opts.month && new Date(e.date).toISOString().slice(0,7)!==opts.month) return;
         results.push({id:e.id, description:e.description, amount:e.amount, date:e.date, category:e.category||"Otros", cardId:c.id, cardName:c.name});
       });
     });
     return results.sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
+  }
+  /* Meses distintos (AAAA-MM) en los que hay al menos un gasto registrado, sin
+     importar los demás filtros — para llenar el selector de periodo. Más reciente
+     primero. */
+  function movementMonths(cards){
+    var set = {};
+    cards.forEach(function(c){
+      (c.expenses||[]).forEach(function(e){ set[new Date(e.date).toISOString().slice(0,7)] = true; });
+    });
+    return Object.keys(set).sort().reverse();
+  }
+  function monthLabel(ym){
+    var parts = ym.split("-");
+    var d = new Date(parseInt(parts[0],10), parseInt(parts[1],10)-1, 1);
+    var label = d.toLocaleDateString("es-MX",{month:"long",year:"numeric"});
+    return label.charAt(0).toUpperCase()+label.slice(1);
   }
 
   /* ---------- salud financiera ---------- */
@@ -2035,7 +2054,7 @@
   function renderBottomNav(){
     var html = '<div style="position:fixed;bottom:0;left:0;padding:0 0 16px 16px;z-index:40;">'+
       '<button data-act="toggle-nav-sheet" aria-label="Menú" style="width:52px;height:52px;border-radius:50%;'+
-      'background:rgba(28,28,30,.85);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);'+
+      'background:var(--surface);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);'+
       'border:1px solid var(--hairline);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;'+
       'box-shadow:0 8px 24px rgba(0,0,0,.45);">'+
       '<span style="display:block;width:20px;height:2px;background:var(--text);border-radius:2px;"></span>'+
@@ -2047,10 +2066,10 @@
   function renderNavSheet(){
     if(!ui.navSheetOpen) return "";
     var html = '<div data-act="close-nav-sheet" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:44;"></div>';
-    html += '<div style="position:fixed;left:0;right:0;bottom:0;z-index:45;background:#1c1c1e;border-top-left-radius:22px;border-top-right-radius:22px;'+
+    html += '<div style="position:fixed;left:0;right:0;bottom:0;z-index:45;background:var(--modal-bg);backdrop-filter:blur(30px) saturate(160%);-webkit-backdrop-filter:blur(30px) saturate(160%);border-top-left-radius:22px;border-top-right-radius:22px;'+
       'border:1px solid var(--hairline);border-bottom:none;padding:10px 10px calc(env(safe-area-inset-bottom) + 14px);'+
       'max-width:480px;margin:0 auto;box-shadow:0 -8px 30px rgba(0,0,0,.4);">';
-    html += '<div style="width:36px;height:4px;background:rgba(255,255,255,.25);border-radius:2px;margin:2px auto 12px;"></div>';
+    html += '<div style="width:36px;height:4px;background:var(--muted);opacity:.4;border-radius:2px;margin:2px auto 12px;"></div>';
     html += '<div style="font-size:12px;font-weight:700;color:var(--muted);padding:0 8px 8px;">IR A</div>';
     NAV_ITEMS.forEach(function(it){
       var active = ui.tab === it.id;
@@ -2119,8 +2138,8 @@
 
     if(plan.hasEstimated){
       html += '<div style="background:rgba(255,159,10,.12);border:1px solid rgba(255,159,10,.3);border-radius:10px;padding:10px 12px;margin-bottom:12px;">'+
-        '<div style="color:var(--amber);font-size:12px;font-weight:600;margin-bottom:4px;">⚠ Este plan incluye al menos un pago estimado</div>'+
-        '<div style="color:var(--text);font-size:11px;line-height:1.5;">Para el saldo de tarjeta que no tiene un pago mínimo capturado, usamos una aproximación (5% del saldo o $300, lo que sea mayor) — no es el pago mínimo real de tu estado de cuenta. Edita esa tarjeta y captura "Pago mínimo real" para que el plan use tu dato exacto en vez de esta estimación.</div>'+
+        '<div style="color:var(--amber);font-size:12px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:6px;">⚠ Este plan incluye al menos un pago estimado '+renderInfoToggle("plan-estimated")+'</div>'+
+        (infoOpen("plan-estimated") ? '<div style="color:var(--text);font-size:11px;line-height:1.5;">Para el saldo de tarjeta que no tiene un pago mínimo capturado, usamos una aproximación (5% del saldo o $300, lo que sea mayor) — no es el pago mínimo real de tu estado de cuenta. Edita esa tarjeta y captura "Pago mínimo real" para que el plan use tu dato exacto en vez de esta estimación.</div>' : '')+
         '</div>';
     }
 
@@ -2620,7 +2639,8 @@
         '<div style="color:var(--muted);font-size:10px;margin-top:4px;">La app no calcula esto por separado — este dato es informativo, tal como lo reportó tu banco.</div>'+
         '</div>';
     }
-    html += '<p style="color:var(--muted);font-size:10px;line-height:1.5;margin-top:10px;">Si hay una diferencia, puede deberse a movimientos que aún no registras en la app, intereses o comisiones que el banco aplicó y que la app no puede predecir, o algún gasto capturado con un monto distinto al real. Revisa tus movimientos de este corte para encontrar la diferencia.</p>';
+    html += '<div style="display:flex;align-items:center;gap:6px;margin-top:10px;">'+renderInfoToggle("reconcile-diff")+'<span style="color:var(--muted);font-size:10px;">¿Por qué podría haber una diferencia?</span></div>';
+    if(infoOpen("reconcile-diff")) html += '<p style="color:var(--muted);font-size:10px;line-height:1.5;margin-top:4px;">Si hay una diferencia, puede deberse a movimientos que aún no registras en la app, intereses o comisiones que el banco aplicó y que la app no puede predecir, o algún gasto capturado con un monto distinto al real. Revisa tus movimientos de este corte para encontrar la diferencia.</p>';
     html += '</div></div>';
     return html;
   }
@@ -2800,8 +2820,8 @@
 
   function renderBudgetSection(totalDebt){
     var html = '<section>';
-    html += '<div class="sec-title" style="margin-bottom:8px;">🎯 Presupuesto</div>';
-    html += '<div style="color:var(--muted);font-size:11px;line-height:1.5;margin-bottom:12px;">Basado en la regla 50/30/20: una guía general (no una fórmula exacta) que divide tu sueldo en necesidades, gustos, y ahorro/deudas. Ajusta los porcentajes a lo que tenga sentido para ti.</div>';
+    html += '<div class="sec-title" style="margin-bottom:8px;display:flex;align-items:center;gap:6px;">🎯 Presupuesto '+renderInfoToggle("budget-5030")+'</div>';
+    if(infoOpen("budget-5030")) html += '<div style="color:var(--muted);font-size:11px;line-height:1.5;margin-bottom:12px;">Basado en la regla 50/30/20: una guía general (no una fórmula exacta) que divide tu sueldo en necesidades, gustos, y ahorro/deudas. Ajusta los porcentajes a lo que tenga sentido para ti.</div>';
     html += renderBudgetPanel(totalDebt);
     html += renderBudgetHistory();
     html += '</section>';
@@ -3026,11 +3046,10 @@
   }
 
   function renderMovimientosSection(){
-    var results = filterMovements(data.cards, { query: ui.movQuery, category: ui.movCategory, cardId: ui.movCard });
+    var results = filterMovements(data.cards, { query: ui.movQuery, category: ui.movCategory, cardId: ui.movCard, month: ui.movMonth });
     var total = results.reduce(function(s,r){ return s+r.amount; },0);
     var html = '<section><div class="sec-head"><div class="sec-title">🧾 Movimientos</div>'+
-      (data.cards.length ? '<button class="add-btn" data-act="movimientos-add">+ agregar</button>' : '')+
-      '</div>';
+      (data.cards.length ? '<button class="add-btn" data-act="movimientos-add">+ agregar</button></div>' : '</div>');
 
     if(!data.cards.length){
       html += emptyState("🧾", "Todavía no hay tarjetas", "Agrega una tarjeta primero; los movimientos se registran dentro de cada tarjeta.");
@@ -3038,9 +3057,10 @@
       return html;
     }
 
+    var months = movementMonths(data.cards);
     html += '<div class="form-box" style="margin-top:0;margin-bottom:14px;">';
     html += '<input type="text" placeholder="Buscar por descripción…" id="mov-query" value="'+esc(ui.movQuery)+'" style="margin-bottom:8px;" />';
-    html += '<div class="form-row" style="margin-bottom:0;">';
+    html += '<div class="form-row" style="margin-bottom:8px;">';
     html += '<select id="mov-cat" style="flex:1;background:var(--surface2);color:var(--text);font-size:12px;padding:8px 10px;border-radius:8px;border:1px solid transparent;outline:none;">';
     html += '<option value="">Todas las categorías</option>';
     (data.categories||DEFAULT_CATEGORIES).forEach(function(cat){
@@ -3053,30 +3073,67 @@
       html += '<option value="'+c.id+'" '+(ui.movCard===c.id?"selected":"")+'>'+esc(c.name)+'</option>';
     });
     html += '</select>';
-    html += '</div></div>';
+    html += '</div>';
+    if(months.length){
+      html += '<select id="mov-month" style="width:100%;background:var(--surface2);color:var(--text);font-size:12px;padding:8px 10px;border-radius:8px;border:1px solid transparent;outline:none;">';
+      html += '<option value="">Todos los periodos</option>';
+      months.forEach(function(m){
+        html += '<option value="'+m+'" '+(ui.movMonth===m?"selected":"")+'>'+monthLabel(m)+'</option>';
+      });
+      html += '</select>';
+    }
+    html += '</div>';
 
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'+
       '<span style="color:var(--muted);font-size:12px;">'+results.length+' movimiento'+(results.length===1?"":"s")+'</span>'+
-      '<span style="color:var(--text);font-family:var(--mono);font-size:14px;">'+fmt(total)+'</span></div>';
+      '<span style="color:var(--text);font-family:var(--mono);font-size:14px;font-weight:600;">'+fmt(total)+'</span></div>';
 
     if(!results.length){
       html += emptyState("🔍", "Sin resultados", "Ajusta la búsqueda o los filtros para ver tus movimientos.");
     }else{
-      html += '<div class="card" style="padding:6px 16px;">';
-      results.forEach(function(r, idx){
-        html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;'+(idx<results.length-1?'border-bottom:1px solid var(--surface2);':'')+'">'+
-          '<div style="min-width:0;flex:1;">'+
-          '<div style="color:var(--text);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(r.description)+'</div>'+
-          '<div style="color:var(--muted);font-size:11px;margin-top:2px;">'+esc(r.cardName)+' · '+esc(r.category)+' · '+dateLabel(r.date)+'</div>'+
-          '</div>'+
-          '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">'+
-          '<span style="color:var(--text);font-family:var(--mono);font-size:13px;">'+fmt(r.amount)+'</span>'+
-          '<button class="icon-btn" data-act="edit-expense" data-card="'+r.cardId+'" data-exp="'+r.id+'">✎</button>'+
-          '<button class="icon-btn" data-act="delete-expense" data-card="'+r.cardId+'" data-exp="'+r.id+'">🗑</button>'+
-          '</div></div>';
+      var groups = [];
+      var lastKey = null;
+      results.forEach(function(r){
+        var d = new Date(r.date);
+        var key = d.toISOString().slice(0,10);
+        if(key !== lastKey){
+          groups.push({key:key, date:d, items:[]});
+          lastKey = key;
+        }
+        groups[groups.length-1].items.push(r);
       });
-      html += '</div>';
-      html += '<button class="modal-save" style="background:var(--surface2);color:var(--text);margin-top:10px;" data-act="export-csv" data-scope="filtered">⬇ Exportar estos '+results.length+' movimiento'+(results.length===1?"":"s")+' a CSV</button>';
+      var today = new Date(); today.setHours(0,0,0,0);
+      var yesterday = new Date(today); yesterday.setDate(yesterday.getDate()-1);
+      groups.forEach(function(g){
+        var gDate = new Date(g.date); gDate.setHours(0,0,0,0);
+        var dayLabel;
+        if(gDate.getTime()===today.getTime()) dayLabel = "Hoy";
+        else if(gDate.getTime()===yesterday.getTime()) dayLabel = "Ayer";
+        else dayLabel = gDate.toLocaleDateString("es-MX",{weekday:"long",day:"numeric",month:"short"});
+        dayLabel = dayLabel.charAt(0).toUpperCase()+dayLabel.slice(1);
+        var dayTotal = g.items.reduce(function(s,r){ return s+r.amount; },0);
+        html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin:16px 0 6px;padding:0 2px;">'+
+          '<span style="color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.02em;">'+dayLabel+'</span>'+
+          '<span style="color:var(--muted);font-size:11px;font-family:var(--mono);">'+fmt(dayTotal)+'</span></div>';
+        html += '<div class="card" style="padding:2px 14px;">';
+        g.items.forEach(function(r, idx){
+          html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;'+(idx<g.items.length-1?'border-bottom:1px solid var(--surface2);':'')+'">'+
+            '<div style="width:34px;height:34px;border-radius:10px;background:'+colorForCategory(r.category)+'22;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+
+            '<span style="width:9px;height:9px;border-radius:50%;background:'+colorForCategory(r.category)+';"></span>'+
+            '</div>'+
+            '<div style="min-width:0;flex:1;">'+
+            '<div style="color:var(--text);font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(r.description)+'</div>'+
+            '<div style="color:var(--muted);font-size:11px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(r.category)+' · '+esc(r.cardName)+'</div>'+
+            '</div>'+
+            '<div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">'+
+            '<span style="color:var(--text);font-family:var(--mono);font-size:13px;font-weight:600;">'+fmt(r.amount)+'</span>'+
+            '<button class="icon-btn" style="padding:4px;" data-act="edit-expense" data-card="'+r.cardId+'" data-exp="'+r.id+'">✎</button>'+
+            '<button class="icon-btn" style="padding:4px;" data-act="delete-expense" data-card="'+r.cardId+'" data-exp="'+r.id+'">🗑</button>'+
+            '</div></div>';
+        });
+        html += '</div>';
+      });
+      html += '<button class="modal-save" style="background:var(--surface2);color:var(--text);margin-top:14px;" data-act="export-csv" data-scope="filtered">⬇ Exportar estos '+results.length+' movimiento'+(results.length===1?"":"s")+' a CSV</button>';
     }
 
     html += '</section>';
@@ -3213,8 +3270,10 @@
 
     if(open){
       if(due && dueInfo.amount>0){
+        var disclaimerKey = "due-disclaimer-"+item.id;
         html += '<div style="background:var(--surface3);border-radius:10px;padding:8px 10px;margin-top:8px;">'+
-          '<div style="color:var(--muted);font-size:10px;">Consulta tu estado de cuenta para confirmar el pago para no generar intereses — la app no conoce el saldo oficial del banco.</div>'+
+          '<div style="display:flex;align-items:center;gap:5px;">'+renderInfoToggle(disclaimerKey)+'<span style="color:var(--muted);font-size:10px;">¿De dónde sale este monto?</span></div>'+
+          (infoOpen(disclaimerKey) ? '<div style="color:var(--muted);font-size:10px;margin-top:4px;">Consulta tu estado de cuenta para confirmar el pago para no generar intereses — la app no conoce el saldo oficial del banco.</div>' : '')+
           (msiDue>0 ? '<div style="color:var(--amber);font-size:11px;margin-top:4px;">incluye '+fmtMasked(msiDue)+' de cuotas MSI</div>' : '')+
           (defDue>0 ? '<div style="color:var(--coral);font-size:11px;margin-top:4px;">incluye '+fmtMasked(defDue)+' de pagos diferidos (con interés + IVA)</div>' : '')+
           (dueInfo.credit>0 ? '<div style="color:var(--mint);font-size:11px;margin-top:4px;">se restó '+fmtMasked(dueInfo.credit)+' de crédito a favor</div>' : '')+
@@ -3241,6 +3300,15 @@
       '<span style="color:var(--muted);font-size:11px;transform:rotate('+(open?"180deg":"0deg")+');transition:transform .15s;">▾</span>'+
       '</span></button>';
   }
+  /* Ícono "?" chiquito para esconder explicaciones genéricas (método, disclaimers)
+     que no cambian con tus datos — se despliegan solo si las quieres leer, en vez de
+     ocupar espacio siempre. Reutiliza el mismo mecanismo de abrir/cerrar que las
+     demás secciones colapsables (ui.openSubsections), con "info" como espacio de
+     nombres para no chocar con otras claves. */
+  function renderInfoToggle(key){
+    return '<button data-act="toggle-subsection" data-card="info" data-key="'+key+'" style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--surface3);border:none;color:var(--muted);font-size:10px;font-weight:700;flex-shrink:0;line-height:1;padding:0;vertical-align:middle;">?</button>';
+  }
+  function infoOpen(key){ return isSubsectionOpen("info", key); }
 
   function renderExpensesSection(item){
     var schedule = paymentSchedule(item);
@@ -3604,15 +3672,17 @@
 
   function renderSavingsTips(){
     var html = '<div class="bank-box" style="margin-bottom:16px;">';
-    html += '<div class="bank-title">💡 ¿Cuánto podrías ahorrar?</div>';
+    html += '<div class="bank-title" style="display:flex;align-items:center;gap:6px;">💡 ¿Cuánto podrías ahorrar? '+renderInfoToggle("savings-tips")+'</div>';
     html += '<div style="color:var(--muted);font-size:11px;margin-bottom:10px;">Escribe cuánto podrías apartar por semana y mira a dónde llegarías con el tiempo.</div>';
     html += '<input type="text" inputmode="decimal" id="savings-tip-input" placeholder="ej. 300 por semana" style="margin-bottom:8px;" />';
     html += '<div id="savings-tip-preview" style="display:none;"></div>';
-    html += '<div style="color:var(--muted);font-size:11px;line-height:1.5;margin-top:10px;border-top:1px solid var(--hairline);padding-top:10px;">'+
-      '• Automatiza una transferencia el mismo día que te pagan, antes de que el dinero se te vaya en otras cosas.<br>'+
-      '• Empieza con una meta pequeña y alcanzable — el hábito importa más que el monto al principio.<br>'+
-      '• Si tienes deuda con intereses altos, normalmente conviene priorizarla antes que el ahorro (revisa el plan en Análisis).'+
-      '</div>';
+    if(infoOpen("savings-tips")){
+      html += '<div style="color:var(--muted);font-size:11px;line-height:1.5;margin-top:10px;border-top:1px solid var(--hairline);padding-top:10px;">'+
+        '• Automatiza una transferencia el mismo día que te pagan, antes de que el dinero se te vaya en otras cosas.<br>'+
+        '• Empieza con una meta pequeña y alcanzable — el hábito importa más que el monto al principio.<br>'+
+        '• Si tienes deuda con intereses altos, normalmente conviene priorizarla antes que el ahorro (revisa el plan en Análisis).'+
+        '</div>';
+    }
     html += '</div>';
     return html;
   }
@@ -3975,6 +4045,8 @@
     if(movCatEl) movCatEl.addEventListener("change", function(){ ui.movCategory = this.value; render(); });
     var movCardEl = document.getElementById("mov-card");
     if(movCardEl) movCardEl.addEventListener("change", function(){ ui.movCard = this.value; render(); });
+    var movMonthEl = document.getElementById("mov-month");
+    if(movMonthEl) movMonthEl.addEventListener("change", function(){ ui.movMonth = this.value; render(); });
 
     var extraPayEl = document.getElementById("extra-payment-input");
     if(extraPayEl) extraPayEl.addEventListener("change", function(){
