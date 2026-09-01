@@ -264,7 +264,7 @@
   var data = loadData();
   saveData(); /* persiste inmediatamente cualquier migración de datos antiguos */
   applyAccentColor(data.settings.accentColor);
-  var ui = { openCard:null, openSaving:null, openBankGroup:null, msiForm:null, msiEditId:null, paymentForm:null, paymentEditId:null,
+  var ui = { openCard:null, openSaving:null, openBankGroup:null, navSheetOpen:false, msiForm:null, msiEditId:null, paymentForm:null, paymentEditId:null,
              expenseForm:null, expenseEditId:null, deferredForm:null, deferredEditId:null, modal:null,
              apiKeyModal:false, backupModal:false, backupMessage:"", scanningCard:null, scanError:"", expenseDraft:null,
              reconcileBusy:false, reconcileError:"", reconcileResult:null, reconcileTarget:null, reconcileManualForm:null, showPastCycles:null,
@@ -1979,6 +1979,7 @@
 
     html += '</div>';
     html += renderBottomNav();
+    html += renderNavSheet();
     if(ui.toast){
       html += '<div style="position:fixed;left:0;right:0;bottom:78px;z-index:50;display:flex;justify-content:center;padding:0 16px;">'+
         '<div style="background:var(--surface);border:1px solid var(--surface2);border-radius:12px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:480px;width:100%;box-shadow:0 4px 14px rgba(0,0,0,.3);">'+
@@ -2004,26 +2005,45 @@
     bindHandlers();
   }
 
+  var NAV_ITEMS = [
+    {id:"resumen", label:t("nav_resumen"), icon:"📊"},
+    {id:"movimientos", label:t("nav_movimientos"), icon:"🧾"},
+    {id:"tarjetas", label:t("nav_tarjetas"), icon:"💳"},
+    {id:"prestamos", label:t("nav_prestamos"), icon:"🏦"},
+    {id:"ahorros", label:t("nav_ahorros"), icon:"🐷"},
+    {id:"analisis", label:t("nav_analisis"), icon:"🔍"},
+    {id:"config", label:t("nav_ajustes"), icon:"⚙"}
+  ];
   function renderBottomNav(){
-    var items = [
-      {id:"resumen", label:t("nav_resumen"), icon:"📊"},
-      {id:"movimientos", label:t("nav_movimientos"), icon:"🧾"},
-      {id:"tarjetas", label:t("nav_tarjetas"), icon:"💳"},
-      {id:"prestamos", label:t("nav_prestamos"), icon:"🏦"},
-      {id:"ahorros", label:t("nav_ahorros"), icon:"🐷"},
-      {id:"analisis", label:t("nav_analisis"), icon:"🔍"},
-      {id:"config", label:t("nav_ajustes"), icon:"⚙"}
-    ];
-    var html = '<div style="position:fixed;bottom:0;left:0;right:0;padding:0 8px 8px;z-index:40;">'+
-      '<div style="background:rgba(28,28,30,.78);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:1px solid var(--hairline);border-radius:22px;display:flex;justify-content:space-around;padding:6px 2px;box-shadow:0 -8px 30px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);">';
-    items.forEach(function(it){
+    var html = '<div style="position:fixed;bottom:0;left:0;padding:0 0 16px 16px;z-index:40;">'+
+      '<button data-act="toggle-nav-sheet" aria-label="Menú" style="width:52px;height:52px;border-radius:50%;'+
+      'background:rgba(28,28,30,.85);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);'+
+      'border:1px solid var(--hairline);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;'+
+      'box-shadow:0 8px 24px rgba(0,0,0,.45);">'+
+      '<span style="display:block;width:20px;height:2px;background:var(--text);border-radius:2px;"></span>'+
+      '<span style="display:block;width:20px;height:2px;background:var(--text);border-radius:2px;"></span>'+
+      '<span style="display:block;width:20px;height:2px;background:var(--text);border-radius:2px;"></span>'+
+      '</button></div>';
+    return html;
+  }
+  function renderNavSheet(){
+    if(!ui.navSheetOpen) return "";
+    var html = '<div data-act="close-nav-sheet" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:44;"></div>';
+    html += '<div style="position:fixed;left:0;right:0;bottom:0;z-index:45;background:#1c1c1e;border-top-left-radius:22px;border-top-right-radius:22px;'+
+      'border:1px solid var(--hairline);border-bottom:none;padding:10px 10px calc(env(safe-area-inset-bottom) + 14px);'+
+      'max-width:480px;margin:0 auto;box-shadow:0 -8px 30px rgba(0,0,0,.4);">';
+    html += '<div style="width:36px;height:4px;background:rgba(255,255,255,.25);border-radius:2px;margin:2px auto 12px;"></div>';
+    html += '<div style="font-size:12px;font-weight:700;color:var(--muted);padding:0 8px 8px;">IR A</div>';
+    NAV_ITEMS.forEach(function(it){
       var active = ui.tab === it.id;
-      html += '<button data-act="set-tab" data-tab="'+it.id+'" style="background:'+(active?"rgba(10,132,255,0.16)":"transparent")+';border:none;border-radius:14px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 8px;">'+
-        '<span style="font-size:16px;filter:'+(active?"none":"grayscale(0.4) opacity(0.65)")+';">'+it.icon+'</span>'+
-        '<span style="font-size:10px;color:'+(active?"var(--blue)":"var(--muted)")+';font-weight:'+(active?"700":"500")+';">'+it.label+'</span>'+
+      html += '<button data-act="set-tab" data-tab="'+it.id+'" style="width:100%;display:flex;align-items:center;gap:12px;padding:11px 10px;border-radius:12px;'+
+        'font-size:14px;font-weight:600;text-align:left;border:none;background:'+(active?"rgba(10,132,255,.16)":"transparent")+';color:'+(active?"var(--blue)":"var(--text)")+';">'+
+        '<span style="font-size:17px;width:22px;text-align:center;">'+it.icon+'</span>'+
+        '<span style="flex:1;">'+it.label+'</span>'+
+        (active?'<span style="color:var(--blue);font-size:14px;">✓</span>':'')+
         '</button>';
     });
-    html += '</div></div>';
+    html += '</div>';
     return html;
   }
 
@@ -3545,9 +3565,9 @@
       return html;
     }
     var totalSaved = data.savings.reduce(function(s,x){ return s+(x.current||0); },0);
-    html += '<div class="stats" style="margin-bottom:16px;">'+stat("Total ahorrado", totalSaved, "var(--mint)", "🐷")+'</div>';
-    html += renderSavingsTips();
+    html += '<div class="stats" style="margin-bottom:16px;">'+stat("Total ahorrado", totalSaved, "var(--blue)", "🐷")+'</div>';
     html += renderBankGroups();
+    html += renderSavingsTips();
     html += '</section>';
     return html;
   }
@@ -4075,7 +4095,14 @@
       render();
     }else if(act==="set-tab"){
       ui.tab = el.getAttribute("data-tab");
+      ui.navSheetOpen = false;
       window.scrollTo(0,0);
+      render();
+    }else if(act==="toggle-nav-sheet"){
+      ui.navSheetOpen = !ui.navSheetOpen;
+      render();
+    }else if(act==="close-nav-sheet"){
+      ui.navSheetOpen = false;
       render();
     }else if(act==="movimientos-add"){
       if(data.cards.length===1){
