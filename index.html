@@ -32,6 +32,16 @@
     --body:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;
     --mono:ui-monospace,'SF Mono','Menlo','Cascadia Code',monospace;
   }
+  /* Tema claro: misma estructura, colores estilo iOS en modo claro (fondo blanco
+     verdadero en vez de negro verdadero, superficies grises muy sutiles en vez de
+     vidrio oscuro, y los mismos colores semánticos pero en su variante clara). Las
+     caras de las tarjetas de crédito NO cambian con el tema — igual que en una
+     wallet física, cada tarjeta ya tiene su propio color fijo. */
+  :root[data-theme="light"]{
+    --bg:#FFFFFF; --surface:rgba(255,255,255,.72); --surface2:rgba(0,0,0,.045); --surface3:rgba(0,0,0,.035);
+    --text:#1C1C1E; --muted:#6E6E73; --mint:#34C759; --coral:#FF3B30; --amber:#FF9500; --blue:#007AFF;
+    --hairline:rgba(0,0,0,.1);
+  }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--bg);color:var(--text);font-family:var(--body);-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased;}
   ::-webkit-scrollbar{width:6px;height:6px;}
@@ -153,7 +163,7 @@
     alertPayments: true, alertCutoffs: true, alertBudget: true, alertGoals: true,
     alertUtilization: true, alertDebtGrowth: true,
     monthlyBudgetLimit: 0,
-    accentColor: "blue", language: "es"
+    accentColor: "blue", language: "es", theme: "dark"
   };
   var FONT_SCALE = { small: "0.9", normal: "1", large: "1.15", xlarge: "1.3" };
 
@@ -169,6 +179,12 @@
   function applyAccentColor(colorKey){
     var color = (ACCENT_COLORS[colorKey] || ACCENT_COLORS.blue).hex;
     document.documentElement.style.setProperty("--blue", color);
+  }
+  function applyTheme(themeKey){
+    var theme = themeKey==="light" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", theme);
+    var themeColorMeta = document.querySelector('meta[name="theme-color"]');
+    if(themeColorMeta) themeColorMeta.setAttribute("content", theme==="light" ? "#FFFFFF" : "#000000");
   }
 
   /* ---------- idioma ----------
@@ -264,6 +280,7 @@
   var data = loadData();
   saveData(); /* persiste inmediatamente cualquier migración de datos antiguos */
   applyAccentColor(data.settings.accentColor);
+  applyTheme(data.settings.theme);
   var ui = { openCard:null, openSaving:null, openBankGroup:null, navSheetOpen:false, msiForm:null, msiEditId:null, paymentForm:null, paymentEditId:null,
              expenseForm:null, expenseEditId:null, deferredForm:null, deferredEditId:null, modal:null,
              apiKeyModal:false, backupModal:false, backupMessage:"", scanningCard:null, scanError:"", expenseDraft:null,
@@ -273,6 +290,7 @@
              movQuery:"", movCategory:"", movCard:"", extraPayment:0, movCardPicker:false, deferredInstallPrompt:null, reassignCategory:null, updateAvailable:false, devModeModal:false, renamingCategory:null,
              cloudModal:false, cloudMode:"login", cloudError:"", cloudBusy:false, cloudUser:null, cloudStatus:"signed-out", cloudConflict:null, authChecked:false,
              deleteAccountModal:false, deleteAccountPassword:"", deleteAccountError:"", deleteAccountBusy:false, cloudResetSent:false,
+             checkingUpdate:false, updateCheckResult:null,
              hideBalances:getHideBalances() };
   var API_KEY_STORAGE = "anthropic-api-key";
   var LAST_BACKUP_KEY = "last-backup-date";
@@ -2284,12 +2302,10 @@
     return html;
   }
 
-  function renderCloudSyncSection(){
+  function renderCloudSyncSectionBody(){
     /* Esta sección solo se muestra dentro de Ajustes, y Ajustes solo es alcanzable
        después de iniciar sesión (la app la exige desde la pantalla de acceso).
        Por eso aquí siempre hay una cuenta activa — no hace falta un estado "sin sesión". */
-    var html = '<div class="bank-box" style="margin-bottom:0;">';
-    html += '<div class="bank-title">☁ Sincronización en la nube</div>';
     var statusMap = {
       synced: {icon:"🟢", label:"Sincronizado"},
       syncing: {icon:"🔵", label:"Sincronizando…"},
@@ -2297,11 +2313,10 @@
       error: {icon:"🔴", label:"No se pudo sincronizar (revisa tu conexión)"}
     };
     var st = statusMap[ui.cloudStatus] || statusMap.synced;
-    html += '<p style="color:var(--text);font-size:13px;margin:0 0 4px;">'+esc(ui.cloudUser.email)+'</p>';
+    var html = '<p style="color:var(--text);font-size:13px;margin:0 0 4px;">'+esc(ui.cloudUser.email)+'</p>';
     html += '<p style="color:var(--muted);font-size:11px;margin:0 0 12px;">'+st.icon+' '+st.label+'</p>';
     html += '<button class="modal-save" style="background:var(--surface2);color:var(--coral);" data-act="cloud-logout">'+t("settings_logout")+'</button>';
     html += '<button class="modal-save" style="background:none;color:var(--muted);margin-top:8px;font-size:11px;" data-act="open-delete-account-modal">Eliminar mi cuenta y todos mis datos</button>';
-    html += '</div>';
     return html;
   }
 
@@ -2335,6 +2350,20 @@
     return html;
   }
 
+  function configSectionWrap(key, title, contentHtml, summary){
+    var open = isSubsectionOpen("config", key);
+    var html = '<div class="bank-box" style="margin-bottom:0;">';
+    html += '<button data-act="toggle-subsection" data-card="config" data-key="'+key+'" style="width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;padding:0;text-align:left;">'+
+      '<span class="bank-title" style="margin-bottom:0;">'+title+'</span>'+
+      '<span style="display:flex;align-items:center;gap:6px;">'+
+      (summary?'<span style="color:var(--muted);font-size:11px;">'+summary+'</span>':'')+
+      '<span style="color:var(--muted);font-size:11px;transform:rotate('+(open?"180deg":"0deg")+');transition:transform .15s;">▾</span>'+
+      '</span></button>';
+    if(open) html += '<div style="margin-top:12px;">'+contentHtml+'</div>';
+    html += '</div>';
+    return html;
+  }
+
   function renderConfigSection(){
     var f = data.settings.fontSize;
     var sizes = [
@@ -2345,47 +2374,49 @@
     ];
     var html = '<div style="display:flex;flex-direction:column;gap:12px;">';
 
-    html += renderCloudSyncSection();
+    html += configSectionWrap("cuenta", "☁ Sincronización en la nube", renderCloudSyncSectionBody(), esc(ui.cloudUser.email));
 
-    html += '<div class="bank-box" style="margin-bottom:0;">';
-    html += '<div class="bank-title">'+t("settings_appearance")+'</div>';
+    var appearanceSummary = (data.settings.theme==="light"?"Claro":"Oscuro");
+    var appearanceBody = "";
+    appearanceBody += '<span class="field-label">Tema</span>';
+    var currentTheme = data.settings.theme || "dark";
+    appearanceBody += '<div style="display:flex;background:var(--surface3);border-radius:12px;padding:4px;margin-bottom:14px;">'+
+      '<button data-act="set-theme" data-theme="dark" style="flex:1;background:'+(currentTheme==="dark"?"var(--blue)":"transparent")+';color:'+(currentTheme==="dark"?"#fff":"var(--muted)")+';border:none;border-radius:9px;padding:8px;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;">🌙 Oscuro</button>'+
+      '<button data-act="set-theme" data-theme="light" style="flex:1;background:'+(currentTheme==="light"?"var(--blue)":"transparent")+';color:'+(currentTheme==="light"?"#fff":"var(--muted)")+';border:none;border-radius:9px;padding:8px;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;">☀️ Claro</button>'+
+      '</div>';
 
-    html += '<span class="field-label">'+t("settings_font_size")+'</span>';
-    html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">';
+    appearanceBody += '<span class="field-label">'+t("settings_font_size")+'</span>';
+    appearanceBody += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">';
     sizes.forEach(function(s){
       var active = f === s.id;
-      html += '<button data-act="set-font-size" data-size="'+s.id+'" style="background:'+(active?"var(--blue)":"var(--surface3)")+';color:'+(active?"#fff":"var(--text)")+';border:none;border-radius:10px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;">'+
+      appearanceBody += '<button data-act="set-font-size" data-size="'+s.id+'" style="background:'+(active?"var(--blue)":"var(--surface3)")+';color:'+(active?"#fff":"var(--text)")+';border:none;border-radius:10px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;">'+
         '<span style="font-family:var(--disp);font-weight:600;font-size:'+s.px+'px;">Aa</span>'+
         '<span style="font-size:9px;color:'+(active?"#fff":"var(--muted)")+';">'+s.label+'</span>'+
         '</button>';
     });
-    html += '</div>';
+    appearanceBody += '</div>';
 
-    html += '<span class="field-label">'+t("settings_accent")+'</span>';
-    html += '<div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">';
+    appearanceBody += '<span class="field-label">'+t("settings_accent")+'</span>';
+    appearanceBody += '<div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">';
     var currentAccent = data.settings.accentColor || "blue";
     Object.keys(ACCENT_COLORS).forEach(function(key){
       var swatch = ACCENT_COLORS[key];
       var isActive = currentAccent === key;
-      html += '<button data-act="set-accent-color" data-color="'+key+'" title="'+swatch.label+'" style="width:36px;height:36px;border-radius:50%;background:'+swatch.hex+';border:'+(isActive?"3px solid var(--text)":"3px solid transparent")+';box-shadow:0 2px 8px rgba(0,0,0,.3);position:relative;">'+
+      appearanceBody += '<button data-act="set-accent-color" data-color="'+key+'" title="'+swatch.label+'" style="width:36px;height:36px;border-radius:50%;background:'+swatch.hex+';border:'+(isActive?"3px solid var(--text)":"3px solid transparent")+';box-shadow:0 2px 8px rgba(0,0,0,.3);position:relative;">'+
         (isActive ? '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;">✓</span>' : '')+
         '</button>';
     });
-    html += '</div>';
+    appearanceBody += '</div>';
 
-    html += '<span class="field-label">'+t("settings_language")+'</span>';
+    appearanceBody += '<span class="field-label">'+t("settings_language")+'</span>';
     var currentLang2 = getDeviceLanguage() || data.settings.language || "es";
-    html += '<div style="display:flex;background:var(--surface3);border-radius:12px;padding:4px;">'+
+    appearanceBody += '<div style="display:flex;background:var(--surface3);border-radius:12px;padding:4px;">'+
       '<button data-act="set-language" data-lang="es" style="flex:1;background:'+(currentLang2==="es"?"var(--blue)":"transparent")+';color:'+(currentLang2==="es"?"#fff":"var(--muted)")+';border:none;border-radius:9px;padding:8px;font-size:12px;font-weight:600;">Español</button>'+
       '<button data-act="set-language" data-lang="en" style="flex:1;background:'+(currentLang2==="en"?"var(--blue)":"transparent")+';color:'+(currentLang2==="en"?"#fff":"var(--muted)")+';border:none;border-radius:9px;padding:8px;font-size:12px;font-weight:600;">English</button>'+
       '</div>';
-    html += '<p style="color:var(--muted);font-size:10px;line-height:1.5;margin:8px 0 0;">El menú principal y esta pantalla ya están en inglés — el resto de la app (formularios y explicaciones detalladas) se sigue traduciendo por partes.</p>';
-    html += '</div>';
+    appearanceBody += '<p style="color:var(--muted);font-size:10px;line-height:1.5;margin:8px 0 0;">El menú principal y esta pantalla ya están en inglés — el resto de la app (formularios y explicaciones detalladas) se sigue traduciendo por partes.</p>';
+    html += configSectionWrap("apariencia", t("settings_appearance"), appearanceBody, appearanceSummary);
 
-
-    html += '<div class="bank-box" style="margin-bottom:0;">';
-    html += '<div class="bank-title">Centro de alertas</div>';
-    html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 10px;">Elige qué tipo de avisos quieres ver en Resumen.</p>';
     var alertToggles = [
       {key:"alertPayments", label:"Pagos y cuotas próximas"},
       {key:"alertCutoffs", label:"Cortes próximos"},
@@ -2394,29 +2425,30 @@
       {key:"alertDebtGrowth", label:"Deuda creciente"},
       {key:"alertGoals", label:"Metas de ahorro retrasadas"}
     ];
-    alertToggles.forEach(function(t){
-      var on = !!data.settings[t.key];
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid var(--surface2);">'+
-        '<span style="color:var(--text);font-size:13px;">'+t.label+'</span>'+
-        '<button data-act="toggle-alert-setting" data-key="'+t.key+'" style="background:'+(on?"var(--mint)":"var(--surface3)")+';border:none;width:38px;height:22px;border-radius:20px;position:relative;flex-shrink:0;">'+
+    var activeAlertCount = alertToggles.filter(function(a){ return !!data.settings[a.key]; }).length;
+    var alertsBody = '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 10px;">Elige qué tipo de avisos quieres ver en Resumen.</p>';
+    alertToggles.forEach(function(a){
+      var on = !!data.settings[a.key];
+      alertsBody += '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid var(--surface2);">'+
+        '<span style="color:var(--text);font-size:13px;">'+a.label+'</span>'+
+        '<button data-act="toggle-alert-setting" data-key="'+a.key+'" style="background:'+(on?"var(--mint)":"var(--surface3)")+';border:none;width:38px;height:22px;border-radius:20px;position:relative;flex-shrink:0;">'+
         '<span style="position:absolute;top:2px;left:'+(on?"18px":"2px")+';width:18px;height:18px;border-radius:50%;background:'+(on?"var(--bg)":"var(--muted)")+';transition:left .15s;"></span>'+
         '</button></div>';
     });
-    html += '</div>';
+    html += configSectionWrap("alertas", "Centro de alertas", alertsBody, activeAlertCount+"/"+alertToggles.length+" activas");
 
-    html += '<div class="bank-box" style="margin-bottom:0;">';
-    html += '<div class="bank-title">Categorías de gastos</div>';
-    html += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">';
-    (data.categories||DEFAULT_CATEGORIES).forEach(function(cat){
+    var categories = data.categories||DEFAULT_CATEGORIES;
+    var categoriesBody = '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">';
+    categories.forEach(function(cat){
       var usageCount = categoryUsageCount(data.cards, cat);
       if(ui.renamingCategory===cat){
-        html += '<div style="display:flex;align-items:center;gap:6px;background:var(--surface3);border-radius:8px;padding:6px 8px;">'+
+        categoriesBody += '<div style="display:flex;align-items:center;gap:6px;background:var(--surface3);border-radius:8px;padding:6px 8px;">'+
           '<input type="text" id="rename-category-input" value="'+esc(cat)+'" style="flex:1;margin:0;padding:6px 8px;font-size:12px;" />'+
           '<button data-act="confirm-rename-category" data-cat="'+esc(cat)+'" style="background:none;border:none;color:var(--mint);font-size:14px;padding:0 4px;">✓</button>'+
           '<button data-act="cancel-rename-category" style="background:none;border:none;color:var(--muted);font-size:12px;padding:0 4px;">✕</button>'+
           '</div>';
       }else{
-        html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--surface3);border-radius:8px;padding:6px 10px;">'+
+        categoriesBody += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--surface3);border-radius:8px;padding:6px 10px;">'+
           '<span style="color:var(--text);font-size:12px;display:flex;align-items:center;gap:6px;">'+
           '<span style="width:8px;height:8px;border-radius:50%;background:'+colorForCategory(cat)+';flex-shrink:0;"></span>'+
           esc(cat)+'<span style="color:var(--muted);font-size:10px;">'+(usageCount>0 ? '· '+usageCount+' movimiento'+(usageCount===1?"":"s") : '· sin usar')+'</span></span>'+
@@ -2426,90 +2458,88 @@
           '</span></div>';
       }
     });
-    html += '</div>';
-    html += '<div class="form-row" style="margin-bottom:0;">'+
+    categoriesBody += '</div>';
+    categoriesBody += '<div class="form-row" style="margin-bottom:0;">'+
       '<input type="text" placeholder="Nueva categoría" id="new-category-input" />'+
       '<button class="btn-save" style="max-width:90px;" data-act="add-category">Agregar</button>'+
       '</div>';
-    html += '</div>';
+    html += configSectionWrap("categorias", "Categorías de gastos", categoriesBody, categories.length+" categorías");
 
     var notifSupported = typeof Notification !== "undefined";
     var notifPermission = notifSupported ? Notification.permission : "unsupported";
-    html += '<div class="bank-box" style="margin-bottom:0;">';
-    html += '<div class="bank-title">Notificaciones</div>';
+    var notifBody = "";
+    var notifSummary;
     if(!notifSupported){
-      html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0;">Tu navegador no soporta notificaciones.</p>';
+      notifBody += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0;">Tu navegador no soporta notificaciones.</p>';
+      notifSummary = "No disponible";
     }else if(notifPermission === "denied"){
-      html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0;">Bloqueaste las notificaciones para este sitio. Actívalas desde los ajustes de tu navegador si cambias de opinión.</p>';
+      notifBody += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0;">Bloqueaste las notificaciones para este sitio. Actívalas desde los ajustes de tu navegador si cambias de opinión.</p>';
+      notifSummary = "Bloqueadas";
     }else{
-      html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px;">Te avisa cuando falten 3 días o menos para un pago — solo cuando abres la app (no son notificaciones en segundo plano).</p>';
+      notifBody += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px;">Te avisa cuando falten 3 días o menos para un pago — solo cuando abres la app (no son notificaciones en segundo plano).</p>';
       if(notifPermission === "granted" && data.settings.notificationsEnabled){
-        html += '<button class="modal-save" style="background:var(--surface2);color:var(--text);" data-act="disable-notifications">🔕 Desactivar notificaciones</button>';
+        notifBody += '<button class="modal-save" style="background:var(--surface2);color:var(--text);" data-act="disable-notifications">🔕 Desactivar notificaciones</button>';
+        notifSummary = "Activadas";
       }else{
-        html += '<button class="modal-save" data-act="enable-notifications">🔔 Activar notificaciones</button>';
+        notifBody += '<button class="modal-save" data-act="enable-notifications">🔔 Activar notificaciones</button>';
+        notifSummary = "Desactivadas";
       }
     }
-    html += '</div>';
+    html += configSectionWrap("notificaciones", "Notificaciones", notifBody, notifSummary);
 
-    html += '<div class="bank-box" style="margin-bottom:0;">';
-    html += '<div class="bank-title">Respaldo de datos</div>';
-    html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px;">Tus datos se guardan en este navegador. Descarga un respaldo de vez en cuando, o restaura uno si lo necesitas.</p>';
-    html += '<button class="modal-save" data-act="open-backup-modal" style="margin-bottom:0;">⬇ Respaldo (descargar / restaurar)</button>';
-    html += '</div>';
+    var backupBody = '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px;">Tus datos se sincronizan en la nube con tu cuenta. Aun así, descarga un respaldo de vez en cuando, o restaura uno si lo necesitas.</p>';
+    backupBody += '<button class="modal-save" data-act="open-backup-modal" style="margin-bottom:0;">⬇ Respaldo (descargar / restaurar)</button>';
+    html += configSectionWrap("respaldo", "Respaldo de datos", backupBody, null);
 
     var hasMovements = data.cards.some(function(c){ return (c.expenses||[]).length || (c.payments||[]).length; });
     if(hasMovements){
-      html += '<div class="bank-box" style="margin-bottom:0;">';
-      html += '<div class="bank-title">Exportar movimientos</div>';
-      html += '<button class="modal-save" style="background:var(--surface2);color:var(--text);" data-act="export-csv">⬇ Descargar movimientos (.csv)</button>';
-      html += '</div>';
+      var exportBody = '<button class="modal-save" style="background:var(--surface2);color:var(--text);" data-act="export-csv">⬇ Descargar movimientos (.csv)</button>';
+      html += configSectionWrap("exportar", "Exportar movimientos", exportBody, null);
     }
 
     if(ui.deferredInstallPrompt){
-      html += '<div class="bank-box" style="margin-bottom:0;">';
-      html += '<div class="bank-title">Instalar aplicación</div>';
-      html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px;">Instala Control financiero en tu pantalla de inicio para abrirla como una app, incluso sin conexión.</p>';
-      html += '<button class="modal-save" data-act="install-pwa">📲 Instalar app</button>';
-      html += '</div>';
+      var installBody = '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px;">Instala Control financiero en tu pantalla de inicio para abrirla como una app, incluso sin conexión.</p>'+
+        '<button class="modal-save" data-act="install-pwa">📲 Instalar app</button>';
+      html += configSectionWrap("instalar", "Instalar aplicación", installBody, null);
     }
 
-    html += '<div class="bank-box" style="margin-bottom:0;">';
-    html += '<div class="bank-title">Privacidad</div>';
-    html += '<p style="color:var(--muted);font-size:12px;line-height:1.6;margin:0 0 8px;">Necesitas una cuenta para usar la app, y tus datos financieros se guardan tanto en este dispositivo como en un servidor (Firebase), protegidos con tu contraseña, para poder sincronizarse entre tus dispositivos.</p>';
-    html += '<ul style="color:var(--muted);font-size:11px;line-height:1.7;margin:0;padding-left:16px;">'+
+    var privacyBody = '<p style="color:var(--muted);font-size:12px;line-height:1.6;margin:0 0 8px;">Necesitas una cuenta para usar la app, y tus datos financieros se guardan tanto en este dispositivo como en un servidor (Firebase), protegidos con tu contraseña, para poder sincronizarse entre tus dispositivos.</p>';
+    privacyBody += '<ul style="color:var(--muted);font-size:11px;line-height:1.7;margin:0;padding-left:16px;">'+
       '<li>No usamos analíticas ni rastreo de comportamiento.</li>'+
       '<li>No compartimos tu información con terceros.</li>'+
       '<li>El escaneo de recibos con IA envía la foto a un servicio de IA solo si activas esa función.</li>'+
       '<li>Si usas la app en un dispositivo compartido, cierra sesión al terminar — al iniciar sesión con otra cuenta, la app siempre muestra solo los datos de esa cuenta, nunca los de la anterior.</li>'+
       '<li>Borrar el navegador o la app sin haber exportado un respaldo elimina tus datos de este dispositivo, pero la copia en la nube se conserva mientras no elimines tu cuenta.</li>'+
       '</ul>';
-    html += '</div>';
+    html += configSectionWrap("privacidad", "Privacidad", privacyBody, null);
 
-    html += '<div class="bank-box" style="margin-bottom:0;">';
-    html += '<div class="bank-title">Recibos con IA</div>';
+    var aiBody = "";
+    var aiSummary;
     if(AI_BACKEND_URL){
-      html += '<p style="color:var(--mint);font-size:11px;line-height:1.5;margin:0;">✓ Configurada con un backend propio. Tu foto se envía a ese servidor, que llama a la API de Anthropic — ninguna clave vive en este navegador.</p>';
+      aiBody += '<p style="color:var(--mint);font-size:11px;line-height:1.5;margin:0;">✓ Configurada con un backend propio. Tu foto se envía a ese servidor, que llama a la API de Anthropic — ninguna clave vive en este navegador.</p>';
+      aiSummary = "Configurada";
     }else{
       var devOn = isDevModeEnabled();
-      html += '<p style="color:var(--muted);font-size:12px;line-height:1.6;margin:0 0 10px;">Todavía no hay un backend propio configurado para esta función. La arquitectura recomendada es <strong style="color:var(--text);">tu foto → tu backend → API de Anthropic</strong>, sin exponer ninguna clave en el navegador.</p>';
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface3);border-radius:10px;padding:10px 12px;">';
-      html += '<div><div style="color:var(--text);font-size:12px;">Modo desarrollador</div><div style="color:var(--muted);font-size:10px;">'+(devOn?"Activo — tu clave vive en este navegador.":"Apagado (recomendado para producción)")+'</div></div>';
+      aiBody += '<p style="color:var(--muted);font-size:12px;line-height:1.6;margin:0 0 10px;">Todavía no hay un backend propio configurado para esta función. La arquitectura recomendada es <strong style="color:var(--text);">tu foto → tu backend → API de Anthropic</strong>, sin exponer ninguna clave en el navegador.</p>';
+      aiBody += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface3);border-radius:10px;padding:10px 12px;">';
+      aiBody += '<div><div style="color:var(--text);font-size:12px;">Modo desarrollador</div><div style="color:var(--muted);font-size:10px;">'+(devOn?"Activo — tu clave vive en este navegador.":"Apagado (recomendado para producción)")+'</div></div>';
       if(devOn){
-        html += '<button class="modal-save" style="width:auto;margin:0;padding:8px 14px;background:var(--surface2);color:var(--coral);" data-act="disable-dev-mode">Apagar</button>';
+        aiBody += '<button class="modal-save" style="width:auto;margin:0;padding:8px 14px;background:var(--surface2);color:var(--coral);" data-act="disable-dev-mode">Apagar</button>';
       }else{
-        html += '<span style="color:var(--muted);font-size:10px;">Se activa desde el botón "escanear recibo"</span>';
+        aiBody += '<span style="color:var(--muted);font-size:10px;">Se activa desde el botón "escanear recibo"</span>';
       }
-      html += '</div>';
+      aiBody += '</div>';
+      aiSummary = devOn ? "Modo desarrollador" : "No configurada";
     }
-    html += '</div>';
+    html += configSectionWrap("recibos-ia", "Recibos con IA", aiBody, aiSummary);
 
-    html += '<div class="bank-box" style="margin-bottom:0;">';
-    html += '<div class="bank-title">Acerca de</div>';
-    html += '<p style="color:var(--text);font-size:13px;font-weight:500;margin:0 0 2px;">Control financiero</p>';
-    html += '<p style="color:var(--muted);font-size:11px;margin:0 0 10px;">Versión 3.0</p>';
-    html += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 10px;">Una herramienta sencilla para controlar tus gastos, tarjetas, deudas y ahorro en un solo lugar.</p>';
-    html += '<p style="color:var(--muted);font-size:11px;line-height:1.5;margin:0;">☁️ Tus datos se sincronizan de forma segura en la nube (Firebase) con tu cuenta, y también se guardan en caché en este dispositivo para que la app funcione sin conexión.</p>';
-    html += '</div>';
+    var aboutBody = '<p style="color:var(--text);font-size:13px;font-weight:500;margin:0 0 2px;">Control financiero</p>';
+    aboutBody += '<p style="color:var(--muted);font-size:11px;margin:0 0 10px;">Versión 3.0</p>';
+    aboutBody += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 14px;">Una herramienta sencilla para controlar tus gastos, tarjetas, deudas y ahorro en un solo lugar.</p>';
+    aboutBody += '<button class="modal-save" style="background:var(--surface2);color:var(--text);margin-bottom:10px;" data-act="check-for-updates" '+(ui.checkingUpdate?"disabled":"")+'>'+(ui.checkingUpdate?"🔄 Buscando…":"🔄 Buscar actualización")+'</button>';
+    if(ui.updateCheckResult) aboutBody += '<p style="color:var(--mint);font-size:11px;margin:0 0 10px;">'+esc(ui.updateCheckResult)+'</p>';
+    aboutBody += '<p style="color:var(--muted);font-size:11px;line-height:1.5;margin:0;">☁️ Tus datos se sincronizan de forma segura en la nube (Firebase) con tu cuenta, y también se guardan en caché en este dispositivo para que la app funcione sin conexión.</p>';
+    html += configSectionWrap("acerca-de", "Acerca de", aboutBody, "v3.0");
 
     html += '</div>';
     return html;
@@ -4137,6 +4167,10 @@
       var newAccent = el.getAttribute("data-color");
       applyAccentColor(newAccent);
       updateSettings(Object.assign({}, data.settings, {accentColor: newAccent}));
+    }else if(act==="set-theme"){
+      var newTheme = el.getAttribute("data-theme");
+      applyTheme(newTheme);
+      updateSettings(Object.assign({}, data.settings, {theme: newTheme}));
     }else if(act==="set-language"){
       setLanguage(el.getAttribute("data-lang"));
     }else if(act==="enable-notifications"){
@@ -4239,6 +4273,40 @@
       var celebratedList = (data.celebratedGoalIds||[]).slice();
       if(celebratedList.indexOf(celebratedId)===-1) celebratedList.push(celebratedId);
       persist(Object.assign({}, data, {celebratedGoalIds: celebratedList}));
+    }else if(act==="check-for-updates"){
+      ui.checkingUpdate = true;
+      ui.updateCheckResult = null;
+      render();
+      if("serviceWorker" in navigator){
+        navigator.serviceWorker.getRegistration().then(function(reg){
+          if(!reg){
+            ui.checkingUpdate = false;
+            ui.updateCheckResult = "No se pudo revisar en este navegador.";
+            render();
+            return;
+          }
+          reg.update().then(function(){
+            // Dar un momento a que el navegador termine de instalar la nueva versión
+            // si es que existe, antes de decidir qué mensaje mostrar.
+            setTimeout(function(){
+              ui.checkingUpdate = false;
+              if(!ui.updateAvailable && !reg.waiting){
+                ui.updateCheckResult = "Ya tienes la versión más reciente.";
+              }else{
+                ui.updateAvailable = true;
+              }
+              render();
+            }, 1200);
+          }).catch(function(){
+            ui.checkingUpdate = false;
+            ui.updateCheckResult = "No se pudo revisar — checa tu conexión e intenta de nuevo.";
+            render();
+          });
+        });
+      }else{
+        ui.checkingUpdate = false;
+        window.location.reload();
+      }
     }else if(act==="reload-app"){
       if("serviceWorker" in navigator){
         navigator.serviceWorker.getRegistration().then(function(reg){
