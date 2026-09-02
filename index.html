@@ -196,8 +196,10 @@
      está ampliando por partes en vez de todo de una vez, para no dejar nada roto. */
   var TRANSLATIONS = {
     es: {
-      nav_resumen:"Resumen", nav_movimientos:"Movim.", nav_tarjetas:"Tarjetas", nav_prestamos:"Préstamos",
+      nav_resumen:"Resumen", nav_movimientos:"Movim.", nav_tarjetas:"Tarjetas", nav_gastos:"Gastos", nav_prestamos:"Préstamos",
       nav_ahorros:"Ahorros", nav_analisis:"Análisis", nav_ajustes:"Ajustes",
+      title_gastos:"Gastos", gastos_empty_title:"Sin cuentas de efectivo o débito",
+      gastos_empty_body:"Registra tu efectivo o tarjetas de débito para llevar el control de esos gastos, separados de tu deuda de crédito.",
       gate_login_title:"Inicia sesión", gate_signup_title:"Crea tu cuenta",
       gate_login_btn:"Iniciar sesión", gate_signup_btn:"Crear cuenta",
       gate_toggle_to_signup:"¿No tienes cuenta? Créala aquí", gate_toggle_to_login:"¿Ya tienes cuenta? Inicia sesión",
@@ -260,7 +262,8 @@
       goal_ontrack:"Vas bien: con {amount}/mes llegarías antes del {date}. El mínimo para llegar a tiempo es {needed}/mes.",
       goal_suggest:"Ahorra {amount}/mes para llegar el {date}",
 
-      modal_edit:"Editar", modal_add:"Agregar", modal_card:"tarjeta", modal_saving:"ahorro",
+      modal_edit:"Editar", modal_add:"Agregar", modal_card:"tarjeta", modal_debit:"cuenta", modal_saving:"ahorro",
+      modal_name_debit:"Nombre (ej. Efectivo, Débito BBVA)",
       modal_name_card:"Nombre (ej. BBVA Oro)", modal_name_saving:"Nombre (ej. Fondo de emergencia)",
       modal_bank_placeholder:"Banco (ej. BBVA, Nu, efectivo)",
       modal_current_balance:"Saldo actual", modal_current_amount:"Monto actual",
@@ -481,13 +484,19 @@
       hsf_not_evaluated:"No evaluado",
 
       chart_3m:"3M", chart_6m:"6M", chart_1y:"1A", chart_all:"Todo",
+
+      modal_type_label:"Tipo de tarjeta", modal_type_credit:"💳 Crédito", modal_type_debit:"💵 Débito o efectivo",
+      debit_this_month:"Gasto de este mes", debit_empty:"Aún no registras gastos aquí.",
+      debit_type_badge:"Débito / Efectivo",
       apikey_title:"Clave de API de Anthropic (modo desarrollador)",
       apikey_warning:"Estás en modo desarrollador: esta clave se guarda solo en este navegador y las llamadas salen directo desde aquí. No es la arquitectura recomendada para una versión comercial — revisa \"Acerca de → Recibos con IA\" en Ajustes.",
       apikey_get_note:"Consíguela en <strong>console.anthropic.com</strong> → API Keys. Tiene un costo muy bajo por foto.",
     },
     en: {
-      nav_resumen:"Overview", nav_movimientos:"Activity", nav_tarjetas:"Cards", nav_prestamos:"Loans",
+      nav_resumen:"Overview", nav_movimientos:"Activity", nav_tarjetas:"Cards", nav_gastos:"Expenses", nav_prestamos:"Loans",
       nav_ahorros:"Savings", nav_analisis:"Insights", nav_ajustes:"Settings",
+      title_gastos:"Expenses", gastos_empty_title:"No cash or debit accounts",
+      gastos_empty_body:"Register your cash or debit cards to track those expenses, kept separate from your credit debt.",
       gate_login_title:"Sign in", gate_signup_title:"Create your account",
       gate_login_btn:"Sign in", gate_signup_btn:"Create account",
       gate_toggle_to_signup:"Don't have an account? Create one", gate_toggle_to_login:"Already have an account? Sign in",
@@ -550,7 +559,8 @@
       goal_ontrack:"You're on track: at {amount}/mo you'd get there before {date}. The minimum to stay on time is {needed}/mo.",
       goal_suggest:"Save {amount}/mo to reach it by {date}",
 
-      modal_edit:"Edit", modal_add:"Add", modal_card:"card", modal_saving:"savings",
+      modal_edit:"Edit", modal_add:"Add", modal_card:"card", modal_debit:"account", modal_saving:"savings",
+      modal_name_debit:"Name (e.g. Cash, Debit BBVA)",
       modal_name_card:"Name (e.g. BBVA Gold)", modal_name_saving:"Name (e.g. Emergency fund)",
       modal_bank_placeholder:"Bank (e.g. BBVA, Nu, cash)",
       modal_current_balance:"Current balance", modal_current_amount:"Current amount",
@@ -771,6 +781,10 @@
       hsf_not_evaluated:"Not evaluated",
 
       chart_3m:"3M", chart_6m:"6M", chart_1y:"1Y", chart_all:"All",
+
+      modal_type_label:"Card type", modal_type_credit:"💳 Credit", modal_type_debit:"💵 Debit or cash",
+      debit_this_month:"This month's spending", debit_empty:"You haven't logged any expenses here yet.",
+      debit_type_badge:"Debit / Cash",
       apikey_title:"Anthropic API key (developer mode)",
       apikey_warning:"You're in developer mode: this key is stored only in this browser and calls go out directly from here. Not the recommended architecture for a commercial version — check \"About → AI receipts\" in Settings.",
       apikey_get_note:"Get one at <strong>console.anthropic.com</strong> → API Keys. It costs very little per photo.",
@@ -2462,6 +2476,10 @@
     var cards = data.cards.map(function(c){
       if(c.id!==cardId) return c;
       var expenses = (c.expenses||[]).concat([{id:uid(), description:description||"Gasto", amount:amount, date:iso, category:category||"Otros"}]);
+      // Débito/efectivo no es deuda — no acumulamos "saldo" para no confundirlo con lo
+      // que debes en tarjetas de crédito. El total gastado se calcula sumando los
+      // gastos directamente, no desde un campo de saldo.
+      if(c.type==="debito") return Object.assign({}, c, {expenses:expenses});
       return Object.assign({}, c, {balance: +(c.balance+amount).toFixed(2), expenses:expenses});
     });
     persist(withHistory(Object.assign({}, data, {cards:cards})));
@@ -2474,6 +2492,7 @@
       var old = (c.expenses||[]).find(function(e){return e.id===expenseId;});
       var diff = old ? amount-old.amount : 0;
       var expenses = (c.expenses||[]).map(function(e){ return e.id===expenseId ? Object.assign({},e,{amount:amount, description:description||"Gasto", date:iso, category:category||e.category||"Otros"}) : e; });
+      if(c.type==="debito") return Object.assign({}, c, {expenses:expenses});
       return Object.assign({}, c, {balance: Math.max(0, +(c.balance+diff).toFixed(2)), expenses:expenses});
     });
     persist(withHistory(Object.assign({}, data, {cards:cards})));
@@ -2485,6 +2504,7 @@
       if(c.id!==cardId) return c;
       var exp = (c.expenses||[]).find(function(e){return e.id===expenseId;});
       var expenses = (c.expenses||[]).filter(function(e){return e.id!==expenseId;});
+      if(c.type==="debito") return Object.assign({}, c, {expenses:expenses});
       var balance = exp ? Math.max(0, +(c.balance-exp.amount).toFixed(2)) : c.balance;
       return Object.assign({}, c, {expenses:expenses, balance:balance});
     });
@@ -2504,6 +2524,7 @@
       if(c.id!==cardId) return c;
       if((c.expenses||[]).some(function(e){ return e.id===expenseObj.id; })) return c; // ya existe, evita duplicados
       var expenses = (c.expenses||[]).concat([expenseObj]);
+      if(c.type==="debito") return Object.assign({}, c, {expenses:expenses});
       return Object.assign({}, c, {balance: +(c.balance+expenseObj.amount).toFixed(2), expenses:expenses});
     });
     persist(withHistory(Object.assign({}, data, {cards:cards})));
@@ -2557,7 +2578,7 @@
     var totalSavings = data.savings.reduce(function(s,sv){ return s + (sv.current||0); },0);
     var net = totalSavings - totalDebt;
 
-    var tabTitles = { resumen:t("title_resumen"), movimientos:t("title_movimientos"), tarjetas:t("title_tarjetas"), prestamos:t("title_prestamos"), ahorros:t("title_ahorros"), analisis:t("title_analisis"), config:t("title_config") };
+    var tabTitles = { resumen:t("title_resumen"), movimientos:t("title_movimientos"), tarjetas:t("title_tarjetas"), gastos:t("title_gastos"), prestamos:t("title_prestamos"), ahorros:t("title_ahorros"), analisis:t("title_analisis"), config:t("title_config") };
 
     var html = "";
     html += '<div class="wrap" style="zoom:'+(FONT_SCALE[data.settings.fontSize] || FONT_SCALE.normal)+';">';
@@ -2589,6 +2610,8 @@
       html += renderMovimientosSection();
     }else if(ui.tab === "tarjetas"){
       html += renderCardsSection();
+    }else if(ui.tab === "gastos"){
+      html += renderGastosSection();
     }else if(ui.tab === "prestamos"){
       html += renderPersonalCreditsSection();
     }else if(ui.tab === "ahorros"){
@@ -2631,6 +2654,7 @@
     {id:"resumen", label:t("nav_resumen"), icon:"📊"},
     {id:"movimientos", label:t("nav_movimientos"), icon:"🧾"},
     {id:"tarjetas", label:t("nav_tarjetas"), icon:"💳"},
+    {id:"gastos", label:t("nav_gastos"), icon:"💵"},
     {id:"prestamos", label:t("nav_prestamos"), icon:"🏦"},
     {id:"ahorros", label:t("nav_ahorros"), icon:"🐷"},
     {id:"analisis", label:t("nav_analisis"), icon:"🔍"},
@@ -3745,17 +3769,31 @@
   }
 
   function renderCardsSection(){
+    var creditCards = data.cards.filter(function(c){ return c.type!=="debito"; });
     var html = '<section>'+renderHideBalancesToggle()+'<div class="sec-head"><div class="sec-title">💳 '+t("section_title_tarjetas")+'</div>'+
-      '<button class="add-btn" data-act="open-modal" data-kind="card">'+t("btn_add")+'</button></div>';
-    if(!data.cards.length){
+      '<button class="add-btn" data-act="open-modal" data-kind="card" data-card-type="credito">'+t("btn_add")+'</button></div>';
+    if(!creditCards.length){
       html += emptyState("💳", t("card_empty_title"), t("card_empty_body"));
     }
-    sortCardsByDue(data.cards).forEach(function(c){ html += renderCard(c); });
+    sortCardsByDue(creditCards).forEach(function(c){ html += renderCard(c); });
+    html += '</section>';
+    return html;
+  }
+
+  function renderGastosSection(){
+    var debitCards = data.cards.filter(function(c){ return c.type==="debito"; });
+    var html = '<section>'+renderHideBalancesToggle()+'<div class="sec-head"><div class="sec-title">💵 '+t("title_gastos")+'</div>'+
+      '<button class="add-btn" data-act="open-modal" data-kind="card" data-card-type="debito">'+t("btn_add")+'</button></div>';
+    if(!debitCards.length){
+      html += emptyState("💵", t("gastos_empty_title"), t("gastos_empty_body"));
+    }
+    debitCards.forEach(function(c){ html += renderCard(c); });
     html += '</section>';
     return html;
   }
 
   function renderCard(item){
+    if(item.type==="debito") return renderDebitCard(item);
     var msiOwed = cardMsiTotal(item);
     var deferredOwed = cardDeferredTotal(item);
     var usedTotal = Math.max(0, item.balance + msiOwed + deferredOwed - (item.extraCredit||0));
@@ -3889,6 +3927,65 @@
       html += renderPaymentsSection(item, payments);
       html += renderMsiSection(item);
       html += renderDeferredSection(item);
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderDebitCard(item){
+    var expenses = (item.expenses||[]).slice().sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
+    var now = new Date();
+    var thisMonthTotal = monthTotal(item.expenses||[], now.getFullYear(), now.getMonth());
+    var open = ui.openCard === item.id;
+    var grad = gradientForCard(item.name, item.colorOverride);
+
+    var html = '<div class="card" data-card="'+item.id+'" style="padding:14px;">';
+    html += '<div style="display:flex;justify-content:flex-end;gap:2px;margin-bottom:8px;">'+
+      '<button class="icon-btn" data-act="edit-card" data-id="'+item.id+'">✎</button>'+
+      '<button class="icon-btn" data-act="delete-card" data-id="'+item.id+'">🗑</button>'+
+      '</div>';
+
+    html += '<button class="card-main" data-act="toggle-card" data-id="'+item.id+'" style="display:block;width:100%;">';
+    html += '<div style="border-radius:16px;padding:16px 18px;background:linear-gradient(135deg,'+grad[0]+','+grad[1]+');position:relative;overflow:hidden;box-shadow:0 12px 24px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:space-between;">';
+    html += '<div style="position:absolute;top:-40%;left:-20%;width:90%;height:140%;background:linear-gradient(115deg,rgba(255,255,255,.16),rgba(255,255,255,0) 45%);pointer-events:none;"></div>';
+    html += '<div style="position:relative;z-index:1;min-width:0;">'+
+      '<div style="color:rgba(255,255,255,.92);font-family:var(--disp);font-weight:600;font-size:14px;letter-spacing:-0.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(item.name)+'</div>'+
+      '<div style="color:rgba(255,255,255,.65);font-size:10px;margin-top:2px;">'+t("debit_type_badge")+'</div>'+
+      '</div>';
+    html += '<div style="position:relative;z-index:1;text-align:right;flex-shrink:0;margin-left:10px;">'+
+      '<div style="color:#fff;font-family:var(--mono);font-size:19px;font-weight:600;">'+fmtMasked(thisMonthTotal)+'</div>'+
+      '<div style="color:rgba(255,255,255,.7);font-size:10px;margin-top:2px;">'+t("debit_this_month")+'</div>'+
+      '</div>';
+    html += '</div></button>';
+
+    if(open){
+      html += '<div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:10px;margin-bottom:4px;">';
+      html += '<input type="file" accept="image/*,.pdf,application/pdf" id="receipt-input-'+item.id+'" style="display:none;" />';
+      html += '<button class="mini-add" style="color:var(--amber);" data-act="scan-receipt" data-id="'+item.id+'">'+t("card_scan_receipt")+'</button>';
+      if(ui.expenseForm !== item.id){
+        html += '<button class="mini-add" data-act="show-expense-form" data-id="'+item.id+'">'+t("card_register_expense")+'</button>';
+      }
+      html += '</div>';
+      if(ui.expenseForm === item.id && ui.scanError){
+        html += '<div style="color:var(--coral);font-size:11px;margin-bottom:8px;">'+esc(ui.scanError)+'</div>';
+      }
+      if(!expenses.length){
+        html += '<div class="empty">'+t("debit_empty")+'</div>';
+      }else{
+        html += '<div class="mini-card">';
+        expenses.forEach(function(e, idx){
+          html += '<div class="swipe-row" data-swipe-id="exp-'+e.id+'">'+
+            '<div class="swipe-actions">'+
+            '<button style="background:var(--amber);" data-act="edit-expense" data-card="'+item.id+'" data-exp="'+e.id+'">✎</button>'+
+            '<button style="background:var(--coral);" data-act="delete-expense" data-card="'+item.id+'" data-exp="'+e.id+'">✕</button>'+
+            '</div>'+
+            '<div class="swipe-content mini-row" style="padding:6px 0;'+(idx<expenses.length-1?'border-bottom:1px solid var(--surface2);':'')+'">'+
+            '<span class="pay-date" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:65%;">'+esc(e.description)+' · '+dateLabel(e.date)+'</span>'+
+            '<span style="font-family:var(--mono);font-size:12px;">'+fmtMasked(e.amount)+'</span>'+
+            '</div></div>';
+        });
+        html += '</div>';
+      }
     }
     html += '</div>';
     return html;
@@ -4483,27 +4580,33 @@
     var kind = ui.modal.kind;
     var initial = ui.modal.data || null;
     var isCard = kind==="card";
-    var title = (initial?t("modal_edit")+" ":t("modal_add")+" ") + (isCard?t("modal_card"):t("modal_saving"));
+    var cardType = isCard ? (ui.modal.cardType || "credito") : null;
+    var isDebit = isCard && cardType==="debito";
+    var title = (initial?t("modal_edit")+" ":t("modal_add")+" ") + (isCard?(isDebit?t("modal_debit"):t("modal_card")):t("modal_saving"));
     var html = '<div class="modal-overlay" data-act="close-modal-bg"><div class="modal" data-stop="1">';
     html += '<div class="modal-head"><h3>'+title+'</h3><button data-act="close-modal">✕</button></div>';
-    html += '<input type="text" id="m-name" placeholder="'+(isCard?t("modal_name_card"):t("modal_name_saving"))+'" value="'+esc(initial?initial.name:"")+'" />';
+    html += '<input type="text" id="m-name" placeholder="'+(isCard?(isDebit?t("modal_name_debit"):t("modal_name_card")):t("modal_name_saving"))+'" value="'+esc(initial?initial.name:"")+'" />';
     if(!isCard){
       html += '<input type="text" id="m-bank" placeholder="'+t("modal_bank_placeholder")+'" value="'+esc(initial&&initial.bank?initial.bank:"")+'" />';
     }
-    html += '<input type="text" inputmode="decimal" id="m-a" placeholder="'+(isCard?t("modal_current_balance"):t("modal_current_amount"))+'" value="'+(initial?(isCard?initial.balance:initial.current):"")+'" />';
-    html += '<input type="text" inputmode="decimal" id="m-b" placeholder="'+(isCard?t("modal_credit_limit"):t("modal_savings_goal"))+'" value="'+(initial?(isCard?initial.limit:initial.goal):"")+'" />';
+    if(!isDebit){
+      html += '<input type="text" inputmode="decimal" id="m-a" placeholder="'+(isCard?t("modal_current_balance"):t("modal_current_amount"))+'" value="'+(initial?(isCard?initial.balance:initial.current):"")+'" />';
+      html += '<input type="text" inputmode="decimal" id="m-b" placeholder="'+(isCard?t("modal_credit_limit"):t("modal_savings_goal"))+'" value="'+(initial?(isCard?initial.limit:initial.goal):"")+'" />';
+    }
     if(!isCard){
       var tdVal = initial&&initial.targetDate ? new Date(initial.targetDate).toISOString().slice(0,10) : "";
       html += '<span class="field-label">'+t("modal_target_date")+'</span><input type="date" id="m-target-date" value="'+tdVal+'" style="margin-bottom:10px;" />';
       html += '<span class="field-label">'+t("modal_monthly_contribution")+'</span><input type="text" inputmode="decimal" id="m-contribution" placeholder="'+t("modal_contribution_placeholder")+'" value="'+(initial&&initial.monthlyContribution?initial.monthlyContribution:"")+'" style="margin-bottom:10px;" />';
     }
-    if(isCard){
+    if(isCard && !isDebit){
       html += '<div class="modal-2col">'+
         '<div><span class="field-label">'+t("modal_cutoff_day")+'</span><input type="text" inputmode="numeric" id="m-cutoff" placeholder="1–31" value="'+(initial&&initial.cutoffDay?initial.cutoffDay:"")+'" /></div>'+
         '<div><span class="field-label">'+t("modal_due_day")+'</span><input type="text" inputmode="numeric" id="m-due" placeholder="1–31" value="'+(initial&&initial.dueDay?initial.dueDay:"")+'" /></div>'+
         '</div>';
       html += '<span class="field-label">'+t("modal_revolving_rate")+'</span><input type="text" inputmode="decimal" id="m-revolving-rate" placeholder="'+t("modal_revolving_placeholder")+'" value="'+(initial&&initial.revolvingRate?initial.revolvingRate:"")+'" style="margin-bottom:10px;" />';
       html += '<span class="field-label">'+t("modal_min_payment")+'</span><input type="text" inputmode="decimal" id="m-min-payment" placeholder="'+t("modal_min_payment_placeholder")+'" value="'+(initial&&initial.minPayment?initial.minPayment:"")+'" style="margin-bottom:10px;" />';
+    }
+    if(isCard){
       html += '<span class="field-label">'+t("modal_card_color")+'</span>';
       html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">';
       var selectedColorIdx = ui.modal.colorOverride;
@@ -4807,7 +4910,7 @@
     var act = el.getAttribute("data-act");
 
     if(act==="open-modal"){
-      ui.modal = { kind: el.getAttribute("data-kind"), data:null, colorOverride:null };
+      ui.modal = { kind: el.getAttribute("data-kind"), data:null, colorOverride:null, cardType: el.getAttribute("data-card-type")||"credito" };
       render();
     }else if(act==="toggle-hide-balances"){
       ui.hideBalances = !ui.hideBalances;
@@ -5152,7 +5255,7 @@
       if(e.target === el){ ui.modal = null; render(); }
     }else if(act==="edit-card"){
       var c = data.cards.find(function(x){return x.id===el.getAttribute("data-id");});
-      ui.modal = { kind:"card", data:c, colorOverride: c.colorOverride!=null?c.colorOverride:null }; render();
+      ui.modal = { kind:"card", data:c, colorOverride: c.colorOverride!=null?c.colorOverride:null, cardType: c.type==="debito"?"debito":"credito" }; render();
     }else if(act==="edit-saving"){
       var s = data.savings.find(function(x){return x.id===el.getAttribute("data-id");});
       ui.modal = { kind:"saving", data:s }; render();
@@ -5435,21 +5538,30 @@
       var kind2 = el.getAttribute("data-kind");
       var existingId = el.getAttribute("data-existing-id");
       var name = document.getElementById("m-name").value.trim();
-      var a = parseFloat(document.getElementById("m-a").value);
-      var b = parseFloat(document.getElementById("m-b").value);
-      if(!name || isNaN(a) || isNaN(b)) return;
+      var isDebitSave = kind2==="card" && ui.modal && ui.modal.cardType==="debito";
+      var aEl = document.getElementById("m-a");
+      var bEl = document.getElementById("m-b");
+      var a = isDebitSave ? 0 : parseFloat(aEl ? aEl.value : "");
+      var b = isDebitSave ? 0 : parseFloat(bEl ? bEl.value : "");
+      if(!name || (!isDebitSave && (isNaN(a) || isNaN(b)))) return;
       var item = { id: existingId || uid(), name: name };
       if(kind2==="card"){
-        var cutoff = document.getElementById("m-cutoff").value;
-        var due = document.getElementById("m-due").value;
-        var revRate = document.getElementById("m-revolving-rate").value;
-        var minPay = document.getElementById("m-min-payment").value;
-        item.balance = a; item.limit = b;
-        item.cutoffDay = cutoff ? parseInt(cutoff,10) : null;
-        item.dueDay = due ? parseInt(due,10) : null;
-        item.revolvingRate = revRate ? parseFloat(revRate) : null;
-        item.minPayment = minPay ? parseFloat(minPay) : null;
+        item.type = isDebitSave ? "debito" : "credito";
         item.colorOverride = (ui.modal && ui.modal.colorOverride!=null) ? ui.modal.colorOverride : null;
+        if(isDebitSave){
+          item.balance = 0; item.limit = 0;
+          item.cutoffDay = null; item.dueDay = null; item.revolvingRate = null; item.minPayment = null;
+        }else{
+          var cutoff = document.getElementById("m-cutoff").value;
+          var due = document.getElementById("m-due").value;
+          var revRate = document.getElementById("m-revolving-rate").value;
+          var minPay = document.getElementById("m-min-payment").value;
+          item.balance = a; item.limit = b;
+          item.cutoffDay = cutoff ? parseInt(cutoff,10) : null;
+          item.dueDay = due ? parseInt(due,10) : null;
+          item.revolvingRate = revRate ? parseFloat(revRate) : null;
+          item.minPayment = minPay ? parseFloat(minPay) : null;
+        }
         if(existingId){
           var old = data.cards.find(function(c){return c.id===existingId;});
           if(old){ item.msi = old.msi; item.payments = old.payments; item.expenses = old.expenses; item.diferidos = old.diferidos; item.extraCredit = old.extraCredit; }
