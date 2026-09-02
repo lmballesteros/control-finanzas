@@ -479,6 +479,8 @@
       hsf_debt_trend_label:"Tendencia de deuda", hsf_debt_grew:"Aumentó", hsf_debt_flat:"Se mantuvo o bajó",
       hsf_debt_trend_detail:"{prev} → {last}", hsf_debt_trend_na:"Necesitas historial de al menos 2 meses",
       hsf_not_evaluated:"No evaluado",
+
+      chart_3m:"3M", chart_6m:"6M", chart_1y:"1A", chart_all:"Todo",
       apikey_title:"Clave de API de Anthropic (modo desarrollador)",
       apikey_warning:"Estás en modo desarrollador: esta clave se guarda solo en este navegador y las llamadas salen directo desde aquí. No es la arquitectura recomendada para una versión comercial — revisa \"Acerca de → Recibos con IA\" en Ajustes.",
       apikey_get_note:"Consíguela en <strong>console.anthropic.com</strong> → API Keys. Tiene un costo muy bajo por foto.",
@@ -767,6 +769,8 @@
       hsf_debt_trend_label:"Debt trend", hsf_debt_grew:"Grew", hsf_debt_flat:"Stayed flat or dropped",
       hsf_debt_trend_detail:"{prev} → {last}", hsf_debt_trend_na:"You need at least 2 months of history",
       hsf_not_evaluated:"Not evaluated",
+
+      chart_3m:"3M", chart_6m:"6M", chart_1y:"1Y", chart_all:"All",
       apikey_title:"Anthropic API key (developer mode)",
       apikey_warning:"You're in developer mode: this key is stored only in this browser and calls go out directly from here. Not the recommended architecture for a commercial version — check \"About → AI receipts\" in Settings.",
       apikey_get_note:"Get one at <strong>console.anthropic.com</strong> → API Keys. It costs very little per photo.",
@@ -849,7 +853,7 @@
              apiKeyModal:false, backupModal:false, backupMessage:"", scanningCard:null, scanError:"", expenseDraft:null,
              reconcileBusy:false, reconcileError:"", reconcileResult:null, reconcileTarget:null, reconcileManualForm:null, showPastCycles:null,
              openSubsections:{}, adjustDeferredTarget:null, editCreditTarget:null,
-             personalCreditForm:null, tab:"resumen", analysisQuery:"", donutSelected:null, toast:null,
+             personalCreditForm:null, tab:"resumen", analysisQuery:"", donutSelected:null, chartPeriod:"all", toast:null,
              movQuery:"", movCategory:"", movCard:"", movMonth:"", extraPayment:0, movCardPicker:false, deferredInstallPrompt:null, reassignCategory:null, updateAvailable:false, devModeModal:false, renamingCategory:null,
              cloudModal:false, cloudMode:"login", cloudError:"", cloudBusy:false, cloudUser:null, cloudStatus:"signed-out", cloudConflict:null, authChecked:false,
              deleteAccountModal:false, deleteAccountPassword:"", deleteAccountError:"", deleteAccountBusy:false, cloudResetSent:false,
@@ -4368,13 +4372,23 @@
 
 
   function renderChartSection(){
-    var points = monthlyAggregate(data.history);
-    var html = '<section><div class="sec-title" style="margin-bottom:12px;">Evolución mensual</div>';
-    if(points.length < 2){
-      html += '<div class="chart-box"><div class="chart-empty">Aquí verás tu evolución mensual de deuda y ahorro conforme registres cambios en al menos dos meses distintos.</div></div>';
+    var allPoints = monthlyAggregate(data.history);
+    var periodMap = {"3m":3, "6m":6, "1y":12, "all":Infinity};
+    var n = periodMap[ui.chartPeriod] || Infinity;
+    var points = n===Infinity ? allPoints : allPoints.slice(-n);
+    var html = '<section><div class="sec-title" style="margin-bottom:12px;">'+t("analisis_evolution")+'</div>';
+    if(allPoints.length < 2){
+      html += '<div class="chart-box"><div class="chart-empty">'+t("analisis_evolution_empty")+'</div></div>';
     }else{
+      var periods = [["3m",t("chart_3m")],["6m",t("chart_6m")],["1y",t("chart_1y")],["all",t("chart_all")]];
+      html += '<div style="display:flex;background:var(--surface3);border-radius:10px;padding:3px;margin-bottom:10px;">';
+      periods.forEach(function(p){
+        var active = ui.chartPeriod===p[0];
+        html += '<button data-act="set-chart-period" data-period="'+p[0]+'" style="flex:1;background:'+(active?"var(--blue)":"transparent")+';color:'+(active?"#fff":"var(--muted)")+';border:none;border-radius:8px;padding:6px;font-size:11px;font-weight:600;">'+p[1]+'</button>';
+      });
+      html += '</div>';
       html += '<div class="chart-box">'+
-        '<div class="legend"><span><span class="dot" style="background:var(--coral)"></span>Deuda</span><span><span class="dot" style="background:var(--mint)"></span>Ahorro</span></div>'+
+        '<div class="legend"><span><span class="dot" style="background:var(--coral)"></span>'+t("analisis_debt_label")+'</span><span><span class="dot" style="background:var(--mint)"></span>'+t("analisis_savings_label")+'</span></div>'+
         buildSvgChart(points) +
         '</div>';
     }
@@ -4397,7 +4411,15 @@
       dots += '<circle cx="'+xAt(i).toFixed(1)+'" cy="'+yAt(p.Deuda).toFixed(1)+'" r="2.5" fill="var(--coral)" />';
       dots += '<circle cx="'+xAt(i).toFixed(1)+'" cy="'+yAt(p.Ahorro).toFixed(1)+'" r="2.5" fill="var(--mint)" />';
     });
+    // Con pocos meses mostramos la etiqueta de cada punto, pero con muchos (historial
+    // largo) eso se encima y se vuelve ilegible — mostramos como máximo ~6 etiquetas
+    // repartidas parejo, siempre incluyendo la primera y la última, para que el
+    // gráfico se mantenga legible sin importar cuánto historial tengas acumulado.
+    var maxLabels = 6;
+    var labelEvery = Math.max(1, Math.ceil(points.length / maxLabels));
     var labels = points.map(function(p,i){
+      var show = (i % labelEvery === 0) || i===points.length-1;
+      if(!show) return "";
       return '<text x="'+xAt(i).toFixed(1)+'" y="'+(h-4)+'" font-size="9" fill="var(--muted)" text-anchor="middle">'+p.label+'</text>';
     }).join("");
     var gridLines = "";
@@ -4826,6 +4848,9 @@
     }else if(act==="select-donut"){
       var idx = parseInt(el.getAttribute("data-idx"),10);
       ui.donutSelected = ui.donutSelected===idx ? null : idx;
+      render();
+    }else if(act==="set-chart-period"){
+      ui.chartPeriod = el.getAttribute("data-period");
       render();
     }else if(act==="undo-toast"){
       if(toastTimer) clearTimeout(toastTimer);
