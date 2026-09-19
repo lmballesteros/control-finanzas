@@ -53,9 +53,9 @@
   .eyebrow{color:var(--blue);font-size:11px;text-transform:uppercase;letter-spacing:.14em;margin-bottom:4px;font-weight:600;}
   h1{font-family:var(--disp);font-size:26px;font-weight:700;letter-spacing:-0.02em;margin:0 0 24px;}
   .stats{display:flex;gap:8px;margin-bottom:32px;}
-  .stat{flex:1;min-width:0;background:var(--surface);backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);border:1px solid var(--hairline);border-radius:18px;padding:12px 10px;box-shadow:0 10px 30px rgba(0,0,0,.35);}
-  .stat .lbl{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .stat .val{font-family:var(--mono);font-size:15px;font-weight:600;letter-spacing:-0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .stat{flex:1;min-width:0;background:var(--surface);backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);border:1px solid var(--hairline);border-radius:18px;padding:14px 12px;box-shadow:0 10px 30px rgba(0,0,0,.35);}
+  .stat .lbl{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .stat .val{font-family:var(--mono);font-size:19px;font-weight:600;letter-spacing:-0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .alerts{background:rgba(255,69,58,.12);border:1px solid rgba(255,69,58,.25);border-left:3px solid var(--coral);border-radius:16px;padding:12px 16px;margin-bottom:24px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
   .alerts .title{color:var(--coral);font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
   .alerts .row{display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:14px;background:none;border:none;color:inherit;font-family:inherit;text-align:left;width:100%;cursor:pointer;}
@@ -386,6 +386,11 @@
       exp_modal_edit:"Editar gasto", exp_modal_new:"Nuevo gasto", exp_desc_placeholder:"Descripción (ej. Supermercado)",
       exp_amount_placeholder:"Monto", form_category_label:"Categoría", chip_amount_placeholder:"monto", nav_menu_aria:"Menú",
 
+      sav_history_toggle:"Ver historial ({n})", sav_history_hide:"Ocultar historial",
+      sav_history_empty:"Sin movimientos registrados todavía.",
+      sav_movement_deposit:"Depósito", sav_movement_withdraw:"Retiro",
+      sav_edit_movement:"Editar movimiento", sav_amount_placeholder:"Monto (negativo si fue retiro)",
+
       pay_registered:"registrado{s}", pay_register_btn:"+ registrar pago", pay_empty:"Aún no registras pagos de esta tarjeta.",
       pay_modal_edit:"Editar pago", pay_modal_new:"Nuevo pago", pay_amount_placeholder:"Monto pagado",
 
@@ -683,6 +688,11 @@
       exp_modal_edit:"Edit expense", exp_modal_new:"New expense", exp_desc_placeholder:"Description (e.g. Grocery store)",
       exp_amount_placeholder:"Amount", form_category_label:"Category", chip_amount_placeholder:"amount", nav_menu_aria:"Menu",
 
+      sav_history_toggle:"View history ({n})", sav_history_hide:"Hide history",
+      sav_history_empty:"No transactions logged yet.",
+      sav_movement_deposit:"Deposit", sav_movement_withdraw:"Withdrawal",
+      sav_edit_movement:"Edit transaction", sav_amount_placeholder:"Amount (negative for a withdrawal)",
+
       pay_registered:"logged", pay_register_btn:"+ log payment", pay_empty:"You haven't logged any payments for this card yet.",
       pay_modal_edit:"Edit payment", pay_modal_new:"New payment", pay_amount_placeholder:"Amount paid",
 
@@ -909,6 +919,20 @@
     n = Math.round((n||0)*100)/100;
     return "$" + n.toLocaleString("es-MX",{minimumFractionDigits:0});
   }
+  /* Formato abreviado para espacios chicos (como las tarjetas de Deuda/Ahorro/Neto
+     en Resumen): en vez de "$12,345" o achicar la letra hasta que quepa, mostramos
+     "$12.35K" — el número completo se puede ver siempre en otras partes de la app
+     (movimientos, detalle de cada tarjeta, etc.), aquí priorizamos que quepa. */
+  function fmtCompact(n){
+    n = n||0;
+    var neg = n<0;
+    var abs = Math.abs(n);
+    var str;
+    if(abs>=1000000) str = (abs/1000000).toFixed(2)+"M";
+    else if(abs>=1000) str = (abs/1000).toFixed(2)+"K";
+    else str = abs.toFixed(2);
+    return (neg?"-$":"$")+str;
+  }
   /* Ocultar saldos: preferencia de dispositivo (no se sincroniza en la nube — cada
      dispositivo puede tener su propia preferencia, útil si prestas o muestras el
      teléfono a alguien). fmtMasked() sustituye cualquier monto por puntos cuando
@@ -917,6 +941,7 @@
   function getHideBalances(){ try{ return localStorage.getItem(HIDE_BALANCES_KEY)==="1"; }catch(e){ return false; } }
   function setHideBalancesPref(on){ try{ localStorage.setItem(HIDE_BALANCES_KEY, on?"1":"0"); }catch(e){} }
   function fmtMasked(n){ return ui.hideBalances ? "••••" : fmt(n); }
+  function fmtCompactMasked(n){ return ui.hideBalances ? "••••" : fmtCompact(n); }
   function renderHideBalancesToggle(){
     return '<button data-act="toggle-hide-balances" style="display:flex;align-items:center;gap:6px;background:var(--surface3);border:1px solid var(--hairline);border-radius:20px;padding:6px 12px;margin-bottom:14px;color:var(--muted);font-size:11px;font-weight:600;">'+
       (ui.hideBalances ? '🙈 '+t("card_show_balances") : '👁️ '+t("card_hide_balances"))+
@@ -2234,8 +2259,32 @@
     persist(withHistory(Object.assign({}, data, {cards:cards})));
   }
   function adjustSaving(id, delta){
+    var iso = new Date().toISOString();
     var savings = data.savings.map(function(s){
-      return s.id===id ? Object.assign({}, s, {current: Math.max(0, +(s.current+delta).toFixed(2))}) : s;
+      if(s.id!==id) return s;
+      var movements = (s.movements||[]).concat([{id:uid(), amount:delta, date:iso}]);
+      return Object.assign({}, s, {current: Math.max(0, +(s.current+delta).toFixed(2)), movements:movements});
+    });
+    persist(withHistory(Object.assign({}, data, {savings:savings})));
+  }
+  function updateSavingMovement(savingId, movId, newAmount, dateStr){
+    var iso = dateStr ? new Date(dateStr+"T12:00:00").toISOString() : new Date().toISOString();
+    var savings = data.savings.map(function(s){
+      if(s.id!==savingId) return s;
+      var old = (s.movements||[]).find(function(m){return m.id===movId;});
+      var diff = old ? newAmount-old.amount : 0;
+      var movements = (s.movements||[]).map(function(m){ return m.id===movId ? Object.assign({},m,{amount:newAmount, date:iso}) : m; });
+      return Object.assign({}, s, {current: Math.max(0, +(s.current+diff).toFixed(2)), movements:movements});
+    });
+    persist(withHistory(Object.assign({}, data, {savings:savings})));
+  }
+  function deleteSavingMovement(savingId, movId){
+    var savings = data.savings.map(function(s){
+      if(s.id!==savingId) return s;
+      var old = (s.movements||[]).find(function(m){return m.id===movId;});
+      var movements = (s.movements||[]).filter(function(m){return m.id!==movId;});
+      var newCurrent = old ? Math.max(0, +(s.current-old.amount).toFixed(2)) : s.current;
+      return Object.assign({}, s, {current:newCurrent, movements:movements});
     });
     persist(withHistory(Object.assign({}, data, {savings:savings})));
   }
@@ -3293,7 +3342,7 @@
       '<span class="lbl" style="margin-bottom:0;">'+label+'</span>'+
       (icon ? '<span style="font-size:12px;opacity:.85;">'+icon+'</span>' : '')+
       '</div>'+
-      '<div class="val" style="color:'+color+';">'+fmtMasked(value)+'</div></div>';
+      '<div class="val" style="color:'+color+';">'+fmtCompactMasked(value)+'</div></div>';
   }
 
   function emptyState(icon, title, subtitle){
@@ -4499,6 +4548,47 @@
       '</div></div>'+
       '<div class="bar" style="height:4px;margin-top:8px;margin-bottom:8px;"><div class="bar-fill" style="width:'+pct+'%;background:var(--mint)"></div></div>';
     html += renderChips(item.id, "saving");
+
+    var movements = (item.movements||[]).slice().sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
+    var histOpen = isSubsectionOpen(item.id, "sav-history");
+    html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--hairline);">';
+    html += '<button data-act="toggle-subsection" data-card="'+item.id+'" data-key="sav-history" style="width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;padding:0;text-align:left;">'+
+      '<span style="color:var(--muted);font-size:11px;font-weight:600;">'+(histOpen?t("sav_history_hide"):t("sav_history_toggle",{n:movements.length}))+'</span>'+
+      '<span style="color:var(--muted);font-size:10px;transform:rotate('+(histOpen?"180deg":"0deg")+');transition:transform .15s;">▾</span>'+
+      '</button>';
+    if(histOpen){
+      if(!movements.length){
+        html += '<div class="empty" style="margin-top:6px;">'+t("sav_history_empty")+'</div>';
+      }else{
+        html += '<div style="margin-top:8px;">';
+        movements.forEach(function(m){
+          var editing = ui.editSavingMovement && ui.editSavingMovement.savingId===item.id && ui.editSavingMovement.movId===m.id;
+          if(editing){
+            html += '<div class="form-box">'+
+              '<div class="form-row">'+
+              '<input type="text" inputmode="decimal" id="mov-edit-amount-'+m.id+'" placeholder="'+t("sav_amount_placeholder")+'" value="'+m.amount+'" />'+
+              '<input type="date" id="mov-edit-date-'+m.id+'" value="'+new Date(m.date).toISOString().slice(0,10)+'" />'+
+              '</div>'+
+              '<div class="form-actions">'+
+              '<button class="btn-cancel" data-act="toggle-edit-saving-movement" data-saving="'+item.id+'" data-mov="'+m.id+'">'+t("btn_cancel")+'</button>'+
+              '<button class="btn-save" data-act="submit-edit-saving-movement" data-saving="'+item.id+'" data-mov="'+m.id+'">'+t("btn_save")+'</button>'+
+              '</div></div>';
+          }else{
+            html += '<div class="swipe-row" data-swipe-id="savmov-'+m.id+'">'+
+              '<div class="swipe-actions">'+
+              '<button style="background:var(--amber);" data-act="toggle-edit-saving-movement" data-saving="'+item.id+'" data-mov="'+m.id+'">✎</button>'+
+              '<button style="background:var(--coral);" data-act="delete-saving-movement" data-saving="'+item.id+'" data-mov="'+m.id+'">✕</button>'+
+              '</div>'+
+              '<div class="swipe-content mini-row" style="padding:4px 0;">'+
+              '<span class="pay-date">'+(m.amount>=0?t("sav_movement_deposit"):t("sav_movement_withdraw"))+' · '+dateLabel(m.date)+'</span>'+
+              '<span style="font-family:var(--mono);font-size:12px;color:'+(m.amount>=0?"var(--mint)":"var(--coral)")+';">'+(m.amount>=0?"+":"")+fmtMasked(m.amount)+'</span>'+
+              '</div></div>';
+          }
+        });
+        html += '</div>';
+      }
+    }
+    html += '</div>';
     html += '</div>';
     return html;
   }
@@ -5366,6 +5456,21 @@
       if(!isNaN(val) && val>0){
         if(kind==="card") adjustCard(id2, sign*val); else adjustSaving(id2, sign*val);
       }
+    }else if(act==="toggle-edit-saving-movement"){
+      var tesSaving = el.getAttribute("data-saving"), tesMov = el.getAttribute("data-mov");
+      var isSame = ui.editSavingMovement && ui.editSavingMovement.savingId===tesSaving && ui.editSavingMovement.movId===tesMov;
+      ui.editSavingMovement = isSame ? null : {savingId:tesSaving, movId:tesMov};
+      render();
+    }else if(act==="submit-edit-saving-movement"){
+      var sesSaving = el.getAttribute("data-saving"), sesMov = el.getAttribute("data-mov");
+      var sesAmount = parseFloat(document.getElementById("mov-edit-amount-"+sesMov).value);
+      var sesDate = document.getElementById("mov-edit-date-"+sesMov).value;
+      if(!isNaN(sesAmount) && sesAmount!==0){
+        ui.editSavingMovement = null;
+        updateSavingMovement(sesSaving, sesMov, sesAmount, sesDate);
+      }
+    }else if(act==="delete-saving-movement"){
+      deleteSavingMovement(el.getAttribute("data-saving"), el.getAttribute("data-mov"));
     }else if(act==="show-payment-form"){
       ui.paymentForm = el.getAttribute("data-id"); ui.paymentEditId = null; render();
     }else if(act==="hide-payment-form"){
