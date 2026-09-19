@@ -391,6 +391,13 @@
       sav_movement_deposit:"Depósito", sav_movement_withdraw:"Retiro",
       sav_edit_movement:"Editar movimiento", sav_amount_placeholder:"Monto (negativo si fue retiro)",
 
+      wdp_title:"💰 Cuánto apartar cada semana", wdp_next_friday:"Próximo viernes de pago: {date}",
+      wdp_weekly_amount:"Aparta esto cada viernes",
+      wdp_interest_label:"Deudas con interés (tarjetas, diferidos, préstamos)",
+      wdp_msi_label:"Meses sin intereses (MSI)",
+      wdp_freedom_note:"A este ritmo, terminarías de pagar toda tu deuda actual (incluyendo MSI) en aproximadamente {n} meses, alrededor de {date}.",
+      wdp_none:"Con datos suficientes verás aquí cuánto apartar cada semana según tus fechas de pago.",
+
       pay_registered:"registrado{s}", pay_register_btn:"+ registrar pago", pay_empty:"Aún no registras pagos de esta tarjeta.",
       pay_modal_edit:"Editar pago", pay_modal_new:"Nuevo pago", pay_amount_placeholder:"Monto pagado",
 
@@ -693,6 +700,13 @@
       sav_movement_deposit:"Deposit", sav_movement_withdraw:"Withdrawal",
       sav_edit_movement:"Edit transaction", sav_amount_placeholder:"Amount (negative for a withdrawal)",
 
+      wdp_title:"💰 How much to set aside weekly", wdp_next_friday:"Next payday (Friday): {date}",
+      wdp_weekly_amount:"Set aside this much every Friday",
+      wdp_interest_label:"Interest-bearing debt (cards, deferred, loans)",
+      wdp_msi_label:"Interest-free installments (MSI)",
+      wdp_freedom_note:"At this pace, you'd finish paying off all your current debt (including installments) in about {n} months, around {date}.",
+      wdp_none:"Once there's enough data, you'll see here how much to set aside each week based on your payment dates.",
+
       pay_registered:"logged", pay_register_btn:"+ log payment", pay_empty:"You haven't logged any payments for this card yet.",
       pay_modal_edit:"Edit payment", pay_modal_new:"New payment", pay_amount_placeholder:"Amount paid",
 
@@ -919,20 +933,15 @@
     n = Math.round((n||0)*100)/100;
     return "$" + n.toLocaleString("es-MX",{minimumFractionDigits:0});
   }
-  /* Formato abreviado para espacios chicos (como las tarjetas de Deuda/Ahorro/Neto
-     en Resumen): en vez de "$12,345" o achicar la letra hasta que quepa, mostramos
-     "$12.35K" — el número completo se puede ver siempre en otras partes de la app
-     (movimientos, detalle de cada tarjeta, etc.), aquí priorizamos que quepa. */
-  function fmtCompact(n){
-    n = n||0;
-    var neg = n<0;
-    var abs = Math.abs(n);
-    var str;
-    if(abs>=1000000) str = (abs/1000000).toFixed(2)+"M";
-    else if(abs>=1000) str = (abs/1000).toFixed(2)+"K";
-    else str = abs.toFixed(2);
-    return (neg?"-$":"$")+str;
+  /* Formato completo con 2 decimales siempre visibles (ej. "$12,350.00"), usado en
+     las tarjetas de Deuda/Ahorro/Neto en Resumen. El tamaño de letra se ajusta
+     automáticamente después de dibujar (ver autoFitStatValues) para que quepa sin
+     desplazamiento, en vez de acortar el número mismo. */
+  function fmtFull2(n){
+    n = Math.round((n||0)*100)/100;
+    return "$" + n.toLocaleString("es-MX",{minimumFractionDigits:2, maximumFractionDigits:2});
   }
+  function fmtFull2Masked(n){ return ui.hideBalances ? "••••" : fmtFull2(n); }
   /* Ocultar saldos: preferencia de dispositivo (no se sincroniza en la nube — cada
      dispositivo puede tener su propia preferencia, útil si prestas o muestras el
      teléfono a alguien). fmtMasked() sustituye cualquier monto por puntos cuando
@@ -941,7 +950,6 @@
   function getHideBalances(){ try{ return localStorage.getItem(HIDE_BALANCES_KEY)==="1"; }catch(e){ return false; } }
   function setHideBalancesPref(on){ try{ localStorage.setItem(HIDE_BALANCES_KEY, on?"1":"0"); }catch(e){} }
   function fmtMasked(n){ return ui.hideBalances ? "••••" : fmt(n); }
-  function fmtCompactMasked(n){ return ui.hideBalances ? "••••" : fmtCompact(n); }
   function renderHideBalancesToggle(){
     return '<button data-act="toggle-hide-balances" style="display:flex;align-items:center;gap:6px;background:var(--surface3);border:1px solid var(--hairline);border-radius:20px;padding:6px 12px;margin-bottom:14px;color:var(--muted);font-size:11px;font-weight:600;">'+
       (ui.hideBalances ? '🙈 '+t("card_show_balances") : '👁️ '+t("card_hide_balances"))+
@@ -1032,6 +1040,15 @@
     },0);
   }
   function dateLabel(d){ return new Date(d).toLocaleDateString(tlang()==="en"?"en-US":"es-MX",{day:"numeric",month:"short"}); }
+  /* Próximo viernes a partir de una fecha (incluye el día mismo si ya es viernes) —
+     se usa para la recomendación semanal de pago de deudas, ya que el día de pago
+     del usuario son los viernes. */
+  function nextFriday(fromDate){
+    var d = new Date(fromDate); d.setHours(0,0,0,0);
+    var diff = (5 - d.getDay() + 7) % 7;
+    d.setDate(d.getDate()+diff);
+    return d;
+  }
   function dateLabelFull(d){ return new Date(d).toLocaleDateString(tlang()==="en"?"en-US":"es-MX",{day:"numeric",month:"short",year:"numeric"}); }
 
   function billingCycle(dateISO, cutoffDay, dueDay){
@@ -2715,6 +2732,28 @@
     var appEl = document.getElementById("app");
     appEl.innerHTML = html;
     bindHandlers();
+    autoFitStatValues();
+  }
+
+  /* Reduce el tamaño de letra de los números de Deuda/Ahorro/Neto (y cualquier otro
+     valor marcado con .stat-val-autofit) solo lo necesario para que quepan en su
+     cuadro sin desplazamiento horizontal, en vez de acortar el número o dejarlo
+     truncado. Cada tarjeta puede terminar con un tamaño distinto según qué tan
+     largo sea su número — eso es correcto e intencional. */
+  function autoFitStatValues(){
+    document.querySelectorAll(".stat-val-autofit").forEach(function(el){
+      el.style.fontSize = "";
+      var computed = getComputedStyle(el);
+      var maxSize = parseFloat(computed.fontSize);
+      var minSize = 10;
+      var size = maxSize;
+      var guard = 0;
+      while(el.scrollWidth > el.clientWidth && size > minSize && guard < 30){
+        size -= 0.5;
+        el.style.fontSize = size + "px";
+        guard++;
+      }
+    });
   }
 
   var NAV_ITEMS = [
@@ -2807,6 +2846,55 @@
     return html;
   }
 
+  function computeWeeklyDebtAmount(){
+    var plan = debtPayoffPlan(data, 0);
+    var msiMonthlyTotal = 0;
+    var maxMsiRemainingMonths = 0;
+    data.cards.forEach(function(c){
+      (c.msi||[]).forEach(function(p){
+        var paid = msiEffectivePaid(p, c.cutoffDay, c.dueDay);
+        if(paid < p.months){
+          msiMonthlyTotal += msiMonthly(p);
+          maxMsiRemainingMonths = Math.max(maxMsiRemainingMonths, p.months-paid);
+        }
+      });
+    });
+    var interestMonthly = plan ? plan.totalMonthlyPayment : 0;
+    var totalMonthly = interestMonthly + msiMonthlyTotal;
+    var horizonMonths = Math.max(plan ? plan.currentMonths : 0, maxMsiRemainingMonths);
+    return { totalMonthly:totalMonthly, weeklyAmount:totalMonthly/4.33, interestMonthly:interestMonthly, msiMonthlyTotal:msiMonthlyTotal, horizonMonths:horizonMonths };
+  }
+
+  function renderWeeklyDebtPlan(){
+    var w = computeWeeklyDebtAmount();
+    var interestMonthly = w.interestMonthly, msiMonthlyTotal = w.msiMonthlyTotal;
+    if(w.totalMonthly<=0) return "";
+
+    var weeklyAmount = w.weeklyAmount;
+    var horizonMonths = w.horizonMonths;
+    var today = new Date();
+    var horizonDate = new Date(today.getFullYear(), today.getMonth()+horizonMonths, today.getDate());
+    var fri = nextFriday(today);
+
+    var html = '<section><div class="sec-title" style="margin-bottom:12px;">'+t("wdp_title")+'</div><div class="card">';
+    html += '<div style="color:var(--muted);font-size:11px;margin-bottom:10px;">'+t("wdp_next_friday",{date:dateLabelFull(fri)})+'</div>';
+    html += '<div style="text-align:center;background:var(--surface3);border-radius:14px;padding:16px;margin-bottom:12px;">'+
+      '<div style="color:var(--muted);font-size:11px;margin-bottom:4px;">'+t("wdp_weekly_amount")+'</div>'+
+      '<div style="color:var(--mint);font-family:var(--mono);font-size:26px;font-weight:700;">'+fmt(weeklyAmount)+'</div>'+
+      '</div>';
+    if(interestMonthly>0){
+      html += '<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-top:1px solid var(--surface2);">'+
+        '<span style="color:var(--muted);">'+t("wdp_interest_label")+'</span><span style="font-family:var(--mono);color:var(--text);">'+fmt(interestMonthly/4.33)+'/sem</span></div>';
+    }
+    if(msiMonthlyTotal>0){
+      html += '<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-top:1px solid var(--surface2);">'+
+        '<span style="color:var(--muted);">'+t("wdp_msi_label")+'</span><span style="font-family:var(--mono);color:var(--text);">'+fmt(msiMonthlyTotal/4.33)+'/sem</span></div>';
+    }
+    html += '<div style="color:var(--muted);font-size:11px;margin-top:10px;line-height:1.5;">'+t("wdp_freedom_note",{n:horizonMonths, date:dateLabelFull(horizonDate)})+'</div>';
+    html += '</div></section>';
+    return html;
+  }
+
   function renderDebtPayoffPlan(){
     var plan = debtPayoffPlan(data, ui.extraPayment);
     if(!plan) return "";
@@ -2879,6 +2967,7 @@
     var subsTotal = subs.reduce(function(s,x){ return s+x.monthlyEquivalent; },0);
 
     html += renderCategoryBreakdown();
+    html += renderWeeklyDebtPlan();
     html += renderDebtPayoffPlan();
 
     if(highUtil.length){
@@ -3342,7 +3431,7 @@
       '<span class="lbl" style="margin-bottom:0;">'+label+'</span>'+
       (icon ? '<span style="font-size:12px;opacity:.85;">'+icon+'</span>' : '')+
       '</div>'+
-      '<div class="val" style="color:'+color+';">'+fmtCompactMasked(value)+'</div></div>';
+      '<div class="val stat-val-autofit" style="color:'+color+';">'+fmtFull2Masked(value)+'</div></div>';
   }
 
   function emptyState(icon, title, subtitle){
