@@ -52,13 +52,13 @@
   .wrap{max-width:480px;margin:0 auto;padding:32px 16px 100px;}
   .eyebrow{color:var(--blue);font-size:11px;text-transform:uppercase;letter-spacing:.14em;margin-bottom:4px;font-weight:600;}
   h1{font-family:var(--disp);font-size:26px;font-weight:700;letter-spacing:-0.02em;margin:0 0 24px;}
-  .stats{display:flex;gap:10px;margin-bottom:32px;overflow-x:auto;}
-  .stat{flex:1;min-width:110px;background:var(--surface);backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);border:1px solid var(--hairline);border-radius:18px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35);}
-  .stat .lbl{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px;}
-  .stat .val{font-family:var(--mono);font-size:21px;font-weight:600;letter-spacing:-0.01em;}
+  .stats{display:flex;gap:8px;margin-bottom:32px;}
+  .stat{flex:1;min-width:0;background:var(--surface);backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);border:1px solid var(--hairline);border-radius:18px;padding:12px 10px;box-shadow:0 10px 30px rgba(0,0,0,.35);}
+  .stat .lbl{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .stat .val{font-family:var(--mono);font-size:15px;font-weight:600;letter-spacing:-0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .alerts{background:rgba(255,69,58,.12);border:1px solid rgba(255,69,58,.25);border-left:3px solid var(--coral);border-radius:16px;padding:12px 16px;margin-bottom:24px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
   .alerts .title{color:var(--coral);font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
-  .alerts .row{display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:14px;}
+  .alerts .row{display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:14px;background:none;border:none;color:inherit;font-family:inherit;text-align:left;width:100%;cursor:pointer;}
   .alerts .row .amt{font-family:var(--mono);font-size:12px;white-space:nowrap;}
   section{margin-bottom:32px;}
   .sec-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
@@ -1537,13 +1537,13 @@
   }
   function personalRemaining(credit){
     var paid = personalElapsed(credit);
-    var rows = buildAmortization(credit.principal, credit.months, credit.annualRate);
+    var rows = buildAmortizationAdjusted(credit.principal, credit.months, credit.annualRate, credit.overrides);
     return paid<=0 ? credit.principal : rows[Math.min(paid,credit.months)-1].balanceAfter;
   }
   function personalNextPaymentRow(credit){
     var paid = personalElapsed(credit);
     if(paid >= credit.months) return null;
-    var rows = buildAmortization(credit.principal, credit.months, credit.annualRate);
+    var rows = buildAmortizationAdjusted(credit.principal, credit.months, credit.annualRate, credit.overrides);
     return rows[paid];
   }
   function totalPersonalCreditsDebt(list){
@@ -1798,8 +1798,17 @@
     var debtExceedsSavings = totalDebt > totalSavings && totalDebt > 0;
     if(totalDebt>0){
       factorsEvaluated++;
-      var ratio = totalSavings>0 ? totalDebt/totalSavings : (totalDebt>0?3:0);
-      debtSavingsPenalty = Math.round(Math.min(35, Math.max(0, (ratio-1)*15)));
+      // Antes, sin nada ahorrado, usábamos una relación fija (deuda/ahorro = 3) sin
+      // importar si la deuda era de $500 o de $50,000 — el score se quedaba "atorado"
+      // aunque pagaras tu deuda, porque este factor nunca cambiaba. Ahora, sin ahorro,
+      // la penalización responde directamente al monto de la deuda (topada en $20,000
+      // para el máximo castigo), así que si pagas deuda el score sí se mueve.
+      if(totalSavings>0){
+        var ratio = totalDebt/totalSavings;
+        debtSavingsPenalty = Math.round(Math.min(35, Math.max(0, (ratio-1)*15)));
+      }else{
+        debtSavingsPenalty = Math.round(Math.min(35, (totalDebt/20000)*35));
+      }
       score -= debtSavingsPenalty;
       if(debtExceedsSavings) reasons.push({text:t("hs_debt_gt_savings",{debt:fmtMasked(totalDebt), savings:fmtMasked(totalSavings)}), weight:Math.max(debtSavingsPenalty, 1)});
       factorDetails.push({label:t("hsf_debt_savings_label"), evaluated:true, rating:debtExceedsSavings?t("hsf_debt_gt"):t("hsf_debt_ok"), color:debtExceedsSavings?"var(--coral)":"var(--mint)", detail:t("hsf_debt_savings_detail",{debt:fmtMasked(totalDebt), savings:fmtMasked(totalSavings)})});
@@ -2265,6 +2274,15 @@
       if(c.id!==id) return c;
       var paid = personalElapsed(c);
       return Object.assign({}, c, {paidMonths: Math.max(0, paid-1)});
+    });
+    persist(withHistory(Object.assign({}, data, {personalCredits:personalCredits})));
+  }
+  function updatePersonalCreditOverride(id, monthNum, newTotal){
+    var personalCredits = data.personalCredits.map(function(c){
+      if(c.id!==id) return c;
+      var newOverrides = Object.assign({}, c.overrides||{});
+      newOverrides[monthNum] = {total:newTotal};
+      return Object.assign({}, c, {overrides:newOverrides});
     });
     persist(withHistory(Object.assign({}, data, {personalCredits:personalCredits})));
   }
@@ -3296,7 +3314,7 @@
 
     if(needsSetup.length){
       var setupRows = needsSetup.map(function(c){
-        return '<div class="row"><span>'+esc(c.name)+'</span><span class="amt" style="color:var(--amber)">'+fmtMasked(cardAmountDueNow(c).totalOwed)+' '+t("al_pending")+'</span></div>';
+        return '<button class="row" data-act="goto-card" data-id="'+c.id+'"><span>'+esc(c.name)+'</span><span class="amt" style="color:var(--amber)">'+fmtMasked(cardAmountDueNow(c).totalOwed)+' '+t("al_pending")+'</span></button>';
       }).join("");
       out += '<div class="alerts" style="background:rgba(255,159,10,.12);border:1px solid rgba(255,159,10,.25);border-left:3px solid var(--amber);"><div class="title" style="color:var(--amber);">'+t("al_setup_title")+'</div>'+setupRows+
         '<div style="color:var(--muted);font-size:11px;margin-top:6px;">'+t("al_setup_note")+'</div></div>';
@@ -3308,7 +3326,7 @@
       var presu0 = (data.budget.salary||0)*4.33*(data.budget.pctGastos/100);
       if(presu0>0 && gastoMes0>presu0){
         out += '<div class="alerts" style="background:rgba(255,69,58,.12);border:1px solid rgba(255,69,58,.25);border-left:3px solid var(--coral);"><div class="title">'+t("al_budget_title")+'</div>'+
-          '<div class="row"><span>'+t("al_budget_row")+'</span><span class="amt" style="color:var(--coral)">'+fmtMasked(gastoMes0)+' / '+fmtMasked(presu0)+'</span></div></div>';
+          '<button class="row" data-act="goto-analisis"><span>'+t("al_budget_row")+'</span><span class="amt" style="color:var(--coral)">'+fmtMasked(gastoMes0)+' / '+fmtMasked(presu0)+'</span></button></div>';
       }
     }
     if(s.alertGoals){
@@ -3317,7 +3335,9 @@
       });
       if(reachedGoals.length){
         var reachedRows = reachedGoals.map(function(sv){
-          return '<div class="row" style="align-items:center;"><span>🎉 '+esc(sv.name)+'</span>'+
+          var bankKey = (sv.bank && sv.bank.trim()) ? sv.bank.trim() : t("ahorros_no_bank");
+          return '<div class="row" style="align-items:center;">'+
+            '<button data-act="goto-saving" data-bank="'+esc(bankKey)+'" style="background:none;border:none;color:inherit;font:inherit;text-align:left;padding:0;cursor:pointer;flex:1;">🎉 '+esc(sv.name)+'</button>'+
             '<button data-act="dismiss-goal-celebration" data-id="'+sv.id+'" style="background:none;border:none;color:var(--mint);font-size:11px;padding:0;">'+t("al_great")+'</button></div>';
         }).join("");
         out += '<div class="alerts" style="background:rgba(50,215,75,.12);border:1px solid rgba(50,215,75,.25);border-left:3px solid var(--mint);margin-top:'+(out?"8px":"0")+';"><div class="title" style="color:var(--mint);">'+t("al_goal_reached_title")+'</div>'+reachedRows+'</div>';
@@ -3330,7 +3350,8 @@
       });
       if(delayedGoals.length){
         var goalRows = delayedGoals.map(function(sv){
-          return '<div class="row"><span>'+esc(sv.name)+'</span><span class="amt" style="color:var(--amber)">'+t("al_goal_delayed")+'</span></div>';
+          var bankKey2 = (sv.bank && sv.bank.trim()) ? sv.bank.trim() : t("ahorros_no_bank");
+          return '<button class="row" data-act="goto-saving" data-bank="'+esc(bankKey2)+'"><span>'+esc(sv.name)+'</span><span class="amt" style="color:var(--amber)">'+t("al_goal_delayed")+'</span></button>';
         }).join("");
         out += '<div class="alerts" style="background:rgba(255,159,10,.12);border:1px solid rgba(255,159,10,.25);border-left:3px solid var(--amber);margin-top:'+(out?"8px":"0")+';"><div class="title" style="color:var(--amber);">'+t("al_goal_delayed_title")+'</div>'+goalRows+'</div>';
       }
@@ -3339,7 +3360,7 @@
       var highUtilCards = data.cards.filter(function(c){ return c.limit>0 && cardUtilizationPct(c)>=70; });
       if(highUtilCards.length){
         var utilRows = highUtilCards.map(function(c){
-          return '<div class="row"><span>'+esc(c.name)+'</span><span class="amt" style="color:var(--amber)">'+t("al_util_row",{pct:Math.round(cardUtilizationPct(c))})+'</span></div>';
+          return '<button class="row" data-act="goto-card" data-id="'+c.id+'"><span>'+esc(c.name)+'</span><span class="amt" style="color:var(--amber)">'+t("al_util_row",{pct:Math.round(cardUtilizationPct(c))})+'</span></button>';
         }).join("");
         out += '<div class="alerts" style="background:rgba(255,159,10,.12);border:1px solid rgba(255,159,10,.25);border-left:3px solid var(--amber);margin-top:'+(out?"8px":"0")+';"><div class="title" style="color:var(--amber);">'+t("al_util_title")+'</div>'+utilRows+'</div>';
       }
@@ -3351,7 +3372,7 @@
         var lastD = histPoints[histPoints.length-1].Deuda;
         if(prevD>0 && lastD>prevD){
           out += '<div class="alerts" style="background:rgba(255,159,10,.12);border:1px solid rgba(255,159,10,.25);border-left:3px solid var(--amber);margin-top:'+(out?"8px":"0")+';"><div class="title" style="color:var(--amber);">'+t("al_debt_grew_title")+'</div>'+
-            '<div class="row"><span>'+t("al_vs_prev")+'</span><span class="amt" style="color:var(--amber)">'+fmtMasked(prevD)+' → '+fmtMasked(lastD)+'</span></div></div>';
+            '<button class="row" data-act="goto-analisis"><span>'+t("al_vs_prev")+'</span><span class="amt" style="color:var(--amber)">'+fmtMasked(prevD)+' → '+fmtMasked(lastD)+'</span></button></div>';
         }
       }
     }
@@ -3360,7 +3381,7 @@
       var rows = alerts.map(function(a){
         var color = a.dLeft<=3 ? "var(--coral)" : "var(--amber)";
         var label = a.dLeft===0 ? t("al_today") : t("al_in_days",{n:a.dLeft, s:a.dLeft===1?"":"s"});
-        return '<div class="row"><span>'+esc(a.card.name)+'</span><span class="amt" style="color:'+color+'">'+label+' · '+dateLabel(a.due)+'</span></div>';
+        return '<button class="row" data-act="goto-card" data-id="'+a.card.id+'"><span>'+esc(a.card.name)+'</span><span class="amt" style="color:'+color+'">'+label+' · '+dateLabel(a.due)+'</span></button>';
       }).join("");
       out += '<div class="alerts"><div class="title">'+t("al_upcoming_cards")+'</div>'+rows+'</div>';
     }
@@ -3368,14 +3389,14 @@
       var rows3 = loanAlerts.map(function(a){
         var color = a.dLeft<=3 ? "var(--coral)" : "var(--amber)";
         var label = a.dLeft===0 ? t("al_today") : t("al_in_days",{n:a.dLeft, s:a.dLeft===1?"":"s"});
-        return '<div class="row"><span>'+esc(a.credit.description)+'</span><span class="amt" style="color:'+color+'">'+label+' · '+dateLabel(a.date)+'</span></div>';
+        return '<button class="row" data-act="goto-loan"><span>'+esc(a.credit.description)+'</span><span class="amt" style="color:'+color+'">'+label+' · '+dateLabel(a.date)+'</span></button>';
       }).join("");
       out += '<div class="alerts" style="background:rgba(50,215,75,.1);border:1px solid rgba(50,215,75,.22);border-left:3px solid var(--mint);margin-top:'+(alerts.length?'8px':'0')+';"><div class="title" style="color:var(--mint);">'+t("al_upcoming_loans")+'</div>'+rows3+'</div>';
     }
     if(cutoffs.length){
       var rows2 = cutoffs.map(function(a){
         var label = a.dLeft===0 ? t("al_today") : t("al_in_days",{n:a.dLeft, s:a.dLeft===1?"":"s"});
-        return '<div class="row"><span>'+esc(a.card.name)+'</span><span class="amt" style="color:var(--amber)">'+label+' · '+dateLabel(a.cutoff)+'</span></div>';
+        return '<button class="row" data-act="goto-card" data-id="'+a.card.id+'"><span>'+esc(a.card.name)+'</span><span class="amt" style="color:var(--amber)">'+label+' · '+dateLabel(a.cutoff)+'</span></button>';
       }).join("");
       out += '<div class="alerts" style="background:rgba(255,159,10,.12);border:1px solid rgba(255,159,10,.25);border-left:3px solid var(--amber);margin-top:'+((alerts.length||loanAlerts.length)?'8px':'0')+';"><div class="title" style="color:var(--amber);">'+t("al_upcoming_cutoffs")+'</div>'+rows2+'</div>';
     }
@@ -3592,6 +3613,7 @@
     var donePct = Math.min(100, (paid/credit.months)*100);
     var dLeft = nextDate ? daysUntil(nextDate) : null;
     var dueColor = dLeft===null ? "var(--muted)" : dLeft<=3 ? "var(--coral)" : dLeft<=7 ? "var(--amber)" : "var(--muted)";
+    var adjusting = ui.adjustPersonalTarget === credit.id;
     var html = '<div class="card">';
     html += '<div class="card-top">';
     html += '<div style="flex:1;">';
@@ -3599,7 +3621,8 @@
     html += '<div class="amount-line"><span class="amount-main">'+fmtMasked(remaining)+'</span><span class="amount-sub">de '+fmtMasked(credit.principal)+' · '+credit.annualRate+'% anual</span></div>';
     if(!done && nextRow && nextDate){
       html += '<div style="color:'+dueColor+';font-size:11px;margin-top:4px;">'+t("prestamos_next_payment",{amount:fmtMasked(nextRow.total), date:dateLabel(nextDate)})+
-        (dLeft!==null ? ' ('+(dLeft===0?t("prestamos_today"):t("prestamos_in_days",{n:dLeft, s:dLeft===1?"":"s"}))+')' : '')+'</div>';
+        (dLeft!==null ? ' ('+(dLeft===0?t("prestamos_today"):t("prestamos_in_days",{n:dLeft, s:dLeft===1?"":"s"}))+')' : '')+
+        (nextRow.adjusted?t("def_adjusted"):'')+'</div>';
       html += '<div style="color:var(--muted);font-size:11px;margin-top:2px;">'+t("prestamos_capital_interest_iva",{capital:fmtMasked(nextRow.capital), interest:fmtMasked(nextRow.interest), iva:fmtMasked(nextRow.iva)})+'</div>';
     }
     if(done) html += '<div style="color:var(--mint);font-size:11px;margin-top:4px;">'+t("prestamos_paid_off")+'</div>';
@@ -3616,6 +3639,19 @@
     if(paid>0) html += '<button class="mark-btn" style="color:var(--muted);" data-act="unmark-personal-credit" data-id="'+credit.id+'">'+t("prestamos_unmark")+'</button>';
     if(!done) html += '<button class="mark-btn" data-act="mark-personal-credit" data-id="'+credit.id+'">'+t("prestamos_mark_paid")+'</button>';
     html += '</div>';
+    if(!done){
+      if(adjusting){
+        html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--hairline);">'+
+          '<span class="field-label">'+t("def_real_amount",{n:paid+1, total:credit.months})+'</span>'+
+          '<input type="text" inputmode="decimal" id="adjust-personal-input-'+credit.id+'" placeholder="ej. '+Math.round(nextRow?nextRow.total:0)+'" style="margin-bottom:8px;" />'+
+          '<div class="form-actions">'+
+          '<button class="btn-cancel" data-act="toggle-adjust-personal" data-id="'+credit.id+'">'+t("btn_cancel")+'</button>'+
+          '<button class="btn-save" data-act="submit-adjust-personal" data-id="'+credit.id+'" data-month="'+(paid+1)+'">'+t("btn_save")+'</button>'+
+          '</div></div>';
+      }else{
+        html += '<button class="mini-add" style="color:var(--muted);margin-top:8px;" data-act="toggle-adjust-personal" data-id="'+credit.id+'">'+t("def_adjust_this")+'</button>';
+      }
+    }
     html += '</div>';
     return html;
   }
@@ -4694,6 +4730,17 @@
       }
     }
 
+    if(ui.adjustPersonalTarget){
+      var adjPInput = document.getElementById("adjust-personal-input-"+ui.adjustPersonalTarget);
+      if(adjPInput){
+        adjPInput.addEventListener("keydown", function(e){
+          if(e.key==="Enter"){ e.preventDefault(); onClick({ target: document.querySelector('[data-act="submit-adjust-personal"]') }); }
+          else if(e.key==="Escape"){ e.preventDefault(); onClick({ target: document.querySelector('[data-act="toggle-adjust-personal"]') }); }
+        });
+        adjPInput.focus();
+      }
+    }
+
     // Calculadora en vivo de "¿cuánto podrías ahorrar?" (no depende de ninguna meta
     // en particular, solo ilustra proyecciones a partir de un monto semanal).
     var savingsTipInput = document.getElementById("savings-tip-input");
@@ -4919,6 +4966,28 @@
     }else if(act==="pick-card-color"){
       var pickedIdx = el.getAttribute("data-color-index");
       ui.modal.colorOverride = pickedIdx==="" ? null : parseInt(pickedIdx,10);
+      render();
+    }else if(act==="goto-card"){
+      ui.tab = "tarjetas";
+      ui.openCard = el.getAttribute("data-id");
+      ui.navSheetOpen = false;
+      window.scrollTo(0,0);
+      render();
+    }else if(act==="goto-loan"){
+      ui.tab = "prestamos";
+      ui.navSheetOpen = false;
+      window.scrollTo(0,0);
+      render();
+    }else if(act==="goto-saving"){
+      ui.tab = "ahorros";
+      ui.openBankGroup = el.getAttribute("data-bank");
+      ui.navSheetOpen = false;
+      window.scrollTo(0,0);
+      render();
+    }else if(act==="goto-analisis"){
+      ui.tab = "analisis";
+      ui.navSheetOpen = false;
+      window.scrollTo(0,0);
       render();
     }else if(act==="set-tab"){
       ui.tab = el.getAttribute("data-tab");
@@ -5195,6 +5264,19 @@
       unmarkPersonalCredit(el.getAttribute("data-id"));
     }else if(act==="delete-personal-credit"){
       if(confirm(t("confirm_delete_credit"))) deletePersonalCredit(el.getAttribute("data-id"));
+    }else if(act==="toggle-adjust-personal"){
+      var tpid = el.getAttribute("data-id");
+      ui.adjustPersonalTarget = ui.adjustPersonalTarget===tpid ? null : tpid;
+      render();
+    }else if(act==="submit-adjust-personal"){
+      var spid = el.getAttribute("data-id");
+      var pMonthNum = parseInt(el.getAttribute("data-month"),10);
+      var pInputEl = document.getElementById("adjust-personal-input-"+spid);
+      var pNewTotal = pInputEl ? parseFloat(pInputEl.value) : NaN;
+      if(pNewTotal>0){
+        ui.adjustPersonalTarget = null;
+        updatePersonalCreditOverride(spid, pMonthNum, pNewTotal);
+      }
     }else if(act==="save-budget"){
       var bSalary = parseFloat(document.getElementById("budget-salary").value) || 0;
       var bGastos = parseFloat(document.getElementById("budget-pct-gastos").value) || 0;
