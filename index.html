@@ -163,7 +163,7 @@
   var DEFAULT_SETTINGS = {
     fontSize: "normal", notificationsEnabled: false,
     alertPayments: true, alertCutoffs: true, alertBudget: true, alertGoals: true,
-    alertUtilization: true, alertDebtGrowth: true,
+    alertUtilization: true, alertDebtGrowth: true, alertNearPayoff: true,
     monthlyBudgetLimit: 0,
     accentColor: "blue", language: "es", theme: "dark"
   };
@@ -226,6 +226,7 @@
 
       mov_title:"Movimientos", mov_add:"+ agregar", mov_search_placeholder:"Buscar por descripción…",
       mov_all_categories:"Todas las categorías", mov_all_cards:"Todas las tarjetas", mov_all_periods:"Todos los periodos",
+      mov_range_or:"o rango:",
       mov_count:"{n} movimiento{s}", mov_empty_title:"Sin resultados", mov_empty_body:"Ajusta la búsqueda o los filtros para ver tus movimientos.",
       mov_no_cards_title:"Todavía no hay tarjetas", mov_no_cards_body:"Agrega una tarjeta primero; los movimientos se registran dentro de cada tarjeta.",
       mov_today:"Hoy", mov_yesterday:"Ayer", mov_export:"⬇ Exportar estos {n} movimiento{s} a CSV",
@@ -277,6 +278,18 @@
 
       analisis_money_going:"🔎 ¿En qué se me va el dinero?", analisis_total_spent:"Gasto total este mes",
       analisis_vs_prev_month:"vs. mes anterior", analisis_top_growth:"📈 <strong>{cat}</strong> es tu categoría con mayor crecimiento: {amount} (+{pct}% vs. mes anterior).",
+
+      catbudget_title:"🎯 Presupuesto por categoría", catbudget_note:"Ponle un límite mensual a las categorías que quieras controlar más de cerca.",
+      catbudget_set_limit:"+ definir límite",
+
+      compare_title:"📊 Comparar meses", compare_a:"Mes A", compare_b:"Mes B",
+      compare_category:"Categoría", compare_total:"Total",
+      compare_none:"Necesitas movimientos en al menos 2 meses distintos para poder compararlos.",
+
+      timeline_title:"🗓 Próximos vencimientos", timeline_30:"30 días", timeline_60:"60 días", timeline_90:"90 días",
+      timeline_total:"Total en este periodo", timeline_none:"No tienes ningún pago programado en este periodo.",
+      timeline_today:"Hoy", timeline_in_days:"En {n} día{s}",
+      timeline_type_card:"Tarjeta", timeline_type_loan:"Préstamo",
       analisis_estimated_time:"Tiempo estimado", analisis_months:"{n} meses",
       analisis_current_label:"Actual: {n} meses · {amount} interés", analisis_extra_label:"Con pago extra: {n} meses · {amount} interés",
       analisis_extra_payment:"Pago extra mensual", analisis_debt_amount:"Deuda con interés",
@@ -336,7 +349,7 @@
       cfg_alerts_summary:"{n}/{total} · push {status}",
       cfg_push_title:"🔔 Notificaciones push", cfg_push_unsupported:"Tu navegador no soporta notificaciones.", cfg_push_unsupported_s:"no disponibles",
       cfg_push_denied:"Bloqueaste las notificaciones para este sitio. Actívalas desde los ajustes de tu navegador si cambias de opinión.", cfg_push_denied_s:"bloqueadas",
-      cfg_push_note:"Te avisa cuando falten 3 días o menos para un pago — solo cuando abres la app (no son notificaciones en segundo plano).",
+      cfg_push_note:"⚠ Importante: esta app no tiene servidor propio, así que NO puede mandarte avisos con la pantalla apagada o la app cerrada, a diferencia de WhatsApp o el correo. Solo revisa y te muestra el aviso en el momento en que abres la app. Para no perderte pagos, dale un vistazo a Resumen o a \"Cuánto apartar cada semana\" (en Análisis) cada vez que la abras.",
       cfg_push_disable:"🔕 Desactivar notificaciones", cfg_push_enabled_s:"activadas",
       cfg_push_enable:"🔔 Activar notificaciones", cfg_push_disabled_s:"desactivadas",
       cfg_categories_title:"Categorías de gastos", cfg_categories_summary:"{n} categorías",
@@ -439,6 +452,8 @@
       al_debt_grew_title:"🟡 Tu deuda total creció", al_vs_prev:"Vs. mes anterior",
       al_today:"hoy", al_in_days:"en {n} día{s}",
       al_upcoming_cards:"⏰ Pagos próximos (tarjetas)", al_upcoming_loans:"⏰ Cuotas próximas (préstamos)", al_upcoming_cutoffs:"⏰ Cortes próximos",
+      al_near_payoff_title:"🎉 Ya casi terminas de pagar", al_near_payoff_row:"{n} pago{s} restante{s}",
+      cfg_alert_near_payoff:"Casi terminas de pagar (MSI/diferidos)",
 
       rec_title:"Conciliación", rec_cutoff_reported:"Corte reportado: {date}", rec_due_limit:" · Pago límite: {date}",
       rec_statement_balance:"Saldo al corte", rec_noint:"Pago para no generar intereses",
@@ -535,6 +550,7 @@
 
       mov_title:"Activity", mov_add:"+ add", mov_search_placeholder:"Search by description…",
       mov_all_categories:"All categories", mov_all_cards:"All cards", mov_all_periods:"All periods",
+      mov_range_or:"or range:",
       mov_count:"{n} transaction{s}", mov_empty_title:"No results", mov_empty_body:"Adjust the search or filters to see your transactions.",
       mov_no_cards_title:"No cards yet", mov_no_cards_body:"Add a card first; transactions are registered inside each card.",
       mov_today:"Today", mov_yesterday:"Yesterday", mov_export:"⬇ Export these {n} transaction{s} to CSV",
@@ -586,6 +602,18 @@
 
       analisis_money_going:"🔎 Where is my money going?", analisis_total_spent:"Total spent this month",
       analisis_vs_prev_month:"vs. last month", analisis_top_growth:"📈 <strong>{cat}</strong> is your fastest-growing category: {amount} (+{pct}% vs. last month).",
+
+      catbudget_title:"🎯 Budget by category", catbudget_note:"Set a monthly limit on the categories you want to keep a closer eye on.",
+      catbudget_set_limit:"+ set limit",
+
+      compare_title:"📊 Compare months", compare_a:"Month A", compare_b:"Month B",
+      compare_category:"Category", compare_total:"Total",
+      compare_none:"You need transactions in at least 2 different months to compare them.",
+
+      timeline_title:"🗓 Upcoming due dates", timeline_30:"30 days", timeline_60:"60 days", timeline_90:"90 days",
+      timeline_total:"Total for this period", timeline_none:"You don't have any scheduled payments in this period.",
+      timeline_today:"Today", timeline_in_days:"In {n} day{s}",
+      timeline_type_card:"Card", timeline_type_loan:"Loan",
       analisis_estimated_time:"Estimated time", analisis_months:"{n} months",
       analisis_current_label:"Current: {n} months · {amount} interest", analisis_extra_label:"With extra payment: {n} months · {amount} interest",
       analisis_extra_payment:"Extra monthly payment", analisis_debt_amount:"Interest-bearing debt",
@@ -645,7 +673,7 @@
       cfg_alerts_summary:"{n}/{total} · push {status}",
       cfg_push_title:"🔔 Push notifications", cfg_push_unsupported:"Your browser doesn't support notifications.", cfg_push_unsupported_s:"not available",
       cfg_push_denied:"You blocked notifications for this site. Re-enable them from your browser settings if you change your mind.", cfg_push_denied_s:"blocked",
-      cfg_push_note:"Alerts you when a payment is 3 days away or less — only when you open the app (not background notifications).",
+      cfg_push_note:"⚠ Important: this app doesn't have its own server, so it CANNOT send you alerts with the screen off or the app closed, unlike WhatsApp or email. It only checks and shows the alert the moment you open the app. To avoid missing payments, take a look at Overview or \"How much to set aside weekly\" (in Insights) every time you open it.",
       cfg_push_disable:"🔕 Disable notifications", cfg_push_enabled_s:"on",
       cfg_push_enable:"🔔 Enable notifications", cfg_push_disabled_s:"off",
       cfg_categories_title:"Expense categories", cfg_categories_summary:"{n} categories",
@@ -748,6 +776,8 @@
       al_debt_grew_title:"🟡 Your total debt grew", al_vs_prev:"Vs. last month",
       al_today:"today", al_in_days:"in {n} day{s}",
       al_upcoming_cards:"⏰ Upcoming payments (cards)", al_upcoming_loans:"⏰ Upcoming installments (loans)", al_upcoming_cutoffs:"⏰ Upcoming cutoffs",
+      al_near_payoff_title:"🎉 You're almost done paying off", al_near_payoff_row:"{n} payment{s} left",
+      cfg_alert_near_payoff:"Almost paid off (installments/deferred)",
 
       rec_title:"Reconciliation", rec_cutoff_reported:"Reported cutoff: {date}", rec_due_limit:" · Payment due: {date}",
       rec_statement_balance:"Balance at cutoff", rec_noint:"Payment to avoid interest",
@@ -857,6 +887,8 @@
     if(!parsed.dismissedSubscriptions) parsed.dismissedSubscriptions = [];
     if(!parsed.confirmedSubscriptions) parsed.confirmedSubscriptions = [];
     if(!parsed.celebratedGoalIds) parsed.celebratedGoalIds = [];
+    if(!parsed.celebratedPlanIds) parsed.celebratedPlanIds = [];
+    if(!parsed.categoryBudgets) parsed.categoryBudgets = {};
     parsed.budget = Object.assign({}, DEFAULT_BUDGET, parsed.budget||{});
     parsed.settings = Object.assign({}, DEFAULT_SETTINGS, parsed.settings||{});
     parsed.cards.forEach(function(c){
@@ -876,7 +908,7 @@
         if(parsed) return parsed;
       }
     }catch(e){}
-    return { __v:DATA_VERSION, cards: [], savings: [], history: [], personalCredits: [], categories: DEFAULT_CATEGORIES.slice(), budget: Object.assign({}, DEFAULT_BUDGET), settings: Object.assign({}, DEFAULT_SETTINGS), dismissedSubscriptions:[], confirmedSubscriptions:[], celebratedGoalIds:[] };
+    return { __v:DATA_VERSION, cards: [], savings: [], history: [], personalCredits: [], categories: DEFAULT_CATEGORIES.slice(), budget: Object.assign({}, DEFAULT_BUDGET), settings: Object.assign({}, DEFAULT_SETTINGS), dismissedSubscriptions:[], confirmedSubscriptions:[], celebratedGoalIds:[], celebratedPlanIds:[], categoryBudgets:{} };
   }
   function saveData(){
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }catch(e){}
@@ -891,7 +923,7 @@
              apiKeyModal:false, backupModal:false, backupMessage:"", scanningCard:null, scanError:"", expenseDraft:null,
              reconcileBusy:false, reconcileError:"", reconcileResult:null, reconcileTarget:null, reconcileManualForm:null, showPastCycles:null,
              openSubsections:{}, adjustDeferredTarget:null, editCreditTarget:null,
-             personalCreditForm:null, tab:"resumen", analysisQuery:"", donutSelected:null, chartPeriod:"all", toast:null,
+             personalCreditForm:null, tab:"resumen", analysisQuery:"", donutSelected:null, chartPeriod:"all", timelinePeriod:30, toast:null,
              movQuery:"", movCategory:"", movCard:"", movMonth:"", extraPayment:0, movCardPicker:false, deferredInstallPrompt:null, reassignCategory:null, updateAvailable:false, devModeModal:false, renamingCategory:null,
              cloudModal:false, cloudMode:"login", cloudError:"", cloudBusy:false, cloudUser:null, cloudStatus:"signed-out", cloudConflict:null, authChecked:false,
              deleteAccountModal:false, deleteAccountPassword:"", deleteAccountError:"", deleteAccountBusy:false, cloudResetSent:false,
@@ -1233,7 +1265,7 @@
     var owner = null;
     try{ owner = localStorage.getItem(LOCAL_DATA_OWNER_KEY); }catch(e){}
     if(owner && owner !== uid){
-      data = { __v:DATA_VERSION, cards: [], savings: [], history: [], personalCredits: [], categories: DEFAULT_CATEGORIES.slice(), budget: Object.assign({}, DEFAULT_BUDGET), settings: Object.assign({}, DEFAULT_SETTINGS), dismissedSubscriptions:[], confirmedSubscriptions:[], celebratedGoalIds:[] };
+      data = { __v:DATA_VERSION, cards: [], savings: [], history: [], personalCredits: [], categories: DEFAULT_CATEGORIES.slice(), budget: Object.assign({}, DEFAULT_BUDGET), settings: Object.assign({}, DEFAULT_SETTINGS), dismissedSubscriptions:[], confirmedSubscriptions:[], celebratedGoalIds:[], celebratedPlanIds:[], categoryBudgets:{} };
       saveData();
       // la clave de API (modo desarrollador) también es de una persona específica —
       // no debe heredarla la siguiente cuenta que use este mismo dispositivo.
@@ -1335,7 +1367,7 @@
       cloudStopListening();
       try{ localStorage.removeItem(LAST_SYNC_KEY_PREFIX+uid); }catch(e){}
       try{ localStorage.removeItem(LOCAL_DATA_OWNER_KEY); }catch(e){}
-      data = { __v:DATA_VERSION, cards: [], savings: [], history: [], personalCredits: [], categories: DEFAULT_CATEGORIES.slice(), budget: Object.assign({}, DEFAULT_BUDGET), settings: Object.assign({}, DEFAULT_SETTINGS), dismissedSubscriptions:[], confirmedSubscriptions:[], celebratedGoalIds:[] };
+      data = { __v:DATA_VERSION, cards: [], savings: [], history: [], personalCredits: [], categories: DEFAULT_CATEGORIES.slice(), budget: Object.assign({}, DEFAULT_BUDGET), settings: Object.assign({}, DEFAULT_SETTINGS), dismissedSubscriptions:[], confirmedSubscriptions:[], celebratedGoalIds:[], celebratedPlanIds:[], categoryBudgets:{} };
       saveData();
       ui.deleteAccountModal = false;
       ui.deleteAccountBusy = false;
@@ -1475,6 +1507,31 @@
       return {card:c, cutoff:cutoff, dLeft:daysUntil(cutoff)};
     }).filter(function(a){ return a && a.dLeft<=5; })
       .sort(function(a,b){ return a.dLeft-b.dLeft; });
+  }
+  /* Junta en una sola lista TODOS los pagos que se vencen en los próximos N días —
+     tarjetas y préstamos personales — a diferencia de las alertas de Resumen que
+     solo muestran lo urgente (≤7 días). Los MSI y diferidos ya vienen incluidos
+     dentro del monto de cada tarjeta (cardAmountDueNow los suma), así que no se
+     listan por separado. */
+  function buildUpcomingTimeline(days){
+    var items = [];
+    var today = new Date(); today.setHours(0,0,0,0);
+    var horizon = new Date(today); horizon.setDate(horizon.getDate()+days);
+    data.cards.forEach(function(c){
+      if(c.type==="debito") return;
+      var r = cardAmountDueNow(c);
+      if(r.due && r.amount>0.01 && r.due.getTime()<=horizon.getTime()){
+        items.push({kind:"card", id:c.id, label:c.name, amount:r.amount, date:r.due});
+      }
+    });
+    (data.personalCredits||[]).forEach(function(cr){
+      var date = personalNextPaymentDate(cr);
+      if(date && date.getTime()<=horizon.getTime()){
+        var row = personalNextPaymentRow(cr);
+        items.push({kind:"loan", id:cr.id, label:cr.description, amount:row?row.total:0, date:date});
+      }
+    });
+    return items.sort(function(a,b){ return a.date-b.date; });
   }
   function monthTotal(expenses, year, month){
     return (expenses||[]).reduce(function(s,e){
@@ -1758,6 +1815,8 @@
         if(q && e.description.toLowerCase().indexOf(q)===-1) return;
         if(opts.category && (e.category||"Otros")!==opts.category) return;
         if(opts.month && new Date(e.date).toISOString().slice(0,7)!==opts.month) return;
+        if(opts.dateFrom && e.date < opts.dateFrom+"T00:00:00.000Z") return;
+        if(opts.dateTo && e.date > opts.dateTo+"T23:59:59.999Z") return;
         results.push({id:e.id, description:e.description, amount:e.amount, date:e.date, category:e.category||"Otros", cardId:c.id, cardName:c.name});
       });
     });
@@ -1918,6 +1977,21 @@
   }
   function previousMonth(year, month){
     return month===0 ? {year:year-1, month:11} : {year:year, month:month-1};
+  }
+  function categoryMonthSpend(cards, category, year, month){
+    var total = 0;
+    cards.forEach(function(c){
+      (c.expenses||[]).forEach(function(e){
+        var d = new Date(e.date);
+        if(d.getFullYear()===year && d.getMonth()===month && (e.category||"Otros")===category) total += e.amount;
+      });
+    });
+    return total;
+  }
+  function updateCategoryBudget(cat, limit){
+    var categoryBudgets = Object.assign({}, data.categoryBudgets||{});
+    if(limit>0) categoryBudgets[cat] = limit; else delete categoryBudgets[cat];
+    persist(Object.assign({}, data, {categoryBudgets:categoryBudgets}));
   }
 
   /* ---------- plan para salir de deudas ---------- */
@@ -2846,6 +2920,130 @@
     return html;
   }
 
+  function renderCategoryBudgets(){
+    var categories = data.categories||DEFAULT_CATEGORIES;
+    var now = new Date();
+    var html = '<section><div class="sec-title" style="margin-bottom:12px;">'+t("catbudget_title")+'</div><div class="card">';
+    html += '<div style="color:var(--muted);font-size:11px;margin-bottom:14px;">'+t("catbudget_note")+'</div>';
+    categories.forEach(function(cat){
+      var limit = (data.categoryBudgets||{})[cat];
+      var spend = categoryMonthSpend(data.cards, cat, now.getFullYear(), now.getMonth());
+      var editing = ui.editCategoryBudget === cat;
+      html += '<div style="margin-bottom:14px;">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">';
+      html += '<span style="color:var(--text);font-size:12px;">'+esc(cat)+'</span>';
+      if(editing){
+        html += '<div style="display:flex;gap:4px;align-items:center;">'+
+          '<input type="text" inputmode="decimal" id="catbudget-input-'+esc(cat)+'" value="'+(limit||"")+'" style="width:80px;padding:4px 6px;font-size:11px;margin:0;" />'+
+          '<button data-act="save-category-budget" data-cat="'+esc(cat)+'" style="background:none;border:none;color:var(--mint);font-size:14px;padding:0 4px;">✓</button>'+
+          '<button data-act="cancel-category-budget" style="background:none;border:none;color:var(--muted);font-size:12px;padding:0 4px;">✕</button>'+
+          '</div>';
+      }else if(limit>0){
+        html += '<button data-act="edit-category-budget" data-cat="'+esc(cat)+'" style="background:none;border:none;color:var(--muted);font-family:var(--mono);font-size:11px;padding:0;">'+fmt(spend)+' / '+fmt(limit)+' ✎</button>';
+      }else{
+        html += '<button data-act="edit-category-budget" data-cat="'+esc(cat)+'" style="background:none;border:none;color:var(--blue);font-size:11px;padding:0;">'+t("catbudget_set_limit")+'</button>';
+      }
+      html += '</div>';
+      if(limit>0 && !editing){
+        var pct = Math.min(100, (spend/limit)*100);
+        var barColor = pct>=100 ? "var(--coral)" : pct>=80 ? "var(--amber)" : "var(--mint)";
+        html += '<div class="bar" style="margin-top:0;"><div class="bar-fill" style="width:'+pct+'%;background:'+barColor+';"></div></div>';
+      }
+      html += '</div>';
+    });
+    html += '</div></section>';
+    return html;
+  }
+
+  function renderMonthComparison(){
+    var months = movementMonths(data.cards);
+    var html = '<section><div class="sec-title" style="margin-bottom:12px;">'+t("compare_title")+'</div><div class="card">';
+    if(months.length<2){
+      html += '<div class="empty">'+t("compare_none")+'</div></div></section>';
+      return html;
+    }
+    var monthA = ui.compareMonthA && months.indexOf(ui.compareMonthA)!==-1 ? ui.compareMonthA : months[1];
+    var monthB = ui.compareMonthB && months.indexOf(ui.compareMonthB)!==-1 ? ui.compareMonthB : months[0];
+    html += '<div class="form-row" style="margin-bottom:14px;">';
+    html += '<div style="flex:1;"><span class="field-label">'+t("compare_a")+'</span><select id="compare-month-a" style="width:100%;background:var(--surface3);color:var(--text);font-size:12px;padding:8px 10px;border-radius:8px;border:1px solid transparent;outline:none;">';
+    months.forEach(function(m){ html += '<option value="'+m+'" '+(monthA===m?"selected":"")+'>'+monthLabel(m)+'</option>'; });
+    html += '</select></div>';
+    html += '<div style="flex:1;"><span class="field-label">'+t("compare_b")+'</span><select id="compare-month-b" style="width:100%;background:var(--surface3);color:var(--text);font-size:12px;padding:8px 10px;border-radius:8px;border:1px solid transparent;outline:none;">';
+    months.forEach(function(m){ html += '<option value="'+m+'" '+(monthB===m?"selected":"")+'>'+monthLabel(m)+'</option>'; });
+    html += '</select></div>';
+    html += '</div>';
+
+    function parseYm(ym){ var p=ym.split("-"); return {year:parseInt(p[0],10), month:parseInt(p[1],10)-1}; }
+    var pa = parseYm(monthA), pb = parseYm(monthB);
+    var bdA = categoryBreakdown(data.cards, pa.year, pa.month);
+    var bdB = categoryBreakdown(data.cards, pb.year, pb.month);
+    var mapA = {}; bdA.byCat.forEach(function(c){ mapA[c.category]=c.amount; });
+    var mapB = {}; bdB.byCat.forEach(function(c){ mapB[c.category]=c.amount; });
+    var allCats = Object.keys(Object.assign({}, mapA, mapB)).sort(function(x,y){ return (mapB[y]||0)-(mapB[x]||0); });
+
+    allCats.forEach(function(cat){
+      var a = mapA[cat]||0, b = mapB[cat]||0;
+      var diff = b-a;
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:6px 0;border-top:1px solid var(--surface2);gap:4px;">'+
+        '<span style="color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(cat)+'</span>'+
+        '<span style="font-family:var(--mono);color:var(--muted);flex-shrink:0;">'+fmt(a)+'</span>'+
+        '<span style="font-family:var(--mono);color:var(--text);flex-shrink:0;">'+fmt(b)+'</span>'+
+        '<span style="font-family:var(--mono);flex-shrink:0;color:'+(diff>0?"var(--coral)":diff<0?"var(--mint)":"var(--muted)")+';">'+(diff>0?"+":"")+fmt(diff)+'</span>'+
+        '</div>';
+    });
+    var diffTotal = bdB.total-bdA.total;
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:8px 0;border-top:2px solid var(--hairline);margin-top:4px;font-weight:600;gap:4px;">'+
+      '<span style="color:var(--text);flex:1;">'+t("compare_total")+'</span>'+
+      '<span style="font-family:var(--mono);color:var(--muted);flex-shrink:0;">'+fmt(bdA.total)+'</span>'+
+      '<span style="font-family:var(--mono);color:var(--text);flex-shrink:0;">'+fmt(bdB.total)+'</span>'+
+      '<span style="font-family:var(--mono);flex-shrink:0;color:'+(diffTotal>0?"var(--coral)":diffTotal<0?"var(--mint)":"var(--muted)")+';">'+(diffTotal>0?"+":"")+fmt(diffTotal)+'</span>'+
+      '</div>';
+
+    html += '</div></section>';
+    return html;
+  }
+
+  function renderUpcomingTimeline(){
+    var periods = [[30,t("timeline_30")],[60,t("timeline_60")],[90,t("timeline_90")]];
+    var days = ui.timelinePeriod || 30;
+    var items = buildUpcomingTimeline(days);
+    var total = items.reduce(function(s,it){ return s+it.amount; },0);
+
+    var html = '<section><div class="sec-title" style="margin-bottom:12px;">'+t("timeline_title")+'</div>';
+    html += '<div style="display:flex;background:var(--surface3);border-radius:10px;padding:3px;margin-bottom:10px;">';
+    periods.forEach(function(p){
+      var active = days===p[0];
+      html += '<button data-act="set-timeline-period" data-period="'+p[0]+'" style="flex:1;background:'+(active?"var(--blue)":"transparent")+';color:'+(active?"#fff":"var(--muted)")+';border:none;border-radius:8px;padding:6px;font-size:11px;font-weight:600;">'+p[1]+'</button>';
+    });
+    html += '</div>';
+
+    html += '<div class="card">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:'+(items.length?"14px":"0")+';">'+
+      '<span style="color:var(--muted);font-size:11px;">'+t("timeline_total")+'</span>'+
+      '<span style="color:var(--text);font-family:var(--mono);font-size:18px;font-weight:600;">'+fmt(total)+'</span></div>';
+
+    if(!items.length){
+      html += '<div class="empty">'+t("timeline_none")+'</div>';
+    }else{
+      items.forEach(function(it, i){
+        var dLeft = daysUntil(it.date);
+        var color = dLeft<=3 ? "var(--coral)" : dLeft<=10 ? "var(--amber)" : "var(--muted)";
+        var label = dLeft===0 ? t("timeline_today") : t("timeline_in_days",{n:dLeft, s:dLeft===1?"":"s"});
+        var typeLabel = it.kind==="card" ? t("timeline_type_card") : t("timeline_type_loan");
+        var gotoAct = it.kind==="card" ? "goto-card" : "goto-loan";
+        html += '<button data-act="'+gotoAct+'" data-id="'+it.id+'" style="width:100%;background:none;border:none;text-align:left;color:inherit;font:inherit;cursor:pointer;padding:8px 0;'+(i>0?"border-top:1px solid var(--surface2);":"")+'display:flex;justify-content:space-between;align-items:center;gap:8px;">'+
+          '<div style="min-width:0;">'+
+          '<div style="font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(it.label)+'</div>'+
+          '<div style="font-size:11px;color:'+color+';margin-top:2px;">'+typeLabel+' · '+label+' · '+dateLabel(it.date)+'</div>'+
+          '</div>'+
+          '<span style="font-family:var(--mono);font-size:13px;color:var(--text);flex-shrink:0;">'+fmt(it.amount)+'</span>'+
+          '</button>';
+      });
+    }
+    html += '</div></section>';
+    return html;
+  }
+
   function computeWeeklyDebtAmount(){
     var plan = debtPayoffPlan(data, 0);
     var msiMonthlyTotal = 0;
@@ -2957,6 +3155,7 @@
 
   function renderAnalysisSection(){
     var html = '<div style="display:flex;flex-direction:column;gap:24px;">';
+    html += renderUpcomingTimeline();
     var totalDebt = data.cards.reduce(function(s,c){ return s + Math.max(0, (c.balance||0) + cardMsiTotal(c) + cardDeferredTotal(c) - (c.extraCredit||0)); },0) + totalPersonalCreditsDebt(data.personalCredits);
     html += renderBudgetSection(totalDebt);
     var utilCards = data.cards.filter(function(c){ return c.limit>0; });
@@ -2967,6 +3166,8 @@
     var subsTotal = subs.reduce(function(s,x){ return s+x.monthlyEquivalent; },0);
 
     html += renderCategoryBreakdown();
+    html += renderCategoryBudgets();
+    html += renderMonthComparison();
     html += renderWeeklyDebtPlan();
     html += renderDebtPayoffPlan();
 
@@ -3207,7 +3408,8 @@
       {key:"alertBudget", label:t("cfg_alert_budget")},
       {key:"alertUtilization", label:t("cfg_alert_utilization")},
       {key:"alertDebtGrowth", label:t("cfg_alert_debt_growth")},
-      {key:"alertGoals", label:t("cfg_alert_goals")}
+      {key:"alertGoals", label:t("cfg_alert_goals")},
+      {key:"alertNearPayoff", label:t("cfg_alert_near_payoff")}
     ];
     var activeAlertCount = alertToggles.filter(function(a){ return !!data.settings[a.key]; }).length;
     var alertsBody = '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 10px;">'+t("cfg_alerts_note")+'</p>';
@@ -3232,7 +3434,7 @@
       alertsBody += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0;">'+t("cfg_push_denied")+'</p>';
       notifSummary = t("cfg_push_denied_s");
     }else{
-      alertsBody += '<p style="color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px;">'+t("cfg_push_note")+'</p>';
+      alertsBody += '<p style="color:var(--amber);font-size:12px;line-height:1.5;margin:0 0 12px;">'+t("cfg_push_note")+'</p>';
       if(notifPermission === "granted" && data.settings.notificationsEnabled){
         alertsBody += '<button class="modal-save" style="background:var(--surface2);color:var(--text);" data-act="disable-notifications">'+t("cfg_push_disable")+'</button>';
         notifSummary = t("cfg_push_enabled_s");
@@ -3492,6 +3694,35 @@
           return '<button class="row" data-act="goto-saving" data-bank="'+esc(bankKey2)+'"><span>'+esc(sv.name)+'</span><span class="amt" style="color:var(--amber)">'+t("al_goal_delayed")+'</span></button>';
         }).join("");
         out += '<div class="alerts" style="background:rgba(255,159,10,.12);border:1px solid rgba(255,159,10,.25);border-left:3px solid var(--amber);margin-top:'+(out?"8px":"0")+';"><div class="title" style="color:var(--amber);">'+t("al_goal_delayed_title")+'</div>'+goalRows+'</div>';
+      }
+    }
+    if(s.alertNearPayoff){
+      var nearPayoff = [];
+      data.cards.forEach(function(c){
+        (c.msi||[]).forEach(function(p){
+          var paid = msiEffectivePaid(p, c.cutoffDay, c.dueDay);
+          var remaining = p.months-paid;
+          if(remaining>0 && remaining<=2){
+            var key = c.id+"-msi-"+p.id;
+            if((data.celebratedPlanIds||[]).indexOf(key)===-1) nearPayoff.push({key:key, cardId:c.id, label:p.description, remaining:remaining});
+          }
+        });
+        (c.diferidos||[]).forEach(function(p){
+          var paidD = msiEffectivePaid(p, c.cutoffDay, c.dueDay);
+          var remainingD = p.months-paidD;
+          if(remainingD>0 && remainingD<=2){
+            var keyD = c.id+"-dif-"+p.id;
+            if((data.celebratedPlanIds||[]).indexOf(keyD)===-1) nearPayoff.push({key:keyD, cardId:c.id, label:p.description, remaining:remainingD});
+          }
+        });
+      });
+      if(nearPayoff.length){
+        var nearRows = nearPayoff.map(function(np){
+          return '<div class="row" style="align-items:center;">'+
+            '<button data-act="goto-card" data-id="'+np.cardId+'" style="background:none;border:none;color:inherit;font:inherit;text-align:left;padding:0;cursor:pointer;flex:1;">🎉 '+esc(np.label)+' <span style="color:var(--muted);">· '+t("al_near_payoff_row",{n:np.remaining, s:np.remaining===1?"":"s"})+'</span></button>'+
+            '<button data-act="dismiss-plan-celebration" data-key="'+esc(np.key)+'" style="background:none;border:none;color:var(--mint);font-size:11px;padding:0;">'+t("al_great")+'</button></div>';
+        }).join("");
+        out += '<div class="alerts" style="background:rgba(50,215,75,.12);border:1px solid rgba(50,215,75,.25);border-left:3px solid var(--mint);margin-top:'+(out?"8px":"0")+';"><div class="title" style="color:var(--mint);">'+t("al_near_payoff_title")+'</div>'+nearRows+'</div>';
       }
     }
     if(s.alertUtilization){
@@ -3848,7 +4079,7 @@
   }
 
   function renderMovimientosSection(){
-    var results = filterMovements(data.cards, { query: ui.movQuery, category: ui.movCategory, cardId: ui.movCard, month: ui.movMonth });
+    var results = filterMovements(data.cards, { query: ui.movQuery, category: ui.movCategory, cardId: ui.movCard, month: ui.movMonth, dateFrom: ui.movDateFrom, dateTo: ui.movDateTo });
     var total = results.reduce(function(s,r){ return s+r.amount; },0);
     var html = '<section><div class="sec-head"><div class="sec-title">🧾 '+t("mov_title")+'</div>'+
       (data.cards.length ? '<button class="add-btn" data-act="movimientos-add">'+t("mov_add")+'</button></div>' : '</div>');
@@ -3884,6 +4115,15 @@
       });
       html += '</select>';
     }
+    html += '<div style="display:flex;align-items:center;gap:6px;margin-top:8px;">';
+    html += '<span style="color:var(--muted);font-size:11px;white-space:nowrap;">'+t("mov_range_or")+'</span>';
+    html += '<input type="date" id="mov-date-from" value="'+(ui.movDateFrom||"")+'" style="flex:1;font-size:11px;padding:6px 8px;" />';
+    html += '<span style="color:var(--muted);font-size:11px;">–</span>';
+    html += '<input type="date" id="mov-date-to" value="'+(ui.movDateTo||"")+'" style="flex:1;font-size:11px;padding:6px 8px;" />';
+    if(ui.movDateFrom || ui.movDateTo){
+      html += '<button data-act="clear-mov-range" style="background:none;border:none;color:var(--coral);font-size:11px;padding:4px;">✕</button>';
+    }
+    html += '</div>';
     html += '</div>';
 
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'+
@@ -4997,7 +5237,16 @@
     var movCardEl = document.getElementById("mov-card");
     if(movCardEl) movCardEl.addEventListener("change", function(){ ui.movCard = this.value; render(); });
     var movMonthEl = document.getElementById("mov-month");
-    if(movMonthEl) movMonthEl.addEventListener("change", function(){ ui.movMonth = this.value; render(); });
+    if(movMonthEl) movMonthEl.addEventListener("change", function(){ ui.movMonth = this.value; ui.movDateFrom = null; ui.movDateTo = null; render(); });
+    var movDateFromEl = document.getElementById("mov-date-from");
+    if(movDateFromEl) movDateFromEl.addEventListener("change", function(){ ui.movDateFrom = this.value || null; ui.movMonth = ""; render(); });
+    var movDateToEl = document.getElementById("mov-date-to");
+    if(movDateToEl) movDateToEl.addEventListener("change", function(){ ui.movDateTo = this.value || null; ui.movMonth = ""; render(); });
+
+    var compareMonthAEl = document.getElementById("compare-month-a");
+    if(compareMonthAEl) compareMonthAEl.addEventListener("change", function(){ ui.compareMonthA = this.value; render(); });
+    var compareMonthBEl = document.getElementById("compare-month-b");
+    if(compareMonthBEl) compareMonthBEl.addEventListener("change", function(){ ui.compareMonthB = this.value; render(); });
 
     var extraPayEl = document.getElementById("extra-payment-input");
     if(extraPayEl) extraPayEl.addEventListener("change", function(){
@@ -5203,6 +5452,9 @@
     }else if(act==="set-chart-period"){
       ui.chartPeriod = el.getAttribute("data-period");
       render();
+    }else if(act==="set-timeline-period"){
+      ui.timelinePeriod = parseInt(el.getAttribute("data-period"),10);
+      render();
     }else if(act==="undo-toast"){
       if(toastTimer) clearTimeout(toastTimer);
       var fn = ui.toast ? ui.toast.onUndo : null;
@@ -5321,6 +5573,26 @@
       var celebratedList = (data.celebratedGoalIds||[]).slice();
       if(celebratedList.indexOf(celebratedId)===-1) celebratedList.push(celebratedId);
       persist(Object.assign({}, data, {celebratedGoalIds: celebratedList}));
+    }else if(act==="dismiss-plan-celebration"){
+      var celebratedKey = el.getAttribute("data-key");
+      var celebratedPlanList = (data.celebratedPlanIds||[]).slice();
+      if(celebratedPlanList.indexOf(celebratedKey)===-1) celebratedPlanList.push(celebratedKey);
+      persist(Object.assign({}, data, {celebratedPlanIds: celebratedPlanList}));
+    }else if(act==="clear-mov-range"){
+      ui.movDateFrom = null; ui.movDateTo = null;
+      render();
+    }else if(act==="edit-category-budget"){
+      ui.editCategoryBudget = el.getAttribute("data-cat");
+      render();
+    }else if(act==="cancel-category-budget"){
+      ui.editCategoryBudget = null;
+      render();
+    }else if(act==="save-category-budget"){
+      var cbCat = el.getAttribute("data-cat");
+      var cbInput = document.getElementById("catbudget-input-"+cbCat);
+      var cbLimit = cbInput ? parseFloat(cbInput.value) : NaN;
+      ui.editCategoryBudget = null;
+      updateCategoryBudget(cbCat, isNaN(cbLimit) ? 0 : cbLimit);
     }else if(act==="check-for-updates"){
       ui.checkingUpdate = true;
       ui.updateCheckResult = null;
