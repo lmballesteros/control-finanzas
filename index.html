@@ -290,6 +290,7 @@
       timeline_total:"Total en este periodo", timeline_none:"No tienes ningún pago programado en este periodo.",
       timeline_today:"Hoy", timeline_in_days:"En {n} día{s}",
       timeline_type_card:"Tarjeta", timeline_type_loan:"Préstamo",
+      timeline_estimated_note:"~ Los cortes de tarjeta más allá del que ya viene son un estimado con tu saldo actual — el monto real depende de lo que gastes o pagues antes de esa fecha.",
       analisis_estimated_time:"Tiempo estimado", analisis_months:"{n} meses",
       analisis_current_label:"Actual: {n} meses · {amount} interés", analisis_extra_label:"Con pago extra: {n} meses · {amount} interés",
       analisis_extra_payment:"Pago extra mensual", analisis_debt_amount:"Deuda con interés",
@@ -614,6 +615,7 @@
       timeline_total:"Total for this period", timeline_none:"You don't have any scheduled payments in this period.",
       timeline_today:"Today", timeline_in_days:"In {n} day{s}",
       timeline_type_card:"Card", timeline_type_loan:"Loan",
+      timeline_estimated_note:"~ Card cutoffs beyond the very next one are an estimate based on your current balance — the real amount depends on what you spend or pay before that date.",
       analisis_estimated_time:"Estimated time", analisis_months:"{n} months",
       analisis_current_label:"Current: {n} months · {amount} interest", analisis_extra_label:"With extra payment: {n} months · {amount} interest",
       analisis_extra_payment:"Extra monthly payment", analisis_debt_amount:"Interest-bearing debt",
@@ -1512,7 +1514,15 @@
      tarjetas y préstamos personales — a diferencia de las alertas de Resumen que
      solo muestran lo urgente (≤7 días). Los MSI y diferidos ya vienen incluidos
      dentro del monto de cada tarjeta (cardAmountDueNow los suma), así que no se
-     listan por separado. */
+     listan por separado.
+     Importante: como los pagos son mensuales, el "próximo" pago de cualquier
+     tarjeta o préstamo siempre cae dentro de los primeros ~30 días — por eso no
+     basta con mirar solo ese, o elegir 60/90 días nunca mostraría nada distinto.
+     Aquí proyectamos también los ciclos siguientes que caigan dentro del rango
+     elegido. En tarjetas de crédito no podemos saber el monto exacto de un corte
+     futuro (depende de lo que gastes o pagues antes de esa fecha), así que para
+     esos ciclos usamos el monto actual como estimado y lo marcamos como tal. En
+     préstamos personales sí conocemos el monto exacto de cada cuota futura. */
   function buildUpcomingTimeline(days){
     var items = [];
     var today = new Date(); today.setHours(0,0,0,0);
@@ -1520,15 +1530,25 @@
     data.cards.forEach(function(c){
       if(c.type==="debito") return;
       var r = cardAmountDueNow(c);
-      if(r.due && r.amount>0.01 && r.due.getTime()<=horizon.getTime()){
-        items.push({kind:"card", id:c.id, label:c.name, amount:r.amount, date:r.due});
+      if(!r.due || r.amount<=0.01) return;
+      var cycleDate = new Date(r.due);
+      var isFirst = true;
+      var guard = 0;
+      while(cycleDate.getTime()<=horizon.getTime() && guard<24){
+        items.push({kind:"card", id:c.id, label:c.name, amount:r.amount, date:new Date(cycleDate), estimated:!isFirst});
+        isFirst = false;
+        cycleDate = clampedDate(cycleDate.getFullYear(), cycleDate.getMonth()+1, c.dueDay);
+        guard++;
       }
     });
     (data.personalCredits||[]).forEach(function(cr){
-      var date = personalNextPaymentDate(cr);
-      if(date && date.getTime()<=horizon.getTime()){
-        var row = personalNextPaymentRow(cr);
-        items.push({kind:"loan", id:cr.id, label:cr.description, amount:row?row.total:0, date:date});
+      var paid = personalElapsed(cr);
+      if(paid >= cr.months) return;
+      var rows = buildAmortizationAdjusted(cr.principal, cr.months, cr.annualRate, cr.overrides);
+      for(var k=paid+1; k<=cr.months; k++){
+        var date = personalInstallmentDate(cr, k);
+        if(date.getTime()>horizon.getTime()) break;
+        items.push({kind:"loan", id:cr.id, label:cr.description, amount:rows[k-1].total, date:date, estimated:false});
       }
     });
     return items.sort(function(a,b){ return a.date-b.date; });
@@ -3036,10 +3056,12 @@
           '<div style="font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(it.label)+'</div>'+
           '<div style="font-size:11px;color:'+color+';margin-top:2px;">'+typeLabel+' · '+label+' · '+dateLabel(it.date)+'</div>'+
           '</div>'+
-          '<span style="font-family:var(--mono);font-size:13px;color:var(--text);flex-shrink:0;">'+fmt(it.amount)+'</span>'+
+          '<span style="font-family:var(--mono);font-size:13px;color:var(--text);flex-shrink:0;">'+(it.estimated?"~":"")+fmt(it.amount)+'</span>'+
           '</button>';
       });
     }
+    var hasEstimated = items.some(function(it){ return it.estimated; });
+    if(hasEstimated) html += '<div style="color:var(--muted);font-size:10px;margin-top:10px;">'+t("timeline_estimated_note")+'</div>';
     html += '</div></section>';
     return html;
   }
