@@ -2757,13 +2757,27 @@
     var net = totalSavings - totalDebt;
 
     var tabTitles = { resumen:t("title_resumen"), movimientos:t("title_movimientos"), tarjetas:t("title_tarjetas"), gastos:t("title_gastos"), prestamos:t("title_prestamos"), ahorros:t("title_ahorros"), analisis:t("title_analisis"), config:t("title_config") };
+    var navIds = NAV_ITEMS.map(function(n){ return n.id; });
+    var curTabIdx = navIds.indexOf(ui.tab);
+    var prevTabId = navIds[(curTabIdx-1+navIds.length)%navIds.length];
+    var nextTabId = navIds[(curTabIdx+1)%navIds.length];
 
     var html = "";
     html += '<div class="wrap" style="zoom:'+(FONT_SCALE[data.settings.fontSize] || FONT_SCALE.normal)+';">';
-    html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">'+
+    html += '<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;">'+
+      '<button data-act="set-tab" data-tab="'+prevTabId+'" style="background:none;border:none;color:var(--muted);padding:6px 2px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;max-width:64px;">'+
+      '<span style="font-size:18px;line-height:1;">‹</span>'+
+      '<span style="font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60px;">'+esc(tabTitles[prevTabId])+'</span>'+
+      '</button>'+
+      '<div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;justify-content:center;">'+
       '<div style="background:rgba(94,234,212,0.12);width:44px;height:44px;border-radius:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:19px;">💼</div>'+
-      '<div><div class="eyebrow" style="margin-bottom:2px;">Control financiero</div>'+
-      '<h1 style="margin:0;line-height:1.2;">'+tabTitles[ui.tab]+'</h1></div>'+
+      '<div style="min-width:0;"><div class="eyebrow" style="margin-bottom:2px;">Control financiero</div>'+
+      '<h1 style="margin:0;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+tabTitles[ui.tab]+'</h1></div>'+
+      '</div>'+
+      '<button data-act="set-tab" data-tab="'+nextTabId+'" style="background:none;border:none;color:var(--muted);padding:6px 2px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;max-width:64px;">'+
+      '<span style="font-size:18px;line-height:1;">›</span>'+
+      '<span style="font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60px;">'+esc(tabTitles[nextTabId])+'</span>'+
+      '</button>'+
       '</div>';
     html += '<div style="border-top:1px dashed var(--surface2);margin-bottom:24px;"></div>';
 
