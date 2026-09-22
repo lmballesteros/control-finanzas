@@ -480,6 +480,7 @@
       gate_one_moment:"Un momento…",
       gate_footer_note:"Tus datos financieros se guardan protegidos con tu contraseña, y se sincronizan entre tus dispositivos cuando inicias sesión con la misma cuenta.",
       cloud_status_synced:"Sincronizado", cloud_status_syncing:"Sincronizando…", cloud_status_pending:"Cambios pendientes de subir", cloud_status_error:"No se pudo sincronizar (revisa tu conexión)",
+      cloud_status_offline:"Sin conexión — tus cambios están guardados y se subirán solos en cuanto vuelvas a tener internet",
       cloud_delete_account:"Eliminar mi cuenta y todos mis datos",
 
       del_acc_title:"⚠ Eliminar cuenta",
@@ -805,6 +806,7 @@
       gate_one_moment:"One moment…",
       gate_footer_note:"Your financial data is stored protected by your password, and syncs across your devices when you sign in with the same account.",
       cloud_status_synced:"Synced", cloud_status_syncing:"Syncing…", cloud_status_pending:"Changes pending upload", cloud_status_error:"Couldn't sync (check your connection)",
+      cloud_status_offline:"No connection — your changes are saved and will upload on their own once you're back online",
       cloud_delete_account:"Delete my account and all my data",
 
       del_acc_title:"⚠ Delete account",
@@ -1217,14 +1219,32 @@
     if(cloudUnsub){ cloudUnsub(); cloudUnsub = null; }
   }
 
+  /* Si Firestore no puede confirmar la subida en un tiempo razonable — por ejemplo,
+     con mala señal en el celular — la promesa de guardado se queda esperando sin
+     avisar nada, dejando el ícono de "sincronizando" atorado para siempre aunque
+     los datos SÍ estén a salvo guardados localmente. Con este límite de tiempo,
+     dejamos de mostrar el spinner y avisamos claramente que está sin conexión;
+     Firestore de todos modos reintenta subirlo solo en cuanto haya internet de
+     nuevo, y cuando por fin se confirme la subida, el estado sí cambiará a
+     "Sincronizado" normalmente — este límite no cancela el guardado en sí. */
   function cloudPushNow(){
     if(!fbDb || !ui.cloudUser) return;
-    ui.cloudStatus = "syncing";
     var uid = ui.cloudUser.uid;
+    var settled = false;
+    // si el teléfono ya sabe que no tiene señal, avisamos de una vez en vez de
+    // esperar 8 segundos a que el intento de red confirme lo que ya es evidente
+    ui.cloudStatus = (typeof navigator!=="undefined" && navigator.onLine===false) ? "offline" : "syncing";
+    var offlineTimer = setTimeout(function(){
+      if(settled) return;
+      ui.cloudStatus = "offline";
+      render();
+    }, 8000);
     cloudDocRef(uid).set({
       payload: data,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }).then(function(){
+      settled = true;
+      clearTimeout(offlineTimer);
       ui.cloudStatus = "synced";
       // leemos de vuelta el timestamp real que asignó el servidor, para poder compararlo la próxima vez
       cloudDocRef(uid).get().then(function(snap){
@@ -1233,6 +1253,8 @@
       }).catch(function(){});
       render();
     }).catch(function(){
+      settled = true;
+      clearTimeout(offlineTimer);
       ui.cloudStatus = "error";
       render();
     });
@@ -1257,6 +1279,15 @@
       cloudPushNow();
     }
   });
+
+  /* En cuanto el teléfono recupera señal, si nos habíamos quedado en "sin conexión"
+     reintentamos subir de inmediato — sin esto, había que esperar a que la persona
+     hiciera otro cambio cualquiera para que se disparara un nuevo intento. */
+  if(typeof window!=="undefined"){
+    window.addEventListener("online", function(){
+      if(ui.cloudStatus==="offline" && ui.cloudUser) cloudPushNow();
+    });
+  }
 
   /* Evita que los datos financieros de una cuenta se mezclen con los de otra en el mismo
      dispositivo (por ejemplo, una computadora o celular compartido entre dos personas).
@@ -3331,6 +3362,7 @@
       synced: {icon:"🟢", label:t("cloud_status_synced")},
       syncing: {icon:"🔵", label:t("cloud_status_syncing")},
       pending: {icon:"🟡", label:t("cloud_status_pending")},
+      offline: {icon:"🔌", label:t("cloud_status_offline")},
       error: {icon:"🔴", label:t("cloud_status_error")}
     };
     var st = statusMap[ui.cloudStatus] || statusMap.synced;
