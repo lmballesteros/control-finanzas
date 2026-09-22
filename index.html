@@ -5066,6 +5066,20 @@
     return '<div style="display:flex;align-items:center;gap:16px;">'+svg+legend+'</div>';
   }
 
+  /* Cuando el usuario está a la mitad de llenar el formulario de tarjeta/ahorro y
+     toca algo que redibuja el modal (como elegir un color), guardamos primero lo
+     que ya escribió en cada campo — si no, al reconstruir el HTML desde cero se
+     perdía todo lo capturado, porque renderModal() solo conocía los datos de una
+     tarjeta ya existente (initial), nunca lo que el usuario tecleó en una nueva. */
+  function captureModalDraft(){
+    if(!ui.modal) return;
+    var draft = ui.modal.draft || {};
+    ["m-name","m-bank","m-a","m-b","m-target-date","m-contribution","m-cutoff","m-due","m-revolving-rate","m-min-payment"].forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) draft[id] = el.value;
+    });
+    ui.modal.draft = draft;
+  }
   function renderModal(){
     if(!ui.modal) return "";
     var kind = ui.modal.kind;
@@ -5073,29 +5087,31 @@
     var isCard = kind==="card";
     var cardType = isCard ? (ui.modal.cardType || "credito") : null;
     var isDebit = isCard && cardType==="debito";
+    var draft = ui.modal.draft || {};
+    function dv(id, fallback){ return draft[id]!=null ? draft[id] : fallback; }
     var title = (initial?t("modal_edit")+" ":t("modal_add")+" ") + (isCard?(isDebit?t("modal_debit"):t("modal_card")):t("modal_saving"));
     var html = '<div class="modal-overlay" data-act="close-modal-bg"><div class="modal" data-stop="1">';
     html += '<div class="modal-head"><h3>'+title+'</h3><button data-act="close-modal">✕</button></div>';
-    html += '<input type="text" id="m-name" placeholder="'+(isCard?(isDebit?t("modal_name_debit"):t("modal_name_card")):t("modal_name_saving"))+'" value="'+esc(initial?initial.name:"")+'" />';
+    html += '<input type="text" id="m-name" placeholder="'+(isCard?(isDebit?t("modal_name_debit"):t("modal_name_card")):t("modal_name_saving"))+'" value="'+esc(dv("m-name", initial?initial.name:""))+'" />';
     if(!isCard){
-      html += '<input type="text" id="m-bank" placeholder="'+t("modal_bank_placeholder")+'" value="'+esc(initial&&initial.bank?initial.bank:"")+'" />';
+      html += '<input type="text" id="m-bank" placeholder="'+t("modal_bank_placeholder")+'" value="'+esc(dv("m-bank", initial&&initial.bank?initial.bank:""))+'" />';
     }
     if(!isDebit){
-      html += '<input type="text" inputmode="decimal" id="m-a" placeholder="'+(isCard?t("modal_current_balance"):t("modal_current_amount"))+'" value="'+(initial?(isCard?initial.balance:initial.current):"")+'" />';
-      html += '<input type="text" inputmode="decimal" id="m-b" placeholder="'+(isCard?t("modal_credit_limit"):t("modal_savings_goal"))+'" value="'+(initial?(isCard?initial.limit:initial.goal):"")+'" />';
+      html += '<input type="text" inputmode="decimal" id="m-a" placeholder="'+(isCard?t("modal_current_balance"):t("modal_current_amount"))+'" value="'+esc(dv("m-a", initial?(isCard?initial.balance:initial.current):""))+'" />';
+      html += '<input type="text" inputmode="decimal" id="m-b" placeholder="'+(isCard?t("modal_credit_limit"):t("modal_savings_goal"))+'" value="'+esc(dv("m-b", initial?(isCard?initial.limit:initial.goal):""))+'" />';
     }
     if(!isCard){
       var tdVal = initial&&initial.targetDate ? new Date(initial.targetDate).toISOString().slice(0,10) : "";
-      html += '<span class="field-label">'+t("modal_target_date")+'</span><input type="date" id="m-target-date" value="'+tdVal+'" style="margin-bottom:10px;" />';
-      html += '<span class="field-label">'+t("modal_monthly_contribution")+'</span><input type="text" inputmode="decimal" id="m-contribution" placeholder="'+t("modal_contribution_placeholder")+'" value="'+(initial&&initial.monthlyContribution?initial.monthlyContribution:"")+'" style="margin-bottom:10px;" />';
+      html += '<span class="field-label">'+t("modal_target_date")+'</span><input type="date" id="m-target-date" value="'+esc(dv("m-target-date", tdVal))+'" style="margin-bottom:10px;" />';
+      html += '<span class="field-label">'+t("modal_monthly_contribution")+'</span><input type="text" inputmode="decimal" id="m-contribution" placeholder="'+t("modal_contribution_placeholder")+'" value="'+esc(dv("m-contribution", initial&&initial.monthlyContribution?initial.monthlyContribution:""))+'" style="margin-bottom:10px;" />';
     }
     if(isCard && !isDebit){
       html += '<div class="modal-2col">'+
-        '<div><span class="field-label">'+t("modal_cutoff_day")+'</span><input type="text" inputmode="numeric" id="m-cutoff" placeholder="1–31" value="'+(initial&&initial.cutoffDay?initial.cutoffDay:"")+'" /></div>'+
-        '<div><span class="field-label">'+t("modal_due_day")+'</span><input type="text" inputmode="numeric" id="m-due" placeholder="1–31" value="'+(initial&&initial.dueDay?initial.dueDay:"")+'" /></div>'+
+        '<div><span class="field-label">'+t("modal_cutoff_day")+'</span><input type="text" inputmode="numeric" id="m-cutoff" placeholder="1–31" value="'+esc(dv("m-cutoff", initial&&initial.cutoffDay?initial.cutoffDay:""))+'" /></div>'+
+        '<div><span class="field-label">'+t("modal_due_day")+'</span><input type="text" inputmode="numeric" id="m-due" placeholder="1–31" value="'+esc(dv("m-due", initial&&initial.dueDay?initial.dueDay:""))+'" /></div>'+
         '</div>';
-      html += '<span class="field-label">'+t("modal_revolving_rate")+'</span><input type="text" inputmode="decimal" id="m-revolving-rate" placeholder="'+t("modal_revolving_placeholder")+'" value="'+(initial&&initial.revolvingRate?initial.revolvingRate:"")+'" style="margin-bottom:10px;" />';
-      html += '<span class="field-label">'+t("modal_min_payment")+'</span><input type="text" inputmode="decimal" id="m-min-payment" placeholder="'+t("modal_min_payment_placeholder")+'" value="'+(initial&&initial.minPayment?initial.minPayment:"")+'" style="margin-bottom:10px;" />';
+      html += '<span class="field-label">'+t("modal_revolving_rate")+'</span><input type="text" inputmode="decimal" id="m-revolving-rate" placeholder="'+t("modal_revolving_placeholder")+'" value="'+esc(dv("m-revolving-rate", initial&&initial.revolvingRate?initial.revolvingRate:""))+'" style="margin-bottom:10px;" />';
+      html += '<span class="field-label">'+t("modal_min_payment")+'</span><input type="text" inputmode="decimal" id="m-min-payment" placeholder="'+t("modal_min_payment_placeholder")+'" value="'+esc(dv("m-min-payment", initial&&initial.minPayment?initial.minPayment:""))+'" style="margin-bottom:10px;" />';
     }
     if(isCard){
       html += '<span class="field-label">'+t("modal_card_color")+'</span>';
@@ -5146,6 +5162,27 @@
     });
     app.querySelectorAll('#m-cutoff, #m-due, #pc-day').forEach(function(inp){
       inp.addEventListener("input", function(){ this.value = clampDay(this.value); });
+    });
+
+    /* Detecta automáticamente la categoría de un gasto según su descripción, si ya
+       la habías capturado antes (en cualquier tarjeta) — así no tienes que elegirla
+       de nuevo cada vez que registras algo recurrente (ej. "Netflix" → "Streaming").
+       Se hace con un evento directo, sin volver a dibujar toda la pantalla, para no
+       perder el cursor ni lo que ya escribiste mientras sigues tecleando. */
+    app.querySelectorAll('input[id^="exp-desc-"]').forEach(function(descEl){
+      var cardIdForExp = descEl.id.replace("exp-desc-","");
+      var catEl = document.getElementById("exp-cat-"+cardIdForExp);
+      if(!catEl) return;
+      var descToCategory = {};
+      data.cards.forEach(function(c){
+        (c.expenses||[]).slice().sort(function(a,b){ return new Date(a.date)-new Date(b.date); }).forEach(function(e){
+          descToCategory[e.description.trim().toLowerCase()] = e.category||"Otros";
+        });
+      });
+      descEl.addEventListener("input", function(){
+        var key = this.value.trim().toLowerCase();
+        if(key && descToCategory[key]) catEl.value = descToCategory[key];
+      });
     });
 
     var newCatEl = document.getElementById("new-category-input");
@@ -5428,6 +5465,7 @@
       setHideBalancesPref(ui.hideBalances);
       render();
     }else if(act==="pick-card-color"){
+      captureModalDraft();
       var pickedIdx = el.getAttribute("data-color-index");
       ui.modal.colorOverride = pickedIdx==="" ? null : parseInt(pickedIdx,10);
       render();
@@ -6208,6 +6246,24 @@
               render();
             }
           });
+        });
+
+        /* En el celular, cerrar y volver a abrir la app casi siempre equivale a una
+           recarga real, así que el navegador revisa solo si hay una versión nueva.
+           En escritorio, en cambio, es normal dejar la pestaña abierta por horas o
+           días sin recargarla nunca — y sin recargar, el navegador prácticamente
+           nunca vuelve a revisar por su cuenta, así que las actualizaciones tardaban
+           mucho más en notarse ahí. Para corregirlo, revisamos nosotros mismos cada
+           30 minutos mientras la app sigue abierta, y también en cuanto vuelves a
+           esta pestaña después de tenerla en segundo plano (con un mínimo de 5
+           minutos entre revisiones, para no hacerlo de más). */
+        var lastUpdateCheck = Date.now();
+        setInterval(function(){ reg.update().catch(function(){}); lastUpdateCheck = Date.now(); }, 30*60*1000);
+        document.addEventListener("visibilitychange", function(){
+          if(document.visibilityState==="visible" && Date.now()-lastUpdateCheck > 5*60*1000){
+            reg.update().catch(function(){});
+            lastUpdateCheck = Date.now();
+          }
         });
       }).catch(function(){});
     });
