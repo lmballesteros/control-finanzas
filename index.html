@@ -1165,7 +1165,7 @@
     messagingSenderId: "383558493314",
     appId: "1:383558493314:web:fd5c3f0948af936e1a009b"
   };
-  var fbApp = null, fbAuth = null, fbDb = null, cloudUnsub = null, cloudSyncTimer = null, cloudApplyingRemote = false;
+  var fbApp = null, fbAuth = null, fbDb = null, cloudUnsub = null, cloudSyncTimer = null, cloudApplyingRemote = false, localWriteInFlight = false;
   try{
     if(typeof firebase !== "undefined"){
       fbApp = firebase.initializeApp(firebaseConfig);
@@ -1203,6 +1203,13 @@
     cloudUnsub = cloudDocRef(uid).onSnapshot(function(snap){
       if(!snap.exists) return;
       if(snap.metadata.hasPendingWrites) return; // es un cambio que hicimos nosotros mismos, ya lo tenemos local
+      /* Justo después de guardar algo, hay una ventana de hasta ~1.5s (más lo que
+         tarde la subida) antes de que ese cambio realmente llegue al servidor. Si
+         durante esa ventana llega cualquier lectura de la nube, todavía va a traer
+         el valor VIEJO — sin este freno, esa lectura sobrescribía silenciosamente
+         el cambio que la persona acababa de hacer, y hasta se subía de vuelta el
+         valor viejo cuando por fin corría el guardado pendiente. */
+      if(localWriteInFlight) return;
       var remote = snap.data() && snap.data().payload;
       var remoteUpdatedAt = snap.data() && snap.data().updatedAt;
       var marker = remoteUpdatedAt && remoteUpdatedAt.toMillis ? remoteUpdatedAt.toMillis() : Date.now();
@@ -1231,6 +1238,7 @@
     if(!fbDb || !ui.cloudUser) return;
     var uid = ui.cloudUser.uid;
     var settled = false;
+    localWriteInFlight = true;
     // si el teléfono ya sabe que no tiene señal, avisamos de una vez en vez de
     // esperar 8 segundos a que el intento de red confirme lo que ya es evidente
     ui.cloudStatus = (typeof navigator!=="undefined" && navigator.onLine===false) ? "offline" : "syncing";
@@ -1244,6 +1252,7 @@
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }).then(function(){
       settled = true;
+      localWriteInFlight = false;
       clearTimeout(offlineTimer);
       ui.cloudStatus = "synced";
       // leemos de vuelta el timestamp real que asignó el servidor, para poder compararlo la próxima vez
@@ -1254,6 +1263,7 @@
       render();
     }).catch(function(){
       settled = true;
+      localWriteInFlight = false;
       clearTimeout(offlineTimer);
       ui.cloudStatus = "error";
       render();
@@ -1265,6 +1275,7 @@
     if(!fbDb || !ui.cloudUser || cloudApplyingRemote) return;
     if(cloudSyncTimer) clearTimeout(cloudSyncTimer);
     ui.cloudStatus = "pending";
+    localWriteInFlight = true;
     cloudSyncTimer = setTimeout(cloudPushNow, 1500);
   }
 
