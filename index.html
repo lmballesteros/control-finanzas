@@ -197,7 +197,8 @@
   var TRANSLATIONS = {
     es: {
       nav_resumen:"Resumen", nav_movimientos:"Movim.", nav_tarjetas:"Tarjetas", nav_gastos:"Gastos", nav_prestamos:"Préstamos",
-      nav_ahorros:"Ahorros", nav_analisis:"Análisis", nav_ajustes:"Ajustes",
+      nav_calendario:"Calendario", nav_ahorros:"Ahorros", nav_analisis:"Análisis", nav_ajustes:"Ajustes",
+      title_calendario:"Calendario de Pagos",
       title_gastos:"Gastos", gastos_empty_title:"Sin cuentas de efectivo o débito",
       gastos_empty_body:"Registra tu efectivo o tarjetas de débito para llevar el control de esos gastos, separados de tu deuda de crédito.",
       gate_login_title:"Inicia sesión", gate_signup_title:"Crea tu cuenta",
@@ -438,6 +439,10 @@
       def_rate_of:"{rate}% anual · {paid}/{total} meses", def_next:"próxima cuota: {total} ({capital} capital + {interest} interés + {iva} IVA)",
       def_adjusted:" · ajustada a mano", def_real_amount:"Monto real que te cobró el banco esta cuota (mes {n} de {total})",
       def_adjust_this:"✎ ajustar esta cuota",
+
+      pc_rebase_btn:"🔄 Ajustar con datos actuales", pc_rebase_title:"Ajustar préstamo con datos actuales",
+      pc_rebase_note:"Esto reemplaza el cálculo original con estos datos nuevos — útil si el banco reestructuró tu préstamo o los números ya no coinciden con tu estado de cuenta. No se toman en cuenta los datos con los que se creó el préstamo, solo estos.",
+      pc_rebase_balance:"Saldo pendiente actual", pc_rebase_months:"Meses restantes", pc_rebase_rate:"Tasa anual actual (%)",
       def_modal_edit:"Editar pago diferido", def_modal_new:"Nuevo pago diferido",
       def_desc_placeholder:"Descripción (ej. Refrigerador)", def_original_amount:"Monto original", def_term:"Plazo (meses)",
       def_rate_label:"Tasa de interés anual (%)", def_rate_placeholder:"ej. 42 (revísala en tu contrato)",
@@ -534,7 +539,8 @@
     },
     en: {
       nav_resumen:"Overview", nav_movimientos:"Activity", nav_tarjetas:"Cards", nav_gastos:"Expenses", nav_prestamos:"Loans",
-      nav_ahorros:"Savings", nav_analisis:"Insights", nav_ajustes:"Settings",
+      nav_calendario:"Calendar", nav_ahorros:"Savings", nav_analisis:"Insights", nav_ajustes:"Settings",
+      title_calendario:"Payment Calendar",
       title_gastos:"Expenses", gastos_empty_title:"No cash or debit accounts",
       gastos_empty_body:"Register your cash or debit cards to track those expenses, kept separate from your credit debt.",
       gate_login_title:"Sign in", gate_signup_title:"Create your account",
@@ -775,6 +781,10 @@
       def_rate_of:"{rate}% annual · {paid}/{total} months", def_next:"next installment: {total} ({capital} principal + {interest} interest + {iva} tax)",
       def_adjusted:" · manually adjusted", def_real_amount:"Actual amount the bank charged this installment (month {n} of {total})",
       def_adjust_this:"✎ adjust this installment",
+
+      pc_rebase_btn:"🔄 Adjust with current data", pc_rebase_title:"Adjust loan with current data",
+      pc_rebase_note:"This replaces the original calculation with this new data — useful if the bank restructured your loan or the numbers no longer match your statement. The data the loan was originally created with is not taken into account, only this.",
+      pc_rebase_balance:"Current outstanding balance", pc_rebase_months:"Months remaining", pc_rebase_rate:"Current annual rate (%)",
       def_modal_edit:"Edit deferred payment", def_modal_new:"New deferred payment",
       def_desc_placeholder:"Description (e.g. Refrigerator)", def_original_amount:"Original amount", def_term:"Term (months)",
       def_rate_label:"Annual interest rate (%)", def_rate_placeholder:"e.g. 42 (check your contract)",
@@ -2555,6 +2565,27 @@
     });
     persist(withHistory(Object.assign({}, data, {personalCredits:personalCredits})));
   }
+  /* "Ajustar con datos actuales": en vez de corregir una sola cuota, esto reemplaza
+     por completo el punto de partida del cálculo — útil cuando el banco
+     reestructuró el préstamo o los números originales ya no describen la
+     realidad. A partir de aquí, el saldo pendiente que captures se trata como si
+     fuera un préstamo nuevo que arranca hoy: se ignoran los datos de origen
+     (monto y fecha con los que se creó) y cualquier ajuste de cuota anterior, ya
+     que pertenecían a un calendario que ya no aplica. */
+  function rebasePersonalCredit(id, newBalance, newMonths, newRate){
+    var personalCredits = data.personalCredits.map(function(c){
+      if(c.id!==id) return c;
+      return Object.assign({}, c, {
+        principal: newBalance,
+        months: newMonths,
+        annualRate: newRate,
+        startDate: new Date().toISOString(),
+        paidMonths: 0,
+        overrides: {}
+      });
+    });
+    persist(withHistory(Object.assign({}, data, {personalCredits:personalCredits})));
+  }
   function updateBudget(budget){
     persist(Object.assign({}, data, {budget:budget}));
   }
@@ -2865,7 +2896,7 @@
     var totalSavings = data.savings.reduce(function(s,sv){ return s + (sv.current||0); },0);
     var net = totalSavings - totalDebt;
 
-    var tabTitles = { resumen:t("title_resumen"), movimientos:t("title_movimientos"), tarjetas:t("title_tarjetas"), gastos:t("title_gastos"), prestamos:t("title_prestamos"), ahorros:t("title_ahorros"), analisis:t("title_analisis"), config:t("title_config") };
+    var tabTitles = { resumen:t("title_resumen"), movimientos:t("title_movimientos"), tarjetas:t("title_tarjetas"), gastos:t("title_gastos"), prestamos:t("title_prestamos"), calendario:t("title_calendario"), ahorros:t("title_ahorros"), analisis:t("title_analisis"), config:t("title_config") };
     var navIds = NAV_ITEMS.map(function(n){ return n.id; });
     var curTabIdx = navIds.indexOf(ui.tab);
     var prevTabId = navIds[(curTabIdx-1+navIds.length)%navIds.length];
@@ -2915,6 +2946,8 @@
       html += renderGastosSection();
     }else if(ui.tab === "prestamos"){
       html += renderPersonalCreditsSection();
+    }else if(ui.tab === "calendario"){
+      html += renderCalendarioSection();
     }else if(ui.tab === "ahorros"){
       html += renderSavingsSection();
     }else if(ui.tab === "analisis"){
@@ -2979,6 +3012,7 @@
     {id:"tarjetas", label:t("nav_tarjetas"), icon:"💳"},
     {id:"gastos", label:t("nav_gastos"), icon:"💵"},
     {id:"prestamos", label:t("nav_prestamos"), icon:"🏦"},
+    {id:"calendario", label:t("nav_calendario"), icon:"📅"},
     {id:"ahorros", label:t("nav_ahorros"), icon:"🐷"},
     {id:"analisis", label:t("nav_analisis"), icon:"🔍"},
     {id:"config", label:t("nav_ajustes"), icon:"⚙"}
@@ -3386,10 +3420,16 @@
     return html;
   }
 
-  function renderAnalysisSection(){
+  function renderCalendarioSection(){
     var html = '<div style="display:flex;flex-direction:column;gap:24px;">';
     html += renderUpcomingTimeline();
     html += renderPaymentsCalendar();
+    html += '</div>';
+    return html;
+  }
+
+  function renderAnalysisSection(){
+    var html = '<div style="display:flex;flex-direction:column;gap:24px;">';
     var totalDebt = data.cards.reduce(function(s,c){ return s + Math.max(0, (c.balance||0) + cardMsiTotal(c) + cardDeferredTotal(c) - (c.extraCredit||0)); },0) + totalPersonalCreditsDebt(data.personalCredits);
     html += renderBudgetSection(totalDebt);
     var utilCards = data.cards.filter(function(c){ return c.limit>0; });
@@ -4254,6 +4294,24 @@
           '</div></div>';
       }else{
         html += '<button class="mini-add" style="color:var(--muted);margin-top:8px;" data-act="toggle-adjust-personal" data-id="'+credit.id+'">'+t("def_adjust_this")+'</button>';
+      }
+      var rebasing = ui.rebasePersonalTarget === credit.id;
+      if(rebasing){
+        html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--hairline);">'+
+          '<div style="color:var(--text);font-size:12px;font-weight:600;margin-bottom:6px;">'+t("pc_rebase_title")+'</div>'+
+          '<div style="color:var(--muted);font-size:10px;line-height:1.4;margin-bottom:8px;">'+t("pc_rebase_note")+'</div>'+
+          '<span class="field-label">'+t("pc_rebase_balance")+'</span>'+
+          '<input type="text" inputmode="decimal" id="pc-rebase-balance-'+credit.id+'" value="'+remaining+'" style="margin-bottom:8px;" />'+
+          '<div class="form-row">'+
+          '<div style="flex:1;"><span class="field-label">'+t("pc_rebase_months")+'</span><input type="text" inputmode="numeric" id="pc-rebase-months-'+credit.id+'" value="'+(credit.months-paid)+'" /></div>'+
+          '<div style="flex:1;"><span class="field-label">'+t("pc_rebase_rate")+'</span><input type="text" inputmode="decimal" id="pc-rebase-rate-'+credit.id+'" value="'+credit.annualRate+'" /></div>'+
+          '</div>'+
+          '<div class="form-actions">'+
+          '<button class="btn-cancel" data-act="toggle-rebase-personal" data-id="'+credit.id+'">'+t("btn_cancel")+'</button>'+
+          '<button class="btn-save" data-act="submit-rebase-personal" data-id="'+credit.id+'">'+t("btn_save")+'</button>'+
+          '</div></div>';
+      }else{
+        html += '<button class="mini-add" style="color:var(--muted);margin-top:6px;" data-act="toggle-rebase-personal" data-id="'+credit.id+'">'+t("pc_rebase_btn")+'</button>';
       }
     }
     html += '</div>';
@@ -6051,6 +6109,19 @@
       if(pNewTotal>0){
         ui.adjustPersonalTarget = null;
         updatePersonalCreditOverride(spid, pMonthNum, pNewTotal);
+      }
+    }else if(act==="toggle-rebase-personal"){
+      var trpId = el.getAttribute("data-id");
+      ui.rebasePersonalTarget = ui.rebasePersonalTarget===trpId ? null : trpId;
+      render();
+    }else if(act==="submit-rebase-personal"){
+      var srpId = el.getAttribute("data-id");
+      var srpBalance = parseFloat(document.getElementById("pc-rebase-balance-"+srpId).value);
+      var srpMonths = parseInt(document.getElementById("pc-rebase-months-"+srpId).value,10);
+      var srpRate = parseFloat(document.getElementById("pc-rebase-rate-"+srpId).value);
+      if(srpBalance>0 && srpMonths>0 && !isNaN(srpRate) && srpRate>=0){
+        ui.rebasePersonalTarget = null;
+        rebasePersonalCredit(srpId, srpBalance, srpMonths, srpRate);
       }
     }else if(act==="save-budget"){
       var bSalary = parseFloat(document.getElementById("budget-salary").value) || 0;
