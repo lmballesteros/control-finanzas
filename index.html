@@ -297,7 +297,7 @@
       cal_day_sun:"D", cal_day_mon:"L", cal_day_tue:"M", cal_day_wed:"M", cal_day_thu:"J", cal_day_fri:"V", cal_day_sat:"S",
       cal_none_that_day:"Sin pagos programados este día.",
       cal_select_day_hint:"Toca un día marcado para ver el detalle.",
-      cal_month_total:"Total del mes",
+      cal_month_total:"Total del mes", cal_week_short:"Sem",
       analisis_estimated_time:"Tiempo estimado", analisis_months:"{n} meses",
       analisis_current_label:"Actual: {n} meses · {amount} interés", analisis_extra_label:"Con pago extra: {n} meses · {amount} interés",
       analisis_extra_payment:"Pago extra mensual", analisis_debt_amount:"Deuda con interés",
@@ -639,7 +639,7 @@
       cal_day_sun:"S", cal_day_mon:"M", cal_day_tue:"T", cal_day_wed:"W", cal_day_thu:"T", cal_day_fri:"F", cal_day_sat:"S",
       cal_none_that_day:"No scheduled payments that day.",
       cal_select_day_hint:"Tap a marked day to see the details.",
-      cal_month_total:"Total for the month",
+      cal_month_total:"Total for the month", cal_week_short:"Wk",
       analisis_estimated_time:"Estimated time", analisis_months:"{n} months",
       analisis_current_label:"Current: {n} months · {amount} interest", analisis_extra_label:"With extra payment: {n} months · {amount} interest",
       analisis_extra_payment:"Extra monthly payment", analisis_debt_amount:"Interest-bearing debt",
@@ -3255,15 +3255,24 @@
       '<button data-act="cal-next-month" style="background:none;border:none;color:var(--muted);font-size:18px;padding:4px 8px;">›</button>'+
       '</div>';
 
-    var dayLabels = ["cal_day_sun","cal_day_mon","cal_day_tue","cal_day_wed","cal_day_thu","cal_day_fri","cal_day_sat"];
-    html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">';
+    var dayLabels = ["cal_day_mon","cal_day_tue","cal_day_wed","cal_day_thu","cal_day_fri","cal_day_sat","cal_day_sun"];
+    html += '<div style="display:grid;grid-template-columns:repeat(7,1fr) 34px;gap:2px;margin-bottom:4px;">';
     dayLabels.forEach(function(k){ html += '<div style="text-align:center;color:var(--muted);font-size:10px;font-weight:600;">'+t(k)+'</div>'; });
+    html += '<div style="text-align:center;color:var(--muted);font-size:9px;font-weight:600;">'+t("cal_week_short")+'</div>';
     html += '</div>';
 
-    var firstWeekday = new Date(viewYear, viewMonth, 1).getDay();
+    // getDay() da 0=domingo..6=sábado; con la semana empezando en lunes, lunes
+    // debe quedar en la posición 0 y domingo al final (posición 6).
+    var firstWeekday = (new Date(viewYear, viewMonth, 1).getDay()+6)%7;
     var daysInMonth = monthEnd.getDate();
-    html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">';
-    for(var i=0;i<firstWeekday;i++){ html += '<div></div>'; }
+    function weekTotalCell(total){
+      return '<div style="display:flex;align-items:center;justify-content:center;">'+
+        (total>0 ? '<span style="font-size:7px;color:var(--muted);font-family:var(--mono);text-align:center;line-height:1.1;">'+fmtCompactTiny(total)+'</span>' : '')+
+        '</div>';
+    }
+    html += '<div style="display:grid;grid-template-columns:repeat(7,1fr) 34px;gap:2px;">';
+    var weekTotal = 0, cellsInRow = 0;
+    for(var i=0;i<firstWeekday;i++){ html += '<div></div>'; cellsInRow++; }
     for(var day=1; day<=daysInMonth; day++){
       var dayItems = byDay[day];
       var isToday = isCurrentMonth && day===now.getDate();
@@ -3273,6 +3282,16 @@
         '<span style="font-size:11px;color:'+(isSelected?"#fff":"var(--text)")+';">'+day+'</span>'+
         (dayItems ? '<span style="font-size:8px;color:'+(isSelected?"#fff":"var(--coral)")+';font-family:var(--mono);line-height:1;">'+fmtCompactTiny(dayTotal)+'</span>' : '<span style="height:9px;"></span>')+
         '</button>';
+      weekTotal += dayTotal;
+      cellsInRow++;
+      if(cellsInRow===7){
+        html += weekTotalCell(weekTotal);
+        weekTotal = 0; cellsInRow = 0;
+      }
+    }
+    if(cellsInRow>0){
+      for(var pad=cellsInRow; pad<7; pad++){ html += '<div></div>'; }
+      html += weekTotalCell(weekTotal);
     }
     html += '</div>';
 
