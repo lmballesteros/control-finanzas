@@ -291,6 +291,12 @@
       timeline_today:"Hoy", timeline_in_days:"En {n} día{s}",
       timeline_type_card:"Tarjeta", timeline_type_loan:"Préstamo",
       timeline_estimated_note:"~ Los cortes de tarjeta más allá del que ya viene son un estimado con tu saldo actual — el monto real depende de lo que gastes o pagues antes de esa fecha.",
+
+      cal_title:"📅 Calendario de pagos", cal_today_btn:"Hoy",
+      cal_day_sun:"D", cal_day_mon:"L", cal_day_tue:"M", cal_day_wed:"M", cal_day_thu:"J", cal_day_fri:"V", cal_day_sat:"S",
+      cal_none_that_day:"Sin pagos programados este día.",
+      cal_select_day_hint:"Toca un día marcado para ver el detalle.",
+      cal_month_total:"Total del mes",
       analisis_estimated_time:"Tiempo estimado", analisis_months:"{n} meses",
       analisis_current_label:"Actual: {n} meses · {amount} interés", analisis_extra_label:"Con pago extra: {n} meses · {amount} interés",
       analisis_extra_payment:"Pago extra mensual", analisis_debt_amount:"Deuda con interés",
@@ -404,6 +410,11 @@
       sav_history_empty:"Sin movimientos registrados todavía.",
       sav_movement_deposit:"Depósito", sav_movement_withdraw:"Retiro",
       sav_edit_movement:"Editar movimiento", sav_amount_placeholder:"Monto (negativo si fue retiro)",
+      sav_update_balance:"🔄 Actualizar saldo", sav_update_placeholder:"Saldo actual según tu banco",
+      sav_movement_update:"🔄 Actualización",
+      sav_growth_title:"📈 Tasa de crecimiento estimada", sav_growth_rate:"~{rate}% anual",
+      sav_growth_note:"Calculada a partir de tus propias actualizaciones de saldo — asume que el cambio es sobre todo interés. Si entre una actualización y otra también depositaste o retiraste dinero a mano, el número se distorsiona.",
+      sav_growth_need_more:"Actualiza el saldo al menos 2 veces (en fechas distintas) para ver aquí una tasa estimada.",
 
       wdp_title:"💰 Cuánto apartar cada semana", wdp_next_friday:"Próximo viernes de pago: {date}",
       wdp_weekly_amount:"Aparta esto cada viernes",
@@ -617,6 +628,12 @@
       timeline_today:"Today", timeline_in_days:"In {n} day{s}",
       timeline_type_card:"Card", timeline_type_loan:"Loan",
       timeline_estimated_note:"~ Card cutoffs beyond the very next one are an estimate based on your current balance — the real amount depends on what you spend or pay before that date.",
+
+      cal_title:"📅 Payment calendar", cal_today_btn:"Today",
+      cal_day_sun:"S", cal_day_mon:"M", cal_day_tue:"T", cal_day_wed:"W", cal_day_thu:"T", cal_day_fri:"F", cal_day_sat:"S",
+      cal_none_that_day:"No scheduled payments that day.",
+      cal_select_day_hint:"Tap a marked day to see the details.",
+      cal_month_total:"Total for the month",
       analisis_estimated_time:"Estimated time", analisis_months:"{n} months",
       analisis_current_label:"Current: {n} months · {amount} interest", analisis_extra_label:"With extra payment: {n} months · {amount} interest",
       analisis_extra_payment:"Extra monthly payment", analisis_debt_amount:"Interest-bearing debt",
@@ -730,6 +747,11 @@
       sav_history_empty:"No transactions logged yet.",
       sav_movement_deposit:"Deposit", sav_movement_withdraw:"Withdrawal",
       sav_edit_movement:"Edit transaction", sav_amount_placeholder:"Amount (negative for a withdrawal)",
+      sav_update_balance:"🔄 Update balance", sav_update_placeholder:"Current balance per your bank",
+      sav_movement_update:"🔄 Update",
+      sav_growth_title:"📈 Estimated growth rate", sav_growth_rate:"~{rate}% annual",
+      sav_growth_note:"Calculated from your own balance updates — assumes the change is mostly interest. If you also deposited or withdrew money by hand between updates, this number gets skewed.",
+      sav_growth_need_more:"Update the balance at least twice (on different dates) to see an estimated rate here.",
 
       wdp_title:"💰 How much to set aside weekly", wdp_next_friday:"Next payday (Friday): {date}",
       wdp_weekly_amount:"Set aside this much every Friday",
@@ -968,6 +990,14 @@
   function fmt(n){
     n = Math.round((n||0)*100)/100;
     return "$" + n.toLocaleString("es-MX",{minimumFractionDigits:0});
+  }
+  /* Monto ultra-abreviado (sin signo de $) para espacios diminutos, como el
+     numerito dentro de cada casilla del calendario de pagos — ahí no cabe un
+     monto completo, así que priorizamos que se vea compacto sobre exacto. */
+  function fmtCompactTiny(n){
+    n = n||0;
+    if(n>=1000) return (n/1000).toFixed(1)+"K";
+    return Math.round(n).toString();
   }
   /* Formato completo con 2 decimales siempre visibles (ej. "$12,350.00"), usado en
      las tarjetas de Deuda/Ahorro/Neto en Resumen. El tamaño de letra se ajusta
@@ -2420,6 +2450,43 @@
     });
     persist(withHistory(Object.assign({}, data, {savings:savings})));
   }
+  /* En vez de pedirte una tasa de interés (que casi nunca sabes de memoria), aquí
+     simplemente capturas el saldo que te muestra tu banco cada vez que lo revisas
+     — la app calcula sola, a partir de esas capturas, qué tasa de crecimiento
+     está implicando ese cambio. Guardamos el saldo resultante de cada captura
+     (balanceAfter) para poder reconstruir la línea de tiempo exacta después. */
+  function registerSavingUpdate(id, newBalance, dateStr){
+    var iso = dateStr ? new Date(dateStr+"T12:00:00").toISOString() : new Date().toISOString();
+    var savings = data.savings.map(function(s){
+      if(s.id!==id) return s;
+      var delta = +(newBalance - s.current).toFixed(2);
+      var movements = (s.movements||[]).concat([{id:uid(), amount:delta, date:iso, type:"update", balanceAfter:+newBalance.toFixed(2)}]);
+      return Object.assign({}, s, {current:+newBalance.toFixed(2), movements:movements});
+    });
+    persist(withHistory(Object.assign({}, data, {savings:savings})));
+  }
+  /* Tasa anual estimada a partir de tus propias capturas de saldo (no de una tasa
+     que tú hayas escrito). Compara cada captura contra la anterior, calcula qué
+     tan rápido creció en ese periodo, y lo anualiza — igual que se anualiza
+     cualquier rendimiento financiero. Es un estimado: asume que la diferencia
+     entre capturas es sobre todo interés, así que si entre una y otra también
+     depositaste o retiraste dinero a mano, el número se distorsiona. */
+  function computeSavingsGrowthRate(item){
+    var updates = (item.movements||[]).filter(function(m){ return m.type==="update" && m.balanceAfter!=null; })
+      .slice().sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
+    if(updates.length<2) return null;
+    var rates = [];
+    for(var i=1;i<updates.length;i++){
+      var prevBal = updates[i-1].balanceAfter;
+      var newBal = updates[i].balanceAfter;
+      var days = (new Date(updates[i].date)-new Date(updates[i-1].date))/86400000;
+      if(days<=0 || prevBal<=0) continue;
+      var periodReturn = (newBal-prevBal)/prevBal;
+      rates.push((Math.pow(1+periodReturn, 365/days)-1)*100);
+    }
+    if(!rates.length) return null;
+    return rates.reduce(function(s,r){return s+r;},0)/rates.length;
+  }
   function updateSavingMovement(savingId, movId, newAmount, dateStr){
     var iso = dateStr ? new Date(dateStr+"T12:00:00").toISOString() : new Date().toISOString();
     var savings = data.savings.map(function(s){
@@ -3122,6 +3189,94 @@
     return html;
   }
 
+  function renderPaymentsCalendar(){
+    var now = new Date(); now.setHours(0,0,0,0);
+    var viewYear = ui.calendarYear!=null ? ui.calendarYear : now.getFullYear();
+    var viewMonth = ui.calendarMonth!=null ? ui.calendarMonth : now.getMonth();
+    var monthEnd = new Date(viewYear, viewMonth+1, 0);
+    var daysNeeded = Math.max(1, Math.ceil((monthEnd-now)/86400000)+3);
+    var items = buildUpcomingTimeline(daysNeeded);
+    var byDay = {};
+    items.forEach(function(it){
+      var d = new Date(it.date);
+      if(d.getFullYear()===viewYear && d.getMonth()===viewMonth){
+        var day = d.getDate();
+        (byDay[day] = byDay[day]||[]).push(it);
+      }
+    });
+    var monthTotalCal = Object.keys(byDay).reduce(function(s,day){
+      return s + byDay[day].reduce(function(s2,it){ return s2+it.amount; },0);
+    },0);
+
+    var monthLabelFull = new Date(viewYear, viewMonth, 1).toLocaleDateString(tlang()==="en"?"en-US":"es-MX",{month:"long",year:"numeric"});
+    var isCurrentMonth = viewYear===now.getFullYear() && viewMonth===now.getMonth();
+
+    var html = '<section><div class="sec-title" style="margin-bottom:12px;">'+t("cal_title")+'</div><div class="card">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">'+
+      '<button data-act="cal-prev-month" style="background:none;border:none;color:var(--muted);font-size:18px;padding:4px 8px;">‹</button>'+
+      '<div style="text-align:center;">'+
+      '<div style="color:var(--text);font-size:14px;font-weight:600;text-transform:capitalize;">'+esc(monthLabelFull)+'</div>'+
+      (isCurrentMonth?'':'<button data-act="cal-today" style="background:none;border:none;color:var(--blue);font-size:10px;padding:0;">'+t("cal_today_btn")+'</button>')+
+      '</div>'+
+      '<button data-act="cal-next-month" style="background:none;border:none;color:var(--muted);font-size:18px;padding:4px 8px;">›</button>'+
+      '</div>';
+
+    var dayLabels = ["cal_day_sun","cal_day_mon","cal_day_tue","cal_day_wed","cal_day_thu","cal_day_fri","cal_day_sat"];
+    html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">';
+    dayLabels.forEach(function(k){ html += '<div style="text-align:center;color:var(--muted);font-size:10px;font-weight:600;">'+t(k)+'</div>'; });
+    html += '</div>';
+
+    var firstWeekday = new Date(viewYear, viewMonth, 1).getDay();
+    var daysInMonth = monthEnd.getDate();
+    html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">';
+    for(var i=0;i<firstWeekday;i++){ html += '<div></div>'; }
+    for(var day=1; day<=daysInMonth; day++){
+      var dayItems = byDay[day];
+      var isToday = isCurrentMonth && day===now.getDate();
+      var isSelected = ui.calendarSelectedDay && ui.calendarSelectedDay.year===viewYear && ui.calendarSelectedDay.month===viewMonth && ui.calendarSelectedDay.day===day;
+      var dayTotal = dayItems ? dayItems.reduce(function(s,it){return s+it.amount;},0) : 0;
+      html += '<button data-act="cal-select-day" data-day="'+day+'" style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:10px;border:'+(isToday?"1px solid var(--blue)":"1px solid transparent")+';background:'+(isSelected?"var(--blue)":"var(--surface3)")+';padding:2px;gap:2px;">'+
+        '<span style="font-size:11px;color:'+(isSelected?"#fff":"var(--text)")+';">'+day+'</span>'+
+        (dayItems ? '<span style="font-size:8px;color:'+(isSelected?"#fff":"var(--coral)")+';font-family:var(--mono);line-height:1;">'+fmtCompactTiny(dayTotal)+'</span>' : '<span style="height:9px;"></span>')+
+        '</button>';
+    }
+    html += '</div>';
+
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--surface2);">'+
+      '<span style="color:var(--muted);font-size:11px;">'+t("cal_month_total")+'</span>'+
+      '<span style="color:var(--text);font-family:var(--mono);font-size:14px;font-weight:600;">'+fmt(monthTotalCal)+'</span></div>';
+
+    if(ui.calendarSelectedDay && ui.calendarSelectedDay.year===viewYear && ui.calendarSelectedDay.month===viewMonth){
+      var selDay = ui.calendarSelectedDay.day;
+      var selItems = byDay[selDay] || [];
+      var selDate = new Date(viewYear, viewMonth, selDay);
+      html += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--surface2);">';
+      html += '<div style="color:var(--text);font-size:12px;font-weight:600;margin-bottom:8px;">'+dateLabelFull(selDate)+'</div>';
+      if(!selItems.length){
+        html += '<div class="empty" style="margin:0;">'+t("cal_none_that_day")+'</div>';
+      }else{
+        selItems.forEach(function(it, i){
+          var gotoAct = it.kind==="card" ? "goto-card" : "goto-loan";
+          var typeLabel = it.kind==="card" ? t("timeline_type_card") : t("timeline_type_loan");
+          html += '<button data-act="'+gotoAct+'" data-id="'+it.id+'" style="width:100%;background:none;border:none;text-align:left;color:inherit;font:inherit;cursor:pointer;padding:6px 0;'+(i>0?"border-top:1px solid var(--surface2);":"")+'display:flex;justify-content:space-between;align-items:center;gap:8px;">'+
+            '<div style="min-width:0;"><div style="font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(it.label)+'</div>'+
+            '<div style="font-size:10px;color:var(--muted);">'+typeLabel+'</div></div>'+
+            '<span style="font-family:var(--mono);font-size:13px;color:var(--text);flex-shrink:0;">'+(it.estimated?"~":"")+fmt(it.amount)+'</span>'+
+            '</button>';
+        });
+      }
+      html += '</div>';
+    }else{
+      html += '<div style="color:var(--muted);font-size:10px;margin-top:10px;text-align:center;">'+t("cal_select_day_hint")+'</div>';
+    }
+
+    var hasEstimatedCal = items.some(function(it){ return it.estimated && new Date(it.date).getFullYear()===viewYear && new Date(it.date).getMonth()===viewMonth; });
+    if(hasEstimatedCal) html += '<div style="color:var(--muted);font-size:10px;margin-top:10px;">'+t("timeline_estimated_note")+'</div>';
+
+    html += '</div></section>';
+    return html;
+  }
+
   function computeWeeklyDebtAmount(){
     var plan = debtPayoffPlan(data, 0);
     var msiMonthlyTotal = 0;
@@ -3234,6 +3389,7 @@
   function renderAnalysisSection(){
     var html = '<div style="display:flex;flex-direction:column;gap:24px;">';
     html += renderUpcomingTimeline();
+    html += renderPaymentsCalendar();
     var totalDebt = data.cards.reduce(function(s,c){ return s + Math.max(0, (c.balance||0) + cardMsiTotal(c) + cardDeferredTotal(c) - (c.extraCredit||0)); },0) + totalPersonalCreditsDebt(data.personalCredits);
     html += renderBudgetSection(totalDebt);
     var utilCards = data.cards.filter(function(c){ return c.limit>0; });
@@ -4957,6 +5113,30 @@
       '<div class="bar" style="height:4px;margin-top:8px;margin-bottom:8px;"><div class="bar-fill" style="width:'+pct+'%;background:var(--mint)"></div></div>';
     html += renderChips(item.id, "saving");
 
+    var updatingBalance = ui.updatingSavingBalance === item.id;
+    if(updatingBalance){
+      html += '<div class="form-box" style="margin-top:8px;">'+
+        '<input type="text" inputmode="decimal" id="sav-update-input-'+item.id+'" placeholder="'+t("sav_update_placeholder")+'" value="'+item.current+'" />'+
+        '<div class="form-actions">'+
+        '<button class="btn-cancel" data-act="toggle-update-saving-balance" data-id="'+item.id+'">'+t("btn_cancel")+'</button>'+
+        '<button class="btn-save" data-act="submit-update-saving-balance" data-id="'+item.id+'">'+t("btn_save")+'</button>'+
+        '</div></div>';
+    }else{
+      html += '<button class="mini-add" style="margin-top:8px;" data-act="toggle-update-saving-balance" data-id="'+item.id+'">'+t("sav_update_balance")+'</button>';
+    }
+
+    var growthRate = computeSavingsGrowthRate(item);
+    var updateCount = (item.movements||[]).filter(function(m){ return m.type==="update"; }).length;
+    if(growthRate!=null){
+      html += '<div style="background:var(--surface3);border-radius:10px;padding:10px 12px;margin-top:10px;">'+
+        '<div style="color:var(--muted);font-size:11px;">'+t("sav_growth_title")+'</div>'+
+        '<div style="color:var(--mint);font-family:var(--mono);font-size:16px;font-weight:600;margin-top:2px;">'+t("sav_growth_rate",{rate:growthRate.toFixed(1)})+'</div>'+
+        '<div style="color:var(--muted);font-size:10px;margin-top:6px;line-height:1.4;">'+t("sav_growth_note")+'</div>'+
+        '</div>';
+    }else if(updateCount===1){
+      html += '<div style="color:var(--muted);font-size:11px;margin-top:8px;">'+t("sav_growth_need_more")+'</div>';
+    }
+
     var movements = (item.movements||[]).slice().sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
     var histOpen = isSubsectionOpen(item.id, "sav-history");
     html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--hairline);">';
@@ -4988,8 +5168,8 @@
               '<button style="background:var(--coral);" data-act="delete-saving-movement" data-saving="'+item.id+'" data-mov="'+m.id+'">✕</button>'+
               '</div>'+
               '<div class="swipe-content mini-row" style="padding:4px 0;">'+
-              '<span class="pay-date">'+(m.amount>=0?t("sav_movement_deposit"):t("sav_movement_withdraw"))+' · '+dateLabel(m.date)+'</span>'+
-              '<span style="font-family:var(--mono);font-size:12px;color:'+(m.amount>=0?"var(--mint)":"var(--coral)")+';">'+(m.amount>=0?"+":"")+fmtMasked(m.amount)+'</span>'+
+              '<span class="pay-date">'+(m.type==="update"?t("sav_movement_update"):(m.amount>=0?t("sav_movement_deposit"):t("sav_movement_withdraw")))+' · '+dateLabel(m.date)+'</span>'+
+              '<span style="font-family:var(--mono);font-size:12px;color:'+(m.type==="update"?"var(--blue)":(m.amount>=0?"var(--mint)":"var(--coral)"))+';">'+(m.amount>=0?"+":"")+fmtMasked(m.amount)+'</span>'+
               '</div></div>';
           }
         });
@@ -5572,6 +5752,33 @@
     }else if(act==="set-timeline-period"){
       ui.timelinePeriod = parseInt(el.getAttribute("data-period"),10);
       render();
+    }else if(act==="cal-prev-month"){
+      var cpNow = new Date();
+      var cpY = ui.calendarYear!=null ? ui.calendarYear : cpNow.getFullYear();
+      var cpM = ui.calendarMonth!=null ? ui.calendarMonth : cpNow.getMonth();
+      cpM--; if(cpM<0){ cpM=11; cpY--; }
+      // no dejamos ir a meses ya pasados: un calendario de pagos mira hacia adelante
+      if(cpY<cpNow.getFullYear() || (cpY===cpNow.getFullYear() && cpM<cpNow.getMonth())) return;
+      ui.calendarYear = cpY; ui.calendarMonth = cpM; ui.calendarSelectedDay = null;
+      render();
+    }else if(act==="cal-next-month"){
+      var cnNow = new Date();
+      var cnY = ui.calendarYear!=null ? ui.calendarYear : cnNow.getFullYear();
+      var cnM = ui.calendarMonth!=null ? ui.calendarMonth : cnNow.getMonth();
+      cnM++; if(cnM>11){ cnM=0; cnY++; }
+      ui.calendarYear = cnY; ui.calendarMonth = cnM; ui.calendarSelectedDay = null;
+      render();
+    }else if(act==="cal-today"){
+      ui.calendarYear = null; ui.calendarMonth = null; ui.calendarSelectedDay = null;
+      render();
+    }else if(act==="cal-select-day"){
+      var csDay = parseInt(el.getAttribute("data-day"),10);
+      var csNow = new Date();
+      var csY = ui.calendarYear!=null ? ui.calendarYear : csNow.getFullYear();
+      var csM = ui.calendarMonth!=null ? ui.calendarMonth : csNow.getMonth();
+      var already = ui.calendarSelectedDay && ui.calendarSelectedDay.year===csY && ui.calendarSelectedDay.month===csM && ui.calendarSelectedDay.day===csDay;
+      ui.calendarSelectedDay = already ? null : {year:csY, month:csM, day:csDay};
+      render();
     }else if(act==="undo-toast"){
       if(toastTimer) clearTimeout(toastTimer);
       var fn = ui.toast ? ui.toast.onUndo : null;
@@ -5949,6 +6156,18 @@
       }
     }else if(act==="delete-saving-movement"){
       deleteSavingMovement(el.getAttribute("data-saving"), el.getAttribute("data-mov"));
+    }else if(act==="toggle-update-saving-balance"){
+      var tusbId = el.getAttribute("data-id");
+      ui.updatingSavingBalance = ui.updatingSavingBalance===tusbId ? null : tusbId;
+      render();
+    }else if(act==="submit-update-saving-balance"){
+      var susbId = el.getAttribute("data-id");
+      var susbInput = document.getElementById("sav-update-input-"+susbId);
+      var susbVal = susbInput ? parseFloat(susbInput.value) : NaN;
+      if(!isNaN(susbVal) && susbVal>=0){
+        ui.updatingSavingBalance = null;
+        registerSavingUpdate(susbId, susbVal);
+      }
     }else if(act==="show-payment-form"){
       ui.paymentForm = el.getAttribute("data-id"); ui.paymentEditId = null; render();
     }else if(act==="hide-payment-form"){
@@ -6239,6 +6458,10 @@
         item.current = a; item.goal = b; item.bank = bank;
         item.targetDate = targetDateVal ? new Date(targetDateVal+"T12:00:00").toISOString() : null;
         item.monthlyContribution = (!isNaN(contrib) && contrib>0) ? contrib : null;
+        if(existingId){
+          var oldSaving = data.savings.find(function(s){return s.id===existingId;});
+          if(oldSaving) item.movements = oldSaving.movements;
+        }
       }
       saveFromModal(item, kind2);
     }
