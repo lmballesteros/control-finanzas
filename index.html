@@ -291,7 +291,7 @@
       timeline_total:"Total en este periodo", timeline_none:"No tienes ningún pago programado en este periodo.",
       timeline_today:"Hoy", timeline_in_days:"En {n} día{s}",
       timeline_type_card:"Tarjeta", timeline_type_loan:"Préstamo",
-      timeline_estimated_note:"~ Los cortes de tarjeta más allá del que ya viene son un estimado con tu saldo actual — el monto real depende de lo que gastes o pagues antes de esa fecha.",
+      timeline_estimated_note:"~ Los cortes de tarjeta más allá del que ya viene solo incluyen tus cuotas fijas de MSI y diferidos — no repetimos los gastos de este corte, ya que no podemos saber qué comprarás en esos meses.",
 
       cal_title:"📅 Calendario de pagos", cal_today_btn:"Hoy",
       cal_day_sun:"D", cal_day_mon:"L", cal_day_tue:"M", cal_day_wed:"M", cal_day_thu:"J", cal_day_fri:"V", cal_day_sat:"S",
@@ -633,7 +633,7 @@
       timeline_total:"Total for this period", timeline_none:"You don't have any scheduled payments in this period.",
       timeline_today:"Today", timeline_in_days:"In {n} day{s}",
       timeline_type_card:"Card", timeline_type_loan:"Loan",
-      timeline_estimated_note:"~ Card cutoffs beyond the very next one are an estimate based on your current balance — the real amount depends on what you spend or pay before that date.",
+      timeline_estimated_note:"~ Card cutoffs beyond the very next one only include your fixed installment plan (MSI) and deferred payments — we don't repeat this cutoff's regular spending, since there's no way to know what you'll charge in those months.",
 
       cal_title:"📅 Payment calendar", cal_today_btn:"Today",
       cal_day_sun:"S", cal_day_mon:"M", cal_day_tue:"T", cal_day_wed:"W", cal_day_thu:"T", cal_day_fri:"F", cal_day_sat:"S",
@@ -1605,6 +1605,40 @@
      futuro (depende de lo que gastes o pagues antes de esa fecha), así que para
      esos ciclos usamos el monto actual como estimado y lo marcamos como tal. En
      préstamos personales sí conocemos el monto exacto de cada cuota futura. */
+  /* Junta en una sola lista TODOS los pagos que se vencen en los próximos N días —
+     tarjetas y préstamos personales — a diferencia de las alertas de Resumen que
+     solo muestran lo urgente (≤7 días). Los MSI y diferidos ya vienen incluidos
+     dentro del monto de cada tarjeta (cardAmountDueNow los suma), así que no se
+     listan por separado.
+     Importante: como los pagos son mensuales, el "próximo" pago de cualquier
+     tarjeta o préstamo siempre cae dentro de los primeros ~30 días — por eso no
+     basta con mirar solo ese, o elegir 60/90 días nunca mostraría nada distinto.
+     Aquí proyectamos también los ciclos siguientes que caigan dentro del rango
+     elegido. Para el ciclo inmediato usamos el monto real (gastos del corte +
+     MSI + diferidos). Para los ciclos futuros, en cambio, NO repetimos los
+     gastos de este corte — esos son compras de un momento específico, no algo
+     que se repita mes a mes, y repetirlos hacía ver como si el mes ya cubierto
+     se volviera a cobrar en el siguiente. Solo proyectamos MSI y diferidos, que
+     sí son cuotas fijas que de verdad se repiten, recalculando cada una para su
+     propio mes (por si cambia el monto o el plan ya termina). */
+  /* Junta en una sola lista TODOS los pagos que se vencen en los próximos N días —
+     tarjetas y préstamos personales — a diferencia de las alertas de Resumen que
+     solo muestran lo urgente (≤7 días). Los MSI y diferidos ya vienen incluidos
+     dentro del monto de cada tarjeta (cardAmountDueNow los suma), así que no se
+     listan por separado.
+     Importante: como los pagos son mensuales, el "próximo" pago de cualquier
+     tarjeta o préstamo siempre cae dentro de los primeros ~30 días — por eso no
+     basta con mirar solo ese, o elegir 60/90 días nunca mostraría nada distinto.
+     Aquí proyectamos también los ciclos siguientes que caigan dentro del rango
+     elegido. Para el ciclo inmediato usamos el monto real (gastos del corte +
+     MSI + diferidos). Para los ciclos futuros, en cambio: (1) NO repetimos los
+     gastos de este corte — esos son compras de un momento específico, no algo
+     que se repita mes a mes, y repetirlos hacía ver como si el mes ya cubierto
+     se volviera a cobrar de nuevo el siguiente; y (2) avanzamos a la cuota que
+     de verdad corresponde a CADA mes futuro (la 2a cuota para el mes siguiente,
+     la 3a para el que sigue, etc.), en vez de repetir la cuota del mes actual —
+     si no, un MSI que ya se termina en 2 meses se seguía viendo "debido" para
+     siempre. */
   function buildUpcomingTimeline(days){
     var items = [];
     var today = new Date(); today.setHours(0,0,0,0);
@@ -1614,11 +1648,31 @@
       var r = cardAmountDueNow(c);
       if(!r.due || r.amount<=0.01) return;
       var cycleDate = new Date(r.due);
-      var isFirst = true;
+      var cycleIndex = 0;
       var guard = 0;
       while(cycleDate.getTime()<=horizon.getTime() && guard<24){
-        items.push({kind:"card", id:c.id, label:c.name, amount:r.amount, date:new Date(cycleDate), estimated:!isFirst});
-        isFirst = false;
+        var cycleAmount;
+        if(cycleIndex===0){
+          cycleAmount = r.amount;
+        }else{
+          var msiAmt = (c.msi||[]).reduce(function(s,p){
+            var paid = msiEffectivePaid(p, c.cutoffDay, c.dueDay);
+            var instNum = paid + 1 + cycleIndex;
+            return instNum<=p.months ? s+msiMonthly(p) : s;
+          },0);
+          var defAmt = (c.diferidos||[]).reduce(function(s,p){
+            var paid = msiEffectivePaid(p, c.cutoffDay, c.dueDay);
+            var instNum = paid + 1 + cycleIndex;
+            if(instNum>p.months) return s;
+            var rows = buildAmortizationAdjusted(p.principal, p.months, p.annualRate, p.overrides);
+            return rows[instNum-1] ? s+rows[instNum-1].total : s;
+          },0);
+          cycleAmount = msiAmt + defAmt;
+        }
+        if(cycleAmount>0.01){
+          items.push({kind:"card", id:c.id, label:c.name, amount:cycleAmount, date:new Date(cycleDate), estimated:cycleIndex>0});
+        }
+        cycleIndex++;
         cycleDate = clampedDate(cycleDate.getFullYear(), cycleDate.getMonth()+1, c.dueDay);
         guard++;
       }
@@ -2631,33 +2685,60 @@
       // créditos fantasma cuando en realidad ese excedente correspondía a una cuota
       // de MSI o diferido que la persona sí pagó (típicamente porque la tarjeta aún
       // no tenía día de corte/pago configurado). En vez de eso, ese excedente se va
-      // abonando a las cuotas MÁS PRÓXIMAS de cada plan pendiente, una por una,
-      // mientras alcance para cubrirlas completas — y solo lo que sobre después de
-      // eso se guarda como crédito real.
-      msi = msi.map(function(p){
-        var paidCount = msiEffectivePaid(p, card.cutoffDay, card.dueDay);
-        var monthly = msiMonthly(p);
-        var startPaid = paidCount;
-        while(paidCount < p.months && monthly>0 && leftover >= monthly - 0.01){
-          leftover = +(leftover - monthly).toFixed(2);
-          paidCount++;
+      // abonando a las cuotas MÁS PRÓXIMAS de TODOS los planes pendientes (MSI y
+      // diferidos juntos, comparando por fecha real de vencimiento, no por el
+      // orden en que se crearon) — antes, si el sobrante solo alcanzaba para una
+      // cuota, siempre se la llevaba el primer plan de la lista, aunque otro plan
+      // estuviera por terminar y este apenas fuera empezando. Solo lo que sobre
+      // después de cubrir así lo más urgente se guarda como crédito real.
+      var msiState = msi.map(function(p){ return {type:"msi", plan:p, paidCount: msiEffectivePaid(p, card.cutoffDay, card.dueDay)}; });
+      var defState = diferidos.map(function(p){ return {type:"diferido", plan:p, paidCount: msiEffectivePaid(p, card.cutoffDay, card.dueDay)}; });
+      var allState = msiState.concat(defState);
+      function nextInstallmentInfo(entry){
+        if(entry.paidCount >= entry.plan.months) return null;
+        var simulated = Object.assign({}, entry.plan, {paidMonths: entry.paidCount});
+        var dueDate = msiNextPago(simulated, card.cutoffDay, card.dueDay);
+        if(!dueDate) return null;
+        var amt;
+        if(entry.type==="msi"){
+          amt = msiMonthly(entry.plan);
+        }else{
+          var row = buildAmortizationAdjusted(entry.plan.principal, entry.plan.months, entry.plan.annualRate, entry.plan.overrides)[entry.paidCount];
+          amt = row ? row.total : null;
         }
-        if(paidCount===startPaid) return p;
-        adjustments.push({kind:"msi", planId:p.id, from:p.paidMonths, to:paidCount});
-        return Object.assign({}, p, {paidMonths: paidCount});
+        // monthsLeft sirve de desempate: casi siempre varias cuotas de una misma
+        // tarjeta vencen el mismo día (todas usan el mismo día de pago), así que
+        // la fecha sola no alcanza para decidir — en ese empate, preferimos
+        // terminar primero el plan al que ya le queda menos.
+        return amt!=null ? {dueDate:dueDate, amount:amt, monthsLeft: entry.plan.months-entry.paidCount} : null;
+      }
+      var guard2 = 0;
+      while(guard2<200){
+        guard2++;
+        var best = null, bestInfo = null;
+        allState.forEach(function(entry){
+          var info = nextInstallmentInfo(entry);
+          if(!info || info.amount > leftover+0.01) return; // no alcanza para esta ahora mismo: la salta, para poder pagar otra más barata en su lugar
+          if(!bestInfo){ best = entry; bestInfo = info; return; }
+          var earlier = info.dueDate.getTime() < bestInfo.dueDate.getTime();
+          var tieCloserToFinish = info.dueDate.getTime()===bestInfo.dueDate.getTime() && info.monthsLeft < bestInfo.monthsLeft;
+          if(earlier || tieCloserToFinish){ best = entry; bestInfo = info; }
+        });
+        if(!best) break;
+        leftover = +(leftover - bestInfo.amount).toFixed(2);
+        best.paidCount++;
+      }
+      msi = msiState.map(function(entry){
+        var original = msiEffectivePaid(entry.plan, card.cutoffDay, card.dueDay);
+        if(entry.paidCount===original) return entry.plan;
+        adjustments.push({kind:"msi", planId:entry.plan.id, from:entry.plan.paidMonths, to:entry.paidCount});
+        return Object.assign({}, entry.plan, {paidMonths: entry.paidCount});
       });
-      diferidos = diferidos.map(function(p){
-        var paidCount2 = msiEffectivePaid(p, card.cutoffDay, card.dueDay);
-        var startPaid2 = paidCount2;
-        while(paidCount2 < p.months){
-          var row = buildAmortizationAdjusted(p.principal, p.months, p.annualRate, p.overrides)[paidCount2];
-          if(!row || leftover < row.total - 0.01) break;
-          leftover = +(leftover - row.total).toFixed(2);
-          paidCount2++;
-        }
-        if(paidCount2===startPaid2) return p;
-        adjustments.push({kind:"diferido", planId:p.id, from:p.paidMonths, to:paidCount2});
-        return Object.assign({}, p, {paidMonths: paidCount2});
+      diferidos = defState.map(function(entry){
+        var original2 = msiEffectivePaid(entry.plan, card.cutoffDay, card.dueDay);
+        if(entry.paidCount===original2) return entry.plan;
+        adjustments.push({kind:"diferido", planId:entry.plan.id, from:entry.plan.paidMonths, to:entry.paidCount});
+        return Object.assign({}, entry.plan, {paidMonths: entry.paidCount});
       });
       extraCredit = existingCredit + leftover;
     }
