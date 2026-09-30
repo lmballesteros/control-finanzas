@@ -1048,9 +1048,9 @@
     return new Date(y, m, Math.min(day, maxDay));
   }
 
-  function nextDueDate(day){
+  function nextDueDate(day, asOf){
     if(!day) return null;
-    var now = new Date();
+    var now = asOf || new Date();
     var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     var cand = clampedDate(now.getFullYear(), now.getMonth(), day);
     if(cand < today) cand = clampedDate(now.getFullYear(), now.getMonth()+1, day);
@@ -1520,8 +1520,8 @@
         };
       });
   }
-  function cardAmountDueNow(card){
-    var due = nextDueDate(card.dueDay);
+  function cardAmountDueNow(card, asOf){
+    var due = nextDueDate(card.dueDay, asOf);
     var credit = card.extraCredit || 0;
     // Deuda total de la tarjeta (saldo + MSI + diferidos pendientes) sin importar si
     // tiene día de pago configurado. Antes, sin día de pago, esta función regresaba
@@ -2684,12 +2684,18 @@
     return Object.assign({}, card, {msi:msi, diferidos:diferidos});
   }
 
+  /* Antes, al registrar un pago, calculábamos "qué se debía" usando la fecha de
+     HOY — pero si registras un pago con fecha pasada (muy común cuando vas
+     poniendo al corriente la app con pagos que ya hiciste), eso repartía mal el
+     pago entre saldo normal, MSI y diferidos, porque el corte/fecha límite
+     "vigente" en ese momento pasado no era el mismo que el de hoy. Ahora usamos
+     la fecha del pago mismo para saber qué corte estaba vigente entonces. */
   function registerPayment(cardId, amount, dateStr){
     if(!amount || isNaN(amount) || amount<=0) return;
     var iso = dateStr ? new Date(dateStr+"T12:00:00").toISOString() : new Date().toISOString();
     var cardBefore = data.cards.find(function(c){return c.id===cardId;});
     if(!cardBefore) return;
-    var info = cardAmountDueNow(cardBefore);
+    var info = cardAmountDueNow(cardBefore, new Date(iso));
     var effect = computePaymentEffect(cardBefore, amount, info.due, info.rawTotal);
     var cards = data.cards.map(function(c){
       if(c.id!==cardId) return c;
@@ -2713,7 +2719,7 @@
       balance: +(cardBefore.balance + oldBalanceApplied).toFixed(2),
       extraCredit: Math.max(0, (cardBefore.extraCredit||0) - oldCreditAdded)
     }), oldPayment.adjustments);
-    var info = cardAmountDueNow(reversedCard);
+    var info = cardAmountDueNow(reversedCard, new Date(iso));
     var effect = computePaymentEffect(reversedCard, amount, info.due, info.rawTotal);
     var cards = data.cards.map(function(c){
       if(c.id!==cardId) return c;
