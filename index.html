@@ -958,7 +958,7 @@
              expenseForm:null, expenseEditId:null, deferredForm:null, deferredEditId:null, modal:null,
              apiKeyModal:false, backupModal:false, backupMessage:"", scanningCard:null, scanError:"", expenseDraft:null,
              reconcileBusy:false, reconcileError:"", reconcileResult:null, reconcileTarget:null, reconcileManualForm:null, showPastCycles:null,
-             openSubsections:{}, adjustDeferredTarget:null, editCreditTarget:null,
+             openSubsections:{}, adjustDeferredTarget:null, editCreditTarget:null, cardTab:{},
              personalCreditForm:null, tab:"resumen", analysisQuery:"", donutSelected:null, chartPeriod:"all", timelinePeriod:30, toast:null,
              movQuery:"", movCategory:"", movCard:"", movMonth:"", extraPayment:0, movCardPicker:false, deferredInstallPrompt:null, reassignCategory:null, updateAvailable:false, devModeModal:false, renamingCategory:null,
              cloudModal:false, cloudMode:"login", cloudError:"", cloudBusy:false, cloudUser:null, cloudStatus:"signed-out", cloudConflict:null, authChecked:false,
@@ -4617,6 +4617,9 @@
     var dLeft = due ? daysUntil(due) : null;
     var dueColor = dLeft===null ? "var(--muted)" : dLeft<=3 ? "var(--coral)" : dLeft<=7 ? "var(--amber)" : "var(--muted)";
     var dueLabel = dLeft===null ? null : (dLeft===0?t("card_pay_today"):t("card_pay_in_days",{n:dLeft, s:dLeft===1?"":"s"}));
+    // "monto a cubrir" también visible de un vistazo en la cara de la tarjeta
+    // (antes solo aparecía más abajo, en la franja compacta fuera de la tarjeta).
+    var faceDueInfo = due ? cardAmountDueNow(item) : null;
     var payments = item.payments || [];
     var lastPayment = payments.length ? payments[payments.length-1] : null;
     var open = ui.openCard === item.id;
@@ -4653,10 +4656,18 @@
     // coincida con "saldo al corte + movimientos después del corte - pagos" tal como
     // lo verías en tu estado de cuenta real (antes solo mostraba el saldo "normal",
     // dejando fuera MSI y diferidos, lo cual no cuadraba con el total real).
-    html += '<div style="position:relative;z-index:1;">'+
+    html += '<div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-end;gap:8px;">';
+    html += '<div>'+
       '<div style="color:#fff;font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-0.01em;">'+fmtMasked(usedTotal)+'</div>'+
       '<div style="color:rgba(255,255,255,.7);font-family:var(--mono);font-size:11px;margin-top:2px;">de '+fmtMasked(item.limit)+' '+t("card_limit")+'</div>'+
       '</div>';
+    if(faceDueInfo && faceDueInfo.amount>0){
+      html += '<div style="text-align:right;">'+
+        '<div style="color:#fff;font-family:var(--mono);font-size:16px;font-weight:600;letter-spacing:-0.01em;">'+fmtMasked(faceDueInfo.amount)+'</div>'+
+        '<div style="color:rgba(255,255,255,.7);font-size:10px;margin-top:2px;">'+t("card_cover_by",{date:dateLabel(due)})+'</div>'+
+        '</div>';
+    }
+    html += '</div>';
     html += '</div>'; // fin cara de tarjeta
     html += '</button>';
 
@@ -4724,22 +4735,52 @@
     html += '<div class="bar" style="margin-top:10px;"><div class="bar-fill" style="width:'+pct+'%;background:'+barColor+'"></div></div>';
 
     if(open){
+      /* Desglose estilo "recibo": en vez de líneas sueltas, el total a cubrir se
+         explica como una cuenta de 4 renglones (gastos + MSI + diferidos − crédito
+         a favor = total). Siempre se recalcula a partir de cardAmountDueNow(item)
+         en cada render, así que si editas un MSI/diferido o registras un pago, el
+         número cambia aquí mismo de inmediato — no hay ningún valor "congelado". */
       if(due && dueInfo.amount>0){
         var disclaimerKey = "due-disclaimer-"+item.id;
-        html += '<div style="background:var(--surface3);border-radius:10px;padding:8px 10px;margin-top:8px;">'+
-          '<div style="display:flex;align-items:center;gap:5px;">'+renderInfoToggle(disclaimerKey)+'<span style="color:var(--muted);font-size:10px;">¿De dónde sale este monto?</span></div>'+
-          (infoOpen(disclaimerKey) ? '<div style="color:var(--muted);font-size:10px;margin-top:4px;">Consulta tu estado de cuenta para confirmar el pago para no generar intereses — la app no conoce el saldo oficial del banco.</div>' : '')+
-          (msiDue>0 ? '<div style="color:var(--amber);font-size:11px;margin-top:4px;">incluye '+fmtMasked(msiDue)+' de cuotas MSI</div>' : '')+
-          (defDue>0 ? '<div style="color:var(--coral);font-size:11px;margin-top:4px;">incluye '+fmtMasked(defDue)+' de pagos diferidos (con interés + IVA)</div>' : '')+
-          (dueInfo.credit>0 ? '<div style="color:var(--mint);font-size:11px;margin-top:4px;">se restó '+fmtMasked(dueInfo.credit)+' de crédito a favor</div>' : '')+
-          (futureCycleTotal>0 ? '<div style="color:var(--muted);font-size:11px;margin-top:4px;">'+fmtMasked(futureCycleTotal)+' en compras recientes no entran aquí — se facturan en el próximo corte</div>' : '')+
-          '<div style="color:var(--muted);font-size:11px;margin-top:4px;">'+(dLeft===0?"vence hoy":"faltan "+dLeft+" día"+(dLeft===1?"":"s"))+' desde el corte del día '+item.cutoffDay+'</div>'+
-          '</div>';
+        var appliedCredit = Math.min(dueInfo.credit||0, dueInfo.rawTotal||0);
+        html += '<div style="background:var(--surface3);border-radius:12px;padding:12px 14px;margin-top:8px;">';
+        html += '<div style="display:flex;align-items:center;gap:5px;margin-bottom:8px;">'+renderInfoToggle(disclaimerKey)+'<span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.04em;">¿De dónde sale '+fmtMasked(dueTotal)+'?</span></div>';
+        html += '<div style="display:flex;flex-direction:column;gap:5px;font-size:12px;">';
+        html += '<div style="display:flex;justify-content:space-between;"><span style="color:var(--text);">Gastos de este corte</span><span style="font-family:var(--mono);">'+fmtMasked(dueInfo.amountDueNow)+'</span></div>';
+        if(msiDue>0) html += '<div style="display:flex;justify-content:space-between;"><span style="color:var(--amber);">+ Cuotas MSI</span><span style="font-family:var(--mono);color:var(--amber);">'+fmtMasked(msiDue)+'</span></div>';
+        if(defDue>0) html += '<div style="display:flex;justify-content:space-between;"><span style="color:var(--coral);">+ Pagos diferidos (con interés + IVA)</span><span style="font-family:var(--mono);color:var(--coral);">'+fmtMasked(defDue)+'</span></div>';
+        if(appliedCredit>0) html += '<div style="display:flex;justify-content:space-between;"><span style="color:var(--mint);">− Crédito a favor</span><span style="font-family:var(--mono);color:var(--mint);">'+fmtMasked(appliedCredit)+'</span></div>';
+        html += '</div>';
+        html += '<div style="border-top:1px dashed var(--hairline);margin:8px 0;"></div>';
+        html += '<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;"><span>Total a cubrir</span><span style="font-family:var(--mono);color:'+dueColor+';">'+fmtMasked(dueTotal)+'</span></div>';
+        if(infoOpen(disclaimerKey)) html += '<div style="color:var(--muted);font-size:10px;margin-top:8px;">Consulta tu estado de cuenta para confirmar el pago para no generar intereses — la app no conoce el saldo oficial del banco.</div>';
+        if(futureCycleTotal>0) html += '<div style="color:var(--muted);font-size:10px;margin-top:6px;">'+fmtMasked(futureCycleTotal)+' en compras recientes no entran aquí — se facturan en el próximo corte</div>';
+        html += '<div style="color:var(--muted);font-size:10px;margin-top:6px;">'+(dLeft===0?"vence hoy":"faltan "+dLeft+" día"+(dLeft===1?"":"s"))+' desde el corte del día '+item.cutoffDay+'</div>';
+        html += '</div>';
       }
-      html += renderExpensesSection(item);
-      html += renderPaymentsSection(item, payments);
-      html += renderMsiSection(item);
-      html += renderDeferredSection(item);
+
+      /* Pestañas únicas (gastos/MSI/diferidos/pagos) en vez de 4 acordeones
+         apilados — solo la sección elegida se muestra, así no hay que hacer
+         scroll por encabezados cerrados para llegar a la que te interesa. */
+      var cardTabDefs = [
+        {key:"expenses", label:t("card_expenses")},
+        {key:"msi", label:t("card_msi")},
+        {key:"diferidos", label:t("card_deferred")},
+        {key:"payments", label:t("card_payments_label")}
+      ];
+      var activeCardTab = ui.cardTab[item.id] || "expenses";
+      html += '<div style="display:flex;gap:4px;background:var(--surface3);border-radius:10px;padding:3px;margin-top:10px;">';
+      cardTabDefs.forEach(function(td){
+        var tabActive = activeCardTab===td.key;
+        html += '<button data-act="select-card-tab" data-card="'+item.id+'" data-key="'+td.key+'" style="flex:1;padding:7px 2px;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;background:'+(tabActive?"var(--blue)":"transparent")+';color:'+(tabActive?"#fff":"var(--muted)")+';">'+td.label+'</button>';
+      });
+      html += '</div>';
+      html += '<div style="margin-top:8px;">';
+      html += renderExpensesSection(item, activeCardTab==="expenses");
+      html += renderPaymentsSection(item, payments, activeCardTab==="payments");
+      html += renderMsiSection(item, activeCardTab==="msi");
+      html += renderDeferredSection(item, activeCardTab==="diferidos");
+      html += '</div>';
     }
     html += '</div>';
     return html;
@@ -4824,16 +4865,12 @@
   }
   function infoOpen(key){ return isSubsectionOpen("info", key); }
 
-  function renderExpensesSection(item){
+  function renderExpensesSection(item, active){
+    if(!active) return "";
     var schedule = paymentSchedule(item);
     var expenses = item.expenses || [];
     var scanning = ui.scanningCard === item.id;
-    var open = isSubsectionOpen(item.id, "expenses");
-    var thisMonthNow = new Date();
-    var thisMonthTotalSummary = monthTotal(expenses, thisMonthNow.getFullYear(), thisMonthNow.getMonth());
     var html = '<div class="subsection">';
-    html += renderSubsectionToggle(item.id, "expenses", t("card_expenses"), expenses.length+" · "+fmtMasked(thisMonthTotalSummary)+" "+t("card_this_month"));
-    if(!open){ html += '</div>'; return html; }
     html += '<div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:8px;margin-bottom:4px;">';
     html += '<input type="file" accept="image/*,.pdf,application/pdf" id="receipt-input-'+item.id+'" style="display:none;" />';
     html += '<button class="mini-add" style="color:var(--amber);" data-act="scan-receipt" data-id="'+item.id+'" '+(scanning?"disabled":"")+'>'+(scanning?t("card_scanning"):t("card_scan_receipt"))+'</button>';
@@ -4983,11 +5020,9 @@
       '</div></div>';
   }
 
-  function renderPaymentsSection(item, payments){
-    var open = isSubsectionOpen(item.id, "payments");
+  function renderPaymentsSection(item, payments, active){
+    if(!active) return "";
     var html = '<div class="subsection">';
-    html += renderSubsectionToggle(item.id, "payments", t("card_payments_label"), payments.length+" "+t("pay_registered",{s:payments.length===1?"":"s"}));
-    if(!open){ html += '</div>'; return html; }
     if(ui.paymentForm !== item.id){
       html += '<div style="display:flex;justify-content:flex-end;margin-top:8px;margin-bottom:4px;"><button class="mini-add" data-act="show-payment-form" data-id="'+item.id+'">'+t("pay_register_btn")+'</button></div>';
     }
@@ -5035,12 +5070,10 @@
     return html;
   }
 
-  function renderMsiSection(item){
+  function renderMsiSection(item, active){
+    if(!active) return "";
     var plans = item.msi || [];
-    var open = isSubsectionOpen(item.id, "msi");
     var html = '<div class="subsection">';
-    html += renderSubsectionToggle(item.id, "msi", t("card_msi"), plans.length+" "+t("msi_plans",{es:plans.length===1?"":"es",s:plans.length===1?"":"s"}));
-    if(!open){ html += '</div>'; return html; }
     if(ui.msiForm !== item.id){
       html += '<div style="display:flex;justify-content:flex-end;margin-top:8px;margin-bottom:4px;"><button class="mini-add" data-act="show-msi-form" data-id="'+item.id+'">'+t("msi_add")+'</button></div>';
     }
@@ -5092,12 +5125,10 @@
     return html;
   }
 
-  function renderDeferredSection(item){
+  function renderDeferredSection(item, active){
+    if(!active) return "";
     var plans = item.diferidos || [];
-    var open = isSubsectionOpen(item.id, "diferidos");
     var html = '<div class="subsection">';
-    html += renderSubsectionToggle(item.id, "diferidos", t("card_deferred"), plans.length+" "+t("def_plans",{s:plans.length===1?"":"s"}));
-    if(!open){ html += '</div>'; return html; }
     if(ui.deferredForm !== item.id){
       html += '<div style="display:flex;justify-content:flex-end;margin-top:8px;margin-bottom:4px;"><button class="mini-add" data-act="show-deferred-form" data-id="'+item.id+'">'+t("msi_add")+'</button></div>';
     }
@@ -6486,6 +6517,12 @@
     }else if(act==="toggle-subsection"){
       var scKey = el.getAttribute("data-card")+"-"+el.getAttribute("data-key");
       ui.openSubsections[scKey] = !ui.openSubsections[scKey];
+      render();
+    }else if(act==="select-card-tab"){
+      // Pestañas únicas (gastos/MSI/diferidos/pagos) dentro del detalle de una
+      // tarjeta — reemplaza los 4 acordeones apilados por una sola sección visible
+      // a la vez, elegida con esta barra de pestañas.
+      ui.cardTab[el.getAttribute("data-card")] = el.getAttribute("data-key");
       render();
     }else if(act==="toggle-past-cycles"){
       var tpid = el.getAttribute("data-id");
