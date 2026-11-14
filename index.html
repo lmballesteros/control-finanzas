@@ -49,7 +49,9 @@
   ::-webkit-scrollbar{width:6px;height:6px;}
   ::-webkit-scrollbar-thumb{background:var(--surface2);border-radius:3px;}
   h1,h2{letter-spacing:-0.01em;}
-  .wrap{max-width:480px;margin:0 auto;padding:32px 16px 100px;}
+  .wrap{max-width:480px;margin:0 auto;padding:32px 16px 32px 78px;}
+  .bottom-nav-scroll{scrollbar-width:none;-ms-overflow-style:none;}
+  .bottom-nav-scroll::-webkit-scrollbar{display:none;}
   .eyebrow{color:var(--blue);font-size:11px;text-transform:uppercase;letter-spacing:.14em;margin-bottom:4px;font-weight:600;}
   h1{font-family:var(--disp);font-size:26px;font-weight:700;letter-spacing:-0.02em;margin:0 0 24px;}
   .stats{display:flex;gap:8px;margin-bottom:32px;}
@@ -964,7 +966,7 @@
              cloudModal:false, cloudMode:"login", cloudError:"", cloudBusy:false, cloudUser:null, cloudStatus:"signed-out", cloudConflict:null, authChecked:false,
              deleteAccountModal:false, deleteAccountPassword:"", deleteAccountError:"", deleteAccountBusy:false, cloudResetSent:false,
              checkingUpdate:false, updateCheckResult:null,
-             hideBalances:getHideBalances() };
+             hideBalances:getHideBalances(), navRailCollapsed:getNavCollapsed() };
   var API_KEY_STORAGE = "anthropic-api-key";
   var LAST_BACKUP_KEY = "last-backup-date";
   var DEV_MODE_STORAGE = "receipt-dev-mode-enabled";
@@ -1025,6 +1027,12 @@
   var HIDE_BALANCES_KEY = "hide-balances";
   function getHideBalances(){ try{ return localStorage.getItem(HIDE_BALANCES_KEY)==="1"; }catch(e){ return false; } }
   function setHideBalancesPref(on){ try{ localStorage.setItem(HIDE_BALANCES_KEY, on?"1":"0"); }catch(e){} }
+  /* El menú vertical se puede esconder (deja solo una pestañita para volver a
+     abrirlo) — se recuerda la preferencia entre sesiones, igual que "ocultar
+     saldos", para que no se te vuelva a abrir solo si lo dejaste cerrado. */
+  var NAV_COLLAPSED_KEY = "nav-rail-collapsed";
+  function getNavCollapsed(){ try{ return localStorage.getItem(NAV_COLLAPSED_KEY)==="1"; }catch(e){ return false; } }
+  function setNavCollapsedPref(on){ try{ localStorage.setItem(NAV_COLLAPSED_KEY, on?"1":"0"); }catch(e){} }
   function fmtMasked(n){ return ui.hideBalances ? "••••" : fmt(n); }
   function renderHideBalancesToggle(){
     return '<button data-act="toggle-hide-balances" style="display:flex;align-items:center;gap:6px;background:var(--surface3);border:1px solid var(--hairline);border-radius:20px;padding:6px 12px;margin-bottom:14px;color:var(--muted);font-size:11px;font-weight:600;">'+
@@ -2990,7 +2998,7 @@
     var nextTabId = navIds[(curTabIdx+1)%navIds.length];
 
     var html = "";
-    html += '<div class="wrap" style="zoom:'+(FONT_SCALE[data.settings.fontSize] || FONT_SCALE.normal)+';">';
+    html += '<div class="wrap" style="zoom:'+(FONT_SCALE[data.settings.fontSize] || FONT_SCALE.normal)+';padding-left:'+(ui.navRailCollapsed?"26px":"78px")+';">';
     html += '<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;">'+
       '<button data-act="set-tab" data-tab="'+prevTabId+'" style="background:none;border:none;color:var(--muted);padding:6px 2px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;max-width:64px;">'+
       '<span style="font-size:18px;line-height:1;">‹</span>'+
@@ -3045,7 +3053,6 @@
 
     html += '</div>';
     html += renderBottomNav();
-    html += renderNavSheet();
     if(ui.toast){
       html += '<div style="position:fixed;left:0;right:0;bottom:78px;z-index:50;display:flex;justify-content:center;padding:0 16px;">'+
         '<div style="background:var(--surface);border:1px solid var(--surface2);border-radius:12px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:480px;width:100%;box-shadow:0 4px 14px rgba(0,0,0,.3);">'+
@@ -3104,16 +3111,34 @@
     {id:"analisis", label:t("nav_analisis"), icon:"🔍"},
     {id:"config", label:t("nav_ajustes"), icon:"⚙"}
   ];
+  /* Menú de navegación FIJO siempre visible a la izquierda (en vez de la hoja
+     emergente "IR A" que se abría con el botón ☰). Con 9 secciones no caben
+     todas en una sola columna sin pasarse de alto en pantallas chicas, así que
+     es un riel vertical con scroll propio si hace falta. Se puede esconder con
+     el botón ‹ (deja solo una pestañita › para volver a abrirlo) y se recuerda
+     la preferencia entre sesiones. */
   function renderBottomNav(){
-    var html = '<div style="position:fixed;bottom:0;left:0;padding:0 0 16px 16px;z-index:40;">'+
-      '<button data-act="toggle-nav-sheet" aria-label="'+t("nav_menu_aria")+'" style="width:52px;height:52px;border-radius:50%;'+
-      'background:var(--surface);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);'+
-      'border:1px solid var(--hairline);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;'+
-      'box-shadow:0 8px 24px rgba(0,0,0,.45);">'+
-      '<span style="display:block;width:20px;height:2px;background:var(--text);border-radius:2px;"></span>'+
-      '<span style="display:block;width:20px;height:2px;background:var(--text);border-radius:2px;"></span>'+
-      '<span style="display:block;width:20px;height:2px;background:var(--text);border-radius:2px;"></span>'+
-      '</button></div>';
+    if(ui.navRailCollapsed){
+      return '<div style="position:fixed;top:0;left:0;bottom:0;z-index:40;display:flex;align-items:center;">'+
+        '<button data-act="toggle-nav-rail" aria-label="'+t("nav_menu_aria")+'" style="width:20px;height:56px;border:1px solid var(--hairline);border-left:none;background:var(--modal-bg);'+
+        'backdrop-filter:blur(30px) saturate(160%);-webkit-backdrop-filter:blur(30px) saturate(160%);border-top-right-radius:12px;border-bottom-right-radius:12px;'+
+        'display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;box-shadow:4px 0 16px rgba(0,0,0,.3);">›</button></div>';
+    }
+    var html = '<div style="position:fixed;top:0;left:0;bottom:0;z-index:40;display:flex;align-items:center;">';
+    html += '<div class="bottom-nav-scroll" style="max-height:92vh;overflow-y:auto;display:flex;flex-direction:column;gap:2px;'+
+      'background:var(--modal-bg);backdrop-filter:blur(30px) saturate(160%);-webkit-backdrop-filter:blur(30px) saturate(160%);'+
+      'border:1px solid var(--hairline);border-left:none;border-top-right-radius:16px;border-bottom-right-radius:16px;'+
+      'padding:6px;box-shadow:4px 0 20px rgba(0,0,0,.35);">';
+    html += '<button data-act="toggle-nav-rail" aria-label="'+t("nav_menu_aria")+'" style="width:52px;padding:2px 0 8px;border:none;background:none;color:var(--muted);font-size:12px;border-bottom:1px solid var(--hairline);margin-bottom:4px;">‹</button>';
+    NAV_ITEMS.forEach(function(it){
+      var active = ui.tab === it.id;
+      html += '<button data-act="set-tab" data-tab="'+it.id+'" style="flex:0 0 auto;width:52px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 2px;border:none;background:'+(active?"rgba(10,132,255,.16)":"none")+';border-radius:10px;'+
+        'color:'+(active?"var(--blue)":"var(--muted)")+';">'+
+        '<span style="font-size:17px;line-height:1;">'+it.icon+'</span>'+
+        '<span style="font-size:8.5px;font-weight:600;white-space:nowrap;line-height:1.1;">'+esc(it.label)+'</span>'+
+        '</button>';
+    });
+    html += '</div></div>';
     return html;
   }
   function renderNavSheet(){
@@ -5913,6 +5938,10 @@
       ui.tab = el.getAttribute("data-tab");
       ui.navSheetOpen = false;
       window.scrollTo(0,0);
+      render();
+    }else if(act==="toggle-nav-rail"){
+      ui.navRailCollapsed = !ui.navRailCollapsed;
+      setNavCollapsedPref(ui.navRailCollapsed);
       render();
     }else if(act==="toggle-nav-sheet"){
       ui.navSheetOpen = !ui.navSheetOpen;
